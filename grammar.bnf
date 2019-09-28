@@ -1,0 +1,54 @@
+;; Source grammar
+
+start ::= "match" id "with" pattern0
+pattern0 ::= (pattern1|lexpr) "->" rexpr (pattern1|ε)
+pattern1 ::= ("|" lexpr)(pattern1| "->" rexpr) (pattern1|ε)
+
+lexpr ::= rule (ε|condition) (ε|assignment)
+rexpr ::= string
+
+rule ::= string ;; This is an ocaml code expression: is this enough? Or should we describe the ocaml exp?
+
+condition ::= "when" bexpr
+assignment ::= "as" id
+bexpr ::= "(" bexpr ")" | bexpr (and|or) bexpr
+           | var "(" vars ") | var id var | var vars
+and ::= "&&"
+or ::= "||"
+
+vars = var vars|var
+var = id
+
+;; Target grammar ;; To discuss: only the pattern match portion of the code? Or everything?
+
+Start ::= sexpr ;; there could be identifiers at the beginning or end that I don't know about
+;; such as setGlobal. to discuss
+sexpr ::= "(" elements ")" ;; () should be valid but we ignore it
+elements ::= (atom|variable|string|sexpr)+
+string ::= "\"" identifier "\""
+variable ::= identifier ;;
+atom ::=  let|catch|if|switch|switch-star|field|apply
+
+let ::= "let" assignment sexpr ;; (assignment sexpr)+ outside of pattern match code
+assignment ::= "function" variable variable+ ;; the first variable is the identifier of the function
+               | variable "=a" ;; new variable declared
+
+field ::= "field" digit variable
+apply ::= "apply" variable variable
+
+catch ::= "catch" sexpr with sexpr
+with ::= "with" "(" label ")"
+exit ::= "exit" label
+
+switch-star ::= "switch*" variable cases
+switch::= "switch" variable case* "default:" sexpr
+case ::= "case" casevar ":" sexpr
+casevar ::= ("tag"|"int") digit
+
+if ::= "if" bexpr sexpr sexpr
+bexpr ::= "(" 
+            ("!="|"=="|">="|"<="|">"|"<") (variable|sexpr) digit 
+            |field
+          ")"
+
+label ::= digit

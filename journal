@@ -1,0 +1,50 @@
+# 23-09
+Read papers by Gabriel
+Talk on MLTS
+
+# 24-09
+Coffee with everyone there
+Finished reading papers
+
+#25/26-09
+
+The source language is the pattern match section of the code:
+
+match x with
+| p1 -> e1
+| p2 | p3 -> e2
+| p4 when c1 -> e3
+...
+
+while the target language is the lambda representation given by ocamlc -dlambda (or rawlambda):
+``` example
+(a/1209 =
+    (function lt/1210
+        (catch
+            (if lt/1210
+                (let (match/1215 =a (field 0 lt/1210))
+                    (switch match/1215
+                        case tag 2:
+                            (if (field 1 lt/1210) (exit 1)
+                                (if (== (field 0 match/1215) 2) "K3 2" (exit 1)))
+                            default: (exit 1)))
+                        (exit 1))
+                    with (1) "[_, _]")))
+
+
+# 27-09
+
+Three cases not considered: (x>0, _) -> e1     with constraint    (x>0, y>0) -> e1. Come si vede, il secondo rispetta il primo ma non viceversa, eppure per come lo ho formulato andiamo a controllare che tutti i costraint delle variabili simboliche rispettino i patterns dati, quindi sarebbe stato definito corretto quando non lo e`.
+Secondo caso, costraint non validi: x>0 and x<0, possono succedere nel compilatore, nel mio caso dovrei eliminarli.
+Terzo ed ultimo caso, pattern non raggiungibili: | A -> "a" | B -> "b" | _ -> "_" | C -> "c";; "c" non e` raggiungibile ma il mio test fallirebbe in quanto e4 non e` espressa in lambda.
+
+Plan for the next days:
+* open a repo
+* describe the grammar of the source language
+* describe the grammar of the target language
+* write the algorithm, almost formally
+
+# 28-09
+
+Drafted a first version of the grammar for the source and target language.
+Opened a github repository, with Gabriel as collaborator
