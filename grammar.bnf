@@ -1,14 +1,26 @@
 ;; Source grammar
 ;; see example1.ml
 
-start ::= "match" id "with" pattern0
-pattern0 ::= (pattern1|lexpr) "->" rexpr (pattern1|ε)
-pattern1 ::= ("|" lexpr)(pattern1| "->" rexpr) (pattern1|ε)
+start ::= "match" id "with" patterns
+patters ::= (pattern0|pattern1) pattern1+
+;; pattern0 and pattern1 are needed to distinguish the first case in which we can avoid writing the vertical line
+pattern0 ::= pattern 
+pattern1 ::= "|" pattern
+pattern ::= lexpr "->" rexpr
 
 lexpr ::= rule (ε|condition) (ε|assignment)
-rexpr ::= string
+rexpr ::= value ;;  todo: discuss
 
-rule ::= string ;; This is an ocaml code expression: is this enough? Or should we describe the ocaml exp?
+rule ::= wildcard|variable|constructor_pattern|or_pattern ;;
+
+;; rules
+wildcard ::= "_"
+variable ::= identifier
+constructor_pattern ::= int|float|char|string|bool
+                        |unit|record|exn|objects|ref
+                        |list|tuple|array
+                        |variant|parameterized_variant ;; ocaml data types
+or_pattern ::=  wildcard|variable|constructor_pattern ("|" wildcard|variable|constructor_pattern)+
 
 condition ::= "when" bexpr
 assignment ::= "as" id
@@ -27,8 +39,9 @@ Start ::= sexpr ;; there could be identifiers at the beginning or end that I don
                 ;; such as setGlobal. todo discuss
 sexpr ::= "(" elements ")" ;; () should be valid but we ignore it
 elements ::= (atom|variable|string|sexpr)+
-string ::= "\"" identifier "\""
-variable ::= identifier ;;
+
+string ::= "\"" identifier "\"" ;; string between doublequotes
+variable ::= identifier 
 atom ::=  let|catch|if|switch|switch-star|field|apply
 
 let ::= "let" assignment sexpr ;; (assignment sexpr)+ outside of pattern match code
