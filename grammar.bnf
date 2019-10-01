@@ -1,4 +1,5 @@
 ;; Source grammar
+;; see example1.ml
 
 start ::= "match" id "with" pattern0
 pattern0 ::= (pattern1|lexpr) "->" rexpr (pattern1|ε)
@@ -19,10 +20,11 @@ or ::= "||"
 vars = var vars|var
 var = id
 
-;; Target grammar ;; To discuss: only the pattern match portion of the code? Or everything?
+;; Target grammar ;; Todo discuss: only the pattern match portion of the code? Or everything?
+;; see example1.lambda
 
 Start ::= sexpr ;; there could be identifiers at the beginning or end that I don't know about
-;; such as setGlobal. to discuss
+                ;; such as setGlobal. todo discuss
 sexpr ::= "(" elements ")" ;; () should be valid but we ignore it
 elements ::= (atom|variable|string|sexpr)+
 string ::= "\"" identifier "\""
