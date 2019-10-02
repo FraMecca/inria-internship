@@ -132,3 +132,38 @@ type t = K1 of int | K2 | K3 of int| K4
 ```
 
 Arithmetic constraints should be logically equivalent to ρ-constraints on equality. TODO: discuss and consider isout, range conditions.
+
+# High level representation
+
+                                            +------------------+
+                                            |  Input:          |
+                                            |        source    |
+                                            |        target    |
+                                            +------------------+
+                                                     |
+               "match x with |p1|p2|..."             |         lambda code
+                                      +╌╌╌╌╌╌╌╌╌╌╌╌╌╌*╌╌╌╌╌╌╌╌╌╌╌╌╌╌+
+                                      |                             |
+                                      |                             |
+                            +------------------+           +------------------+
+                            |   clause matrix  |           |     Symbolic     |
+                            |      P -> L      |           |     excution     |
+                            +------------------+           +------------------+
+                                      |                             |
+                                      |                             |
+                            +------------------+                    |
+                            |     Symbolic     |                    |
+                            |     excution     |                    |
+                            +------------------+                    |
+                                      |                             |
+     ((ρ1,o1), (ρ2,o2), ..., (ρn,on)) +╌╌╌╌╌╌╌╌╌╌╌╌╌╌*╌╌╌╌╌╌╌╌╌╌╌╌╌╌+ ((ι1,l1), (ι2,l2), ..., (ιn,ln))
+                                                     |
+                                                     |
+                             +--------------------------------------------------+
+                             |  (o_expr -> l_expr) -> o_expr -> l_expr -> bool  |
+                             |  (ι_ctr -> ρ_ctr)   -> ι_ctr  -> ρ_ctr  -> bool  |
+                             |          transform and check equivalence         |
+                             +--------------------------------------------------+
+                                                     |
+                                                     v 
+                                                  result!
