@@ -8,6 +8,10 @@ Coherent in this context means that for the same input both the targets return t
 
 The tool receives as its inputs an ocaml pattern matching section of code and the lambda representation given as output by the ocaml compiler when invoked with flag -dlambda.
 
+% [Gabriel]The algorithm takes in input a representation of the Lambda
+% code, could be the compiler AST directly: no need to re-parse the
+% lambda code (unless we want to)
+
 The pattern matching section has form:
 
 ```
@@ -24,6 +28,11 @@ Patterns could or could not be exhaustive.
 # Output of the tool
 
 The tool returns an empty output in case the equivalence between the target language and the source language is satisfied, otherwise it specifies which patterns in the source language are not satisfied in the target language.
+
+% [Gabriel] So not really 1 or 0 (it returns more
+% information). I would focus on the natural "type" of the algorithm
+% rather than its interface when seen as a program.
+
 The return code is either 0 or 1.
 
 # Methodology
@@ -85,6 +94,12 @@ Sub trees could be constructed bottom up, by evaluating the target code starting
 I propose for the moment to ignore this fact and in case of a jump, to just repeat the evaluation.
 Subtrees constructed by the repeated evaluation in case of jumps will differ for the intersection of the constraints obtained before the jump.
 
+% [Gabriel] an easy approach is to do caching/memoization: if you see
+% (exit i), you first compute the path starting from (i) (or reuse it
+% if previously computed) and you prepend your own current path to it
+% to get the result. This follows the "naive" control-flow but with
+% the "bottom-up" efficiency.
+
 The tree will have this form:
 
 ```
@@ -117,7 +132,26 @@ Defining SourceSet the set of tuples (ρ-constraint, o-expression) and TargetSet
 * (1) o-expressions into l-expressions
 * (2) ι-contraints into ρ-constraint
 
+% [Gabriel] not really "transforming into" rather than establishing
+% a relation (you should not miss ρ-constraint absent from the input
+% constraints, for example).
+
+% [Gabriel] this part is still not very precise, how exactly do we
+% check equivalence between these sets of constraints?
+
 Regarding (1), the ocaml compiler already supports the translation (e -> l as noted in the paper).
+
+% [Gabriel] I think that we could assume given a relation between
+% o-expressions and l-expressions as a side-result of the compiler run
+% that we are verifying. (This is conceptually nicer than running the
+% compiler again.)
+
+% [Gabriel] for a toy model of the problem we could restrict the
+% language of o-expressions and l-expressions to make the
+% correspondence trivial. For example each right-hand-side could be of
+% the form
+%
+%     observe case-number x y z ... (the captured variables)
 
 Regarding (2), it can be noted that structural constraints contains information on the constructor because of the encoding of the type constructors by the ocaml compiler.
 Example:
