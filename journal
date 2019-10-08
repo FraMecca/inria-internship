@@ -61,3 +61,35 @@ Drafted the algorithm.
 # 02-10
 
 Version of the algorithm to be discussed with Gabriel
+
+# 03-10
+
+Read and discussed the work of Steve Dolan. Wrote a mail to him noting the differences.
+Discussed with Gabriel his notes, merged them into the repo
+
+# 04-10
+
+Applied fixes to algorithm.md
+Started to think about a better formulation for equivalence of ρ-constraints and ι-constraints
+
+# 06-10
+
+Sent a mail to Gabriel with a paper, a doubt on how compiler optimization could impact our work and a proposal for the the formulation of the equivalence checking.
+
+The doubt is the following:
+the compiler could optimize for assertions outside of the function scope.
+In that case propositions in the lambda code could cover only parts of the domain of the values but our tool would fail.
+
+07-10
+
+Gabriel and I discussed the mail.
+We noted the following:
+
+1. We would hook exactly around the pattern-matching compiler, not the
+further optimizations, so that's not an issue. (If later the
+pattern-matching compiler starts taking global-optimization-knowledge
+into account, we can extend our verifier to do the same.)
+
+2. The paper I sent is interesting, but our work, even if it shares a lot of theoretical ground, aims at the ocaml compiler and wants to cover more ground than what described on the paper.
+
+3. We discussed how to represent patterns as a tree of concrete value and accessors.
