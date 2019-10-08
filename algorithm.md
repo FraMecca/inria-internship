@@ -6,11 +6,7 @@ Coherent in this context means that for the same input both the targets return t
 
 # Inputs of the tool
 
-The tool receives as its inputs an ocaml pattern matching section of code and the lambda representation given as output by the ocaml compiler when invoked with flag -dlambda.
-
-% [Gabriel]The algorithm takes in input a representation of the Lambda
-% code, could be the compiler AST directly: no need to re-parse the
-% lambda code (unless we want to)
+The tool receives as its inputs an ocaml pattern matching section of code and AST of the Lambda code produced by the compiler.
 
 The pattern matching section has form:
 
@@ -28,12 +24,6 @@ Patterns could or could not be exhaustive.
 # Output of the tool
 
 The tool returns an empty output in case the equivalence between the target language and the source language is satisfied, otherwise it specifies which patterns in the source language are not satisfied in the target language.
-
-% [Gabriel] So not really 1 or 0 (it returns more
-% information). I would focus on the natural "type" of the algorithm
-% rather than its interface when seen as a program.
-
-The return code is either 0 or 1.
 
 # Methodology
 
@@ -62,7 +52,7 @@ will be symbolically represented as:
 
 where [| (¬ρ1∧¬ρ2∧¬ρ3∧...∧¬ρn-1)∧ρn |] is called a ρ-constraint.
 The result of the symbolic execution of the first input will result in a set of tuples of the form
-(ρ-constraint, o-expression), where o-expression is treated as black box ocaml code.
+(ρ-constraint, o-expression), where a o-expression is treated as black box ocaml code.
 
 ρ-constraints are the result of the consecutive application of the four rules (variable rule, constructor rule, orpat rule, mixture rule) on the clause matrix P->L.
 
@@ -87,12 +77,15 @@ Branching allows the construction of a tree where every node represents a constr
 In particular, when branching on an "if" clause two children are mapped to the current node;
 for a switch case there will be as many children as "case" statements, plus one if the "default" case is present.
 Leafs are constructed when the evaluation reduces to a result value.
+For if cases the two branches will have two constraints, one the negation of the other.
+For switch* clauses there will be one branch for each "case" clause with a new constraint generated from it.
+In case of switch clauses, the same will apply plus there will be a branch representing the "default case" as a negation of the union of the constraints on the precedente branches (¬(c4 ∨ c5 ∨ ... ∨ cn)).
 
-Discussion:
-"exit" labels allow jumps during the execution. Jumps are always performed in inner frames and always advance execution (loops are not legal). This means that a topological sort is always possible and a DAG could be constructed.
-Sub trees could be constructed bottom up, by evaluating the target code starting from the outermost "with" label: when a jump happens, the subtree can be copied and attached as the child of the node.
-I propose for the moment to ignore this fact and in case of a jump, to just repeat the evaluation.
-Subtrees constructed by the repeated evaluation in case of jumps will differ for the intersection of the constraints obtained before the jump.
+% Discussion:
+% "exit" labels allow jumps during the execution. Jumps are always performed in inner frames and always advance execution (loops are not legal). This means that a topological sort is always possible and a DAG could be constructed.
+% Sub trees could be constructed bottom up, by evaluating the target code starting from the outermost "with" label: when a jump happens, the subtree can be copied and attached as the child of the node.
+% I propose for the moment to ignore this fact and in case of a jump, to just repeat the evaluation.
+% Subtrees constructed by the repeated evaluation in case of jumps will differ for the intersection of the constraints obtained before the jump.
 
 % [Gabriel] an easy approach is to do caching/memoization: if you see
 % (exit i), you first compute the path starting from (i) (or reuse it
@@ -108,36 +101,27 @@ The tree will have this form:
                           |
                        if clause
                          /\
-                       c1  ¬c1∧c2
+                       c1  ¬c1
                        /    \
             switch clause   ...
             /   |       \
            /    |        \
           /     |         \
-      c1∧c3  c1∧¬c3∧c4   c1∧¬c3∧¬c4∧c5  ...
-        |        |             |          |
-        |        |             |          |
-       e1       e2            e2         en
+      c1∧c3  c1∧c4        c1∧c5    ...   c1∧cn-1   c1∧¬(c4∨...∨cn-1)
+        |        |             |          |              |
+        |        |             |          |              |
+       e1       e2            e2         en-1         en (default case)
 ```
 
 The result of the symbolic execution of the second input will result in a set of tuples of the form
-(ι-constraint, l-expression), where l-expression is arbitrary code in lambda form, contained in one of the leafs of the constructed tree, while ι-constraints is a tuple of "target constraints" contained in the parent of the leaf.
-A "target constraint" is either defined as:
-* arithmetic constraints of form (op variable number) where op is one of {!=, ==, <, >, <=, >=} and are constructed when branching on an "if" clause
-* structural constraints, constructed when branching on a switch clause, of the form (K number) where K is one of {int, tag}.
+(ι-constraint, l-expression), where l-expression is arbitrary code in lambda form, contained in one of the leafs of the constructed tree, while ι-constraints is a list of "arithmetic constraints" contained in the parent of the leaf.
+A arithmetic constraints is of the form `(op variable number)` where op is one of {!=, ==, <=, >=} and are constructed when branching on a proposition in the lambda code.
 
 ## Equivalence
 
-Defining SourceSet the set of tuples (ρ-constraint, o-expression) and TargetSet the set of tuples (ι-constraint, l-expression), the last step for checking the equivalence of the source and the target inputs consists in transforming:
-* (1) o-expressions into l-expressions
-* (2) ι-contraints into ρ-constraint
-
-% [Gabriel] not really "transforming into" rather than establishing
-% a relation (you should not miss ρ-constraint absent from the input
-% constraints, for example).
-
-% [Gabriel] this part is still not very precise, how exactly do we
-% check equivalence between these sets of constraints?
+Defining SourceSet the set of tuples (ρ-constraint, o-expression) and TargetSet the set of tuples (ι-constraint, l-expression), the last step for checking the equivalence of the source and the target inputs consists in checking the equivalence of:
+* (1) o-expressions with l-expressions
+* (2) ι-contraints with ρ-constraint
 
 Regarding (1), the ocaml compiler already supports the translation (e -> l as noted in the paper).
 
@@ -165,7 +149,32 @@ type t = K1 of int | K2 | K3 of int| K4
  *)
 ```
 
-Arithmetic constraints should be logically equivalent to ρ-constraints on equality. TODO: discuss and consider isout, range conditions.
+Patterns are represented as a tree of accessors (`field n variable`).
+Example:
+
+```
+Some (A 9, B "st");;
+```
+
+```
+[0: [0: [0: 9] [1: "st"]]] 
+                                      *
+                                      |
+                                      0     (field 0 ~)
+                                      |
+                                      0     (field 0 (field 0 ~))
+                                     / \ 
+  (field 1 (field 0 (field 0 ~)))   0   1   (field 1 (field 0 (field 0 ~)))
+                                   /     \
+                 (field 0 (...))  9     "st"   (field 0 (...))
+```
+
+
+This means that when executing the lambda code we can map each proposition (represented as a constraint of the ι-constraint) with one node part of the above tree that represents the ρ-constraint that we are testing against.
+
+A node satisfies a ι-constraint when 
+* called c the constraint on the node
+* the application of the value of the node on c and ¬c reduces respectively to true and false.
 
 # High level representation
 
