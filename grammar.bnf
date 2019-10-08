@@ -4,66 +4,66 @@
 start ::= "match" id "with" patterns
 patters ::= (pattern0|pattern1) pattern1+
 ;; pattern0 and pattern1 are needed to distinguish the first case in which we can avoid writing the vertical line
-pattern0 ::= pattern 
-pattern1 ::= "|" pattern
-pattern ::= lexpr "->" rexpr
+pattern0 ::= clause 
+pattern1 ::= "|" clause
+clause ::= lexpr "->" rexpr
 
-lexpr ::= rule (ε|condition) (ε|assignment)
-rexpr ::= value ;;  todo: discuss
+lexpr ::= rule (ε|condition)
+rexpr ::= ocaml_code ;; arbitrary code
 
 rule ::= wildcard|variable|constructor_pattern|or_pattern ;;
 
 ;; rules
 wildcard ::= "_"
 variable ::= identifier
-constructor_pattern ::= int|float|char|string|bool
-                        |unit|record|exn|objects|ref
-                        |list|tuple|array
-                        |variant|parameterized_variant ;; ocaml data types
+constructor_pattern ::= constructor (rule|ε) (assignment|ε)
+
+constructor ::= int|float|char|string|bool
+                |unit|record|exn|objects|ref
+                |list|tuple|array
+                |variant|parameterized_variant ;; ocaml data types
+
 or_pattern ::=  wildcard|variable|constructor_pattern ("|" wildcard|variable|constructor_pattern)+
 
-condition ::= "when" bexpr
+condition ::= "when" bexpr 
 assignment ::= "as" id
-bexpr ::= "(" bexpr ")" | bexpr (and|or) bexpr
-           | var "(" vars ") | var id var | var vars
-and ::= "&&"
-or ::= "||"
+bexpr ::= ocaml_code ;; arbitrary code
 
-vars = var vars|var
-var = id
 
 ;; Target grammar ;; Todo discuss: only the pattern match portion of the code? Or everything?
 ;; see example1.lambda
 
-Start ::= sexpr ;; there could be identifiers at the beginning or end that I don't know about
+start ::= sexpr ;; there could be identifiers at the beginning or end that I don't know about
                 ;; such as setGlobal. todo discuss
-sexpr ::= "(" elements ")" ;; () should be valid but we ignore it
-elements ::= (atom|variable|string|sexpr)+
+sexpr ::= variable|string|"(" special_form ")" ;; () should be valid but we ignore it
 
 string ::= "\"" identifier "\"" ;; string between doublequotes
 variable ::= identifier 
-atom ::=  let|catch|if|switch|switch-star|field|apply
+special_form ::=  let|catch|if|switch|switch-star|field|apply
 
 let ::= "let" assignment sexpr ;; (assignment sexpr)+ outside of pattern match code
 assignment ::= "function" variable variable+ ;; the first variable is the identifier of the function
                | variable "=a" ;; new variable declared
 
 field ::= "field" digit variable
-apply ::= "apply" variable variable
+apply ::= ocaml_lambda_code ;; arbitrary code
 
 catch ::= "catch" sexpr with sexpr
 with ::= "with" "(" label ")"
 exit ::= "exit" label
 
-switch-star ::= "switch*" variable cases
+switch-star ::= "switch*" variable case*
 switch::= "switch" variable case* "default:" sexpr
 case ::= "case" casevar ":" sexpr
-casevar ::= ("tag"|"int") digit
+casevar ::= ("tag"|"int") integer
 
 if ::= "if" bexpr sexpr sexpr
 bexpr ::= "(" 
-            ("!="|"=="|">="|"<="|">"|"<") (variable|sexpr) digit 
+            ("!="|"=="|">="|"<="|">"|"<") sexpr digit 
             |field
           ")"
 
-label ::= digit
+label ::= integer
+
+;; didn't consider extensible data types (exceptions included)
+;; what about "isout" and the other possible functions in the lambda repr?
