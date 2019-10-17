@@ -80,7 +80,12 @@ The doubt is the following:
 the compiler could optimize for assertions outside of the function scope.
 In that case propositions in the lambda code could cover only parts of the domain of the values but our tool would fail.
 
-07-10
+# 07-10
+
+Read the paper in order to grasp the math behind it and investigated for a better formulation of equivalence between rho-constraints and iota-constraints.
+
+
+# 08-10
 
 Gabriel and I discussed the mail.
 We noted the following:
@@ -93,3 +98,27 @@ into account, we can extend our verifier to do the same.)
 2. The paper I sent is interesting, but our work, even if it shares a lot of theoretical ground, aims at the ocaml compiler and wants to cover more ground than what described on the paper.
 
 3. We discussed how to represent patterns as a tree of concrete value and accessors.
+
+# 10-10
+
+Asked Gabriel for help in providing a matemathical notation.
+Wrote to Moreau for a follow up on the formal verifier for the TOM language.
+
+# 14-10
+
+Spent the day with Gabriel working on the mathematical notation of the problem at the blackboard.
+
+# 15-10
+
+Talked about the implementation;
+did pair programming and wrote the types for the symbolic engine
+
+# 16-10
+
+Read a "Survey of Symbolic Execution Techniques".
+worked on the implementation a little bit more.
+
+# 17-10
+
+Replied to Moreau;
+still working on implementation.
