@@ -37,10 +37,11 @@ and
   | Function of variable * sexpr
   | Let of variable * sexpr * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
-  | Exit of exitpoint * sexpr list
+  | Exit of exitpoint * sexpr list (* could be "exit 1 var1 var2" *)
   | If of bexpr * sexpr * sexpr
   | Switch of variable * switch_case list * sexpr option
   | Field of int * variable
+  | Comparison of bop * sexpr * int
   | TBlackbox of target_blackbox
 and
   exitpoint = int
