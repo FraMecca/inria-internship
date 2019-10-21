@@ -59,7 +59,9 @@ and
   target_blackbox = string
 and
   bop =
-  | Ge 
+  | Ge
+  | Gt
+  | Le
   | Lt
   | Eq
   | Nq
