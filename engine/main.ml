@@ -1,6 +1,8 @@
 [@@@ warning "-30"]
 open BatIO
 
+open BatList
+
 type source_program  = {
   scrutinee: variable;
   clauses: clause list;
@@ -105,8 +107,8 @@ let rec parse_lambda lsp =
   let print op = BatIO.write_string stdout (op^"\n")
   in
   let advance_two_sexpr lsp = (* helper function to read two sexpr at a time *)
-    let s1, rem = parse lsp in
-    let s2, rem' = parse rem in
+    let s1, rem = parse_lambda lsp in
+    let s2, rem' = parse_lambda rem in
     s1, s2, rem'
   in
   let consume_last_paren lsp = (* helper function to read a token expected to be ")" *)
@@ -132,23 +134,23 @@ let rec parse_lambda lsp =
     match lsp with
     | "case"::"int"::i::tl -> print "case int";
       let (i':int) = int_of_string (BatString.replace ~str:i ~sub:":" ~by:"" |> snd) in
-      let sexpr, rem = parse tl in
+      let sexpr, rem = parse_lambda tl in
       let (sw: switch_case) = Int i', sexpr in
       advance_switch_cases rem (sw::cases_rev)
     | "case"::"tag"::i::tl -> print "case tag" ;
       let (i':int) = int_of_string (BatString.replace ~str:i ~sub:":" ~by:"" |> snd) in
-      let sexpr, rem = parse tl in
+      let sexpr, rem = parse_lambda tl in
       let (sw: switch_case) = Tag i', sexpr in
       advance_switch_cases rem (sw::cases_rev)
     | "default:"::tl -> print "case default";
-      let sexpr, rem = parse tl in
+      let sexpr, rem = parse_lambda tl in
       List.rev cases_rev, Some sexpr, rem
     | ")"::tl -> List.rev cases_rev, None, tl
     | _ -> assert false
   in
-  let parse_special_form = function
+  let parse_lambda_special_form = function
     | "let"::"("::v::("="|"=a")::tl -> print ("(let("^v);
-      let s1, rem = parse tl in
+      let s1, rem = parse_lambda tl in
       Let (v, s1), consume_last_paren rem (* TODO: manage multiple sexprs, eg: (let s1 s2 s3 ... sn) *)
     | "field"::i::v::tl -> print ("(field "^i^" "^v^")");
       begin
@@ -157,7 +159,7 @@ let rec parse_lambda lsp =
         | _ -> assert false
       end
     | "function"::v::tl -> print ("(function "^v);
-      let sexpr, rem = parse tl in
+      let sexpr, rem = parse_lambda tl in
       Function (v, sexpr), rem
     | "exit"::i::tl -> print ("exit "^i^" ");
       let i' =
@@ -174,20 +176,20 @@ let rec parse_lambda lsp =
     | ("switch"|"switch*")::tl -> print "(switch(*))";
       let v, rem =
         match tl with
-        | "("::_ -> parse tl
+        | "("::_ -> parse_lambda tl
         | x::_ -> Var x, tl
         | [] -> assert false
       in
       let cases, defcase, rem' = advance_switch_cases rem [] in
       Switch (v, cases, defcase), rem'
     | "catch"::tl -> print "(catch";
-      let shead, rem = parse tl in
+      let shead, rem = parse_lambda tl in
       let exitpoint, (varlist, rem') =
         match rem with
         | "with"::"("::i::tl -> int_of_string i, advance_catch_exit_point tl []
         | _ -> assert false
       in
-      let stail, rem'' = parse rem'
+      let stail, rem'' = parse_lambda rem'
       in
       Catch (shead, exitpoint, varlist, stail), rem''
     | _ -> assert false
@@ -207,7 +209,7 @@ let rec parse_lambda lsp =
       | _ -> assert false
     end
   | "("::"if"::tl -> print "(if";
-    let bexpr, rem = parse tl in
+    let bexpr, rem = parse_lambda tl in
     let s1, s2, rem' = advance_two_sexpr rem in
     begin
       match bexpr with
@@ -216,7 +218,7 @@ let rec parse_lambda lsp =
       | _ -> assert false (* Bexpr can be only a sexpr of type Comparison|Field *)
     end
   | "("::rest ->
-    let expr, rest = parse_special_form rest in
+    let expr, rest = parse_lambda_special_form rest in
     expr, consume_last_paren rest
   | x::")"::tl ->
     begin
@@ -227,6 +229,3 @@ let rec parse_lambda lsp =
   | x::tl when x <> ")" -> print ("Var "^x); Var x, tl
   | _ -> assert false
 
-let () =
-  let tk = tokenize target_example in
-  let _ = parse tk in ()
