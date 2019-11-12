@@ -1,4 +1,4 @@
 (executable
  (name main)
- (libraries core batteries)
+ (libraries batteries)
  )

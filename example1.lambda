@@ -17,7 +17,7 @@
                            (if (!= match/1220 1) (exit 4)
                              (let (match/1224 =a (field 1 lt/1212))
                                (if match/1224
-                                 (if (field 1 match/1224) (exit 1) "K1 1")
+                                 (if (field 1 match/1224) (exit 1) "K1:1")
                                  (exit 1))))
                            (let (match/1221 =a (field 1 lt/1212))
                              (if match/1221
@@ -35,22 +35,22 @@
                            (switch match/1230
                             case tag 0:
                              (if (!= (field 0 match/1230) 1)
-                               (if (field 1 match/1229) (exit 1) "K1 _")
-                               (if (field 1 match/1229) (exit 1) "K1 1"))
+                               (if (field 1 match/1229) (exit 1) "K1:_")
+                               (if (field 1 match/1229) (exit 1) "K1:1"))
                             default: (exit 3)))
                          (exit 1))))
                   with (3)
                    (switch match/1219
                     case tag 1:
                      (if (!= (field 0 match/1219) 0)
-                       (if (field 1 (field 1 lt/1212)) (exit 1) "K2 _")
-                       (if (field 1 (field 1 lt/1212)) (exit 1) "K2 false"))
+                       (if (field 1 (field 1 lt/1212)) (exit 1) "K2:_")
+                       (if (field 1 (field 1 lt/1212)) (exit 1) "K2:false"))
                     default: (exit 2)))
                 with (2)
                  (let (match/1241 =a (field 1 lt/1212))
                    (switch* (field 0 match/1241)
                     case int 0: (exit 1)
-                    case tag 1: (if (field 1 match/1241) (exit 1) "K2 _")
+                    case tag 1: (if (field 1 match/1241) (exit 1) "K2:_")
                     case tag 2: (exit 1)))))
              (exit 1))
           with (1) "[_, _]")))
