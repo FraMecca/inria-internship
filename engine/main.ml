@@ -253,3 +253,10 @@ let rec parse_lambda lsp =
      end
   | _ -> assert false
 
+let () =
+  ignore target_example;
+  let target_example = BatFile.with_file_in Sys.argv.(1) BatIO.read_all in
+  let tk = tokenize target_example in
+  let sexpr, tl = parse_lambda tk in
+  ignore sexpr;
+  if tl <> [] then Printf.eprintf "unparsed: %S\n%!" (String.concat " " tl)
