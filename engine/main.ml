@@ -34,8 +34,9 @@ and
   | Var of variable
   | Int of int
   | Bool of bool
+  | String of string
   | Function of variable * sexpr
-  | Let of variable * sexpr
+  | Let of binding list * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
   | Exit of exitpoint * sexpr list (* could be "exit 1 var1 var2" *)
   | If of bexpr * sexpr * sexpr
@@ -44,11 +45,14 @@ and
   | Comparison of bop * sexpr * int
   | TBlackbox of target_blackbox
 and
+  binding = variable * sexpr
+and
   exitpoint = int
 and
   bexpr =
   | Comparison of bop * sexpr * int
   | Field of int * variable
+  | Var of variable
 and
   switch_case = switch_test * sexpr
 and
@@ -101,7 +105,7 @@ let tokenize lsp =
 
 type eng = { stm: string; pi: bool }
 
-let rec parse lsp =
+let rec parse_lambda lsp =
   let print op = Printf.printf "%s\n%!" op
   in
   let advance_two_sexpr lsp = (* helper function to read two sexpr at a time *)
@@ -112,7 +116,10 @@ let rec parse lsp =
   let consume_last_paren lsp = (* helper function to read a token expected to be ")" *)
     match lsp with
     | ")"::tl -> tl
-    | x -> print ("ASSERT FAILURE IN "^(List.hd x)); assert false
+    | x ->
+       print ("ASSERT FAILURE IN "
+              ^(String.concat " " (List.init 10 (List.nth x))));
+       assert false
   in
   let rec advance_catch_exit_point lsp varlistr =
     (* When a catch expression is found,
@@ -120,7 +127,7 @@ let rec parse lsp =
      * param lsp is of the form ["var1"; "var2"; ... ; "varn"; ")"]
      * varlist is used as an accumulator *)
     match lsp with
-    | ")"::tl -> List.rev varlistr, tl
+    | ")"::_ -> List.rev varlistr, lsp
     | x::tl -> advance_catch_exit_point tl (x::varlistr)
     | _ -> assert false
   in
@@ -130,6 +137,7 @@ let rec parse lsp =
      * the recursion terminates on "default" or on terminal paren
      * cases is used as an accumulator *)
     match lsp with
+    | ")"::_ -> List.rev cases_rev, None, lsp
     | "case"::"int"::i::tl -> print "case int";
       let (i':int) = int_of_string (BatString.replace ~str:i ~sub:":" ~by:"" |> snd) in
       let sexpr, rem = parse_lambda tl in
@@ -143,13 +151,41 @@ let rec parse lsp =
     | "default:"::tl -> print "case default";
       let sexpr, rem = parse_lambda tl in
       List.rev cases_rev, Some sexpr, rem
-    | ")"::tl -> List.rev cases_rev, None, tl
     | _ -> assert false
   in
-  let parse_lambda_special_form = function
-    | "let"::"("::v::("="|"=a")::tl -> print ("(let("^v);
-      let s1, rem = parse_lambda tl in
-      Let (v, s1), consume_last_paren rem (* TODO: manage multiple sexprs, eg: (let s1 s2 s3 ... sn) *)
+  let rec advance_exit_args rev_args lsp =
+    match lsp with
+      | ")" :: _ -> List.rev rev_args, lsp
+      | rest ->
+         let arg, rest = parse_lambda rest in
+         advance_exit_args (arg :: rev_args) rest
+  in
+  let parse_list parse_elem rest =
+    match rest with
+      | "(" :: rest ->
+         let rec loop acc = function
+           | ")"::rest -> List.rev acc, rest
+           | rest ->
+              let elem, rest = parse_elem rest in
+              loop (elem :: acc) rest
+         in loop [] rest
+      | _ -> assert false in
+  let parse_let_bindings rest =
+    let parse_binding = function
+      | id :: ("=" | "=a") :: rest ->
+         let def, rest = parse_lambda rest in
+         (id, def), rest
+      | _ -> assert false in
+    parse_list parse_binding rest in
+  let parse_special_form = function
+    | "setglobal" :: _global :: rest ->
+       (* accept and ignore the "setglobal" call
+          present at the top of examples *)
+       parse_lambda rest
+    | "let"::rest -> print "(let";
+      let bindings, rest = parse_let_bindings rest in
+      let body, rest = parse_lambda rest in
+      Let (bindings, body), rest
     | "field"::i::v::tl -> print ("(field "^i^" "^v^")");
       begin
         match int_of_string_opt i with
@@ -159,25 +195,23 @@ let rec parse lsp =
     | "function"::v::tl -> print ("(function "^v);
       let sexpr, rem = parse_lambda tl in
       Function (v, sexpr), rem
+    | "if"::tl -> print "(if";
+       let bexpr, tl = parse_lambda tl in
+       let bexpr : bexpr = match bexpr with
+         | Comparison (op, v, n) -> Comparison (op, v, n)
+         | Field (i, v) -> Field (i, v)
+         | Var v -> Var v
+         | _ ->
+            assert false
+       in
+       let s1, s2, tl = advance_two_sexpr tl in
+       If (bexpr, s1, s2), tl
     | "exit"::i::tl -> print ("exit "^i^" ");
-      let i' =
-        match int_of_string_opt i with
-        | Some i' -> i'
-        | _ -> assert false
-      in
-      let split_index_opt = BatList.index_of ")" tl in
-      let split_index = match split_index_opt with | Some i -> i | None -> assert false in
-      let r, l = BatList.split_at split_index tl in
-      let sexpr_list = r |> BatList.filter (fun c -> c <> ")") |>  BatList.map (fun v -> Var v) in
-      Exit (i', sexpr_list ), l
-
-    | ("switch"|"switch*")::tl -> print "(switch(*))";
-      let v, rem =
-        match tl with
-        | "("::_ -> parse_lambda tl
-        | x::_ -> Var x, tl
-        | [] -> assert false
-      in
+      let i = int_of_string i in
+      let args, tl = advance_exit_args [] tl in
+      Exit (i, args), tl
+    | ("switch"|"switch*")::tl -> print "(switch*)";
+      let v, rem = parse_lambda tl in
       let cases, defcase, rem' = advance_switch_cases rem [] in
       Switch (v, cases, defcase), rem'
     | "catch"::tl -> print "(catch";
@@ -190,40 +224,32 @@ let rec parse lsp =
       let stail, rem'' = parse_lambda rem'
       in
       Catch (shead, exitpoint, varlist, stail), rem''
-    | _ -> assert false
+    | other :: _ -> print other; assert false
+    | [] -> assert false
   in
   match lsp with
   | (("true"|"false") as b)::")"::tl -> Bool (bool_of_string b), tl
   | "("::((">"|"<"|">="|"<="|"=="|"!=") as bop)::tl -> print ("("^bop);  (* Comparison of bop * sexpr * int *)
     let s1, s2, rem = advance_two_sexpr tl in
-    begin
-      match s2, bop with
-      | Int i, ">" -> Comparison (Gt, s1, i), rem
-      | Int i, "<" -> Comparison (Lt, s1, i), rem
-      | Int i, ">=" -> Comparison (Ge, s1, i), rem
-      | Int i, "<=" -> Comparison (Lt, s1, i), rem
-      | Int i, "==" -> Comparison (Eq, s1, i), rem
-      | Int i, "!=" -> Comparison (Nq, s1, i), rem
+    let op = match s2, bop with
+      | Int i, ">" -> Comparison (Gt, s1, i)
+      | Int i, "<" -> Comparison (Lt, s1, i)
+      | Int i, ">=" -> Comparison (Ge, s1, i)
+      | Int i, "<=" -> Comparison (Lt, s1, i)
+      | Int i, "==" -> Comparison (Eq, s1, i)
+      | Int i, "!=" -> Comparison (Nq, s1, i)
       | _ -> assert false
-    end
-  | "("::"if"::tl -> print "(if";
-    let bexpr, rem = parse_lambda tl in
-    let s1, s2, rem' = advance_two_sexpr rem in
-    begin
-      match bexpr with
-      | Comparison (a, b, c) -> If (Comparison (a, b, c), s1, s2), rem'
-      | Field (a, b) -> If (Field (a, b), s1, s2), rem' (* TODO: why can't use "as"??? *)
-      | _ -> assert false (* Bexpr can be only a sexpr of type Comparison|Field *)
-    end
+    in op, consume_last_paren rem
   | "("::rest ->
-    let expr, rest = parse_lambda_special_form rest in
+    let expr, rest = parse_special_form rest in
     expr, consume_last_paren rest
-  | x::")"::tl ->
-    begin
-      match int_of_string_opt x with
-      | Some i -> Int i, tl
-      | None -> TBlackbox x, tl (* TODO: should be Var x? How to distinguish? *)
-    end
-  | x::tl when x <> ")" -> print ("Var "^x); Var x, tl
+  | x::tl ->
+     begin match int_of_string_opt x with
+       | Some i -> Int i, tl
+       | None ->
+          if x <> "" && x.[0] = '"' then
+            (assert (x.[String.length x - 1] = '"'); String x, tl)
+          else Var x, tl
+     end
   | _ -> assert false
 
