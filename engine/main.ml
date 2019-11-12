@@ -1,6 +1,4 @@
 [@@@ warning "-30"]
-open BatIO
-
 open BatList
 
 type source_program  = {
@@ -103,8 +101,8 @@ let tokenize lsp =
 
 type eng = { stm: string; pi: bool }
 
-let rec parse_lambda lsp =
-  let print op = BatIO.write_string stdout (op^"\n")
+let rec parse lsp =
+  let print op = Printf.printf "%s\n%!" op
   in
   let advance_two_sexpr lsp = (* helper function to read two sexpr at a time *)
     let s1, rem = parse_lambda lsp in
