@@ -1,0 +1,8 @@
+(setglobal Example2!
+  (let
+    (r/1204 =
+       (function param/1206
+         (catch
+           (if (!= param/1206 1) (if (!= param/1206 2) (exit 1) "2") "1")
+          with (1) "_")))
+    (makeblock 0 r/1204)))

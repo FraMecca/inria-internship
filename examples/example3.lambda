@@ -1,0 +1,18 @@
+File "example3.ml", line 10, characters 4-5:
+Warning 11: this match case is unused.
+(setglobal Example3!
+  (let
+    (a/1208 =
+       (function t/1209
+         (switch* t/1209
+          case int 0: "K3"
+          case tag 0:
+           (let (match/1213 =a (field 0 t/1209))
+             (catch
+               (if (!= match/1213 1) (if (!= match/1213 2) (exit 2) "K1:2")
+                 "K1:1")
+              with (2) "K1:_"))
+          case tag 1:
+           (let (match/1214 =a (field 0 t/1209))
+             (if (!= match/1214 0) "K2:true" "K2:false")))))
+    (makeblock 0 a/1208)))

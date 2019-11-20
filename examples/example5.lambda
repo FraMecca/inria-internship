@@ -1,0 +1,21 @@
+(setglobal Example5!
+  (let
+    (a/1212 =
+       (function t/1213
+         (switch* t/1213
+          case int 0: "K4"
+          case tag 0:
+           (let (match/1220 =a (field 0 t/1213))
+             (catch (if (!= match/1220 2) (exit 1) "K1:2") with (1) "K1:_"))
+          case tag 1:
+           (let (b/1214 =a (field 0 t/1213))
+             (if (!= b/1214 0) "K2:true" "K2:false"))
+          case tag 2: (let (match/1221 =a (field 0 t/1213)) "K3:_")
+          case tag 3:
+           (let (match/1222 =a (field 0 t/1213))
+             (catch
+               (let (match/1223 =a (field 0 match/1222))
+                 (if (!= match/1223 1)
+                   (if (!= match/1223 2) (exit 2) "K5:P0:2") "K5:P0:1"))
+              with (2) "K5:P0:_")))))
+    (makeblock 0 a/1212)))

@@ -1,0 +1,56 @@
+(setglobal Example6!
+  (let
+    (mm/1204 =
+       (function param/1206
+         (catch
+           (if param/1206
+             (let (match/1208 =a (field 0 param/1206))
+               (if match/1208
+                 (let
+                   (match/1209 =a (field 0 match/1208)
+                    match/1210 =a (field 0 match/1209)
+                    match/1211 =a (field 0 match/1210))
+                   (catch
+                     (if (!= match/1211 1) (exit 2)
+                       (let (match/1212 =a (field 1 match/1210))
+                         (if (!= match/1212 2) (exit 2)
+                           (let (match/1213 =a (field 1 match/1209))
+                             (catch
+                               (if (!= match/1213 2) (exit 3)
+                                 (let (match/1214 =a (field 1 match/1208))
+                                   (if match/1214 (exit 1)
+                                     (let
+                                       (match/1215 =a (field 1 param/1206))
+                                       (catch
+                                         (if match/1215 (exit 4)
+                                           "[(1, 2), 2]::[]")
+                                        with (4) "[(1, 2), 2]::_")))))
+                              with (3)
+                               (let (match/1216 =a (field 1 match/1208))
+                                 (if match/1216 (exit 1)
+                                   (let (match/1217 =a (field 1 param/1206))
+                                     "[(1, 2), _]::[]"))))))))
+                    with (2)
+                     (let (match/1220 =a (field 1 match/1208))
+                       (if match/1220 (exit 1)
+                         (let
+                           (match/1221 =a (field 1 param/1206)
+                            match/1219 =a (field 1 match/1209)
+                            match/1218 =a (field 1 match/1210))
+                           (catch
+                             (if match/1221
+                               (let (match/1222 =a (field 0 match/1221))
+                                 (if match/1222
+                                   (let (match/1224 =a (field 1 match/1222))
+                                     (if match/1224 (exit 5)
+                                       (let
+                                         (match/1225 =a (field 1 match/1221))
+                                         (if match/1225 (exit 5)
+                                           "[_]::[_]::[]"))))
+                                   (exit 5)))
+                               "[_]::[]")
+                            with (5) "[_, _]::_"))))))
+                 (exit 1)))
+             (exit 1))
+          with (1) "_")))
+    (makeblock 0 mm/1204)))
