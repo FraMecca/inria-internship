@@ -127,7 +127,7 @@ let rec parse_lambda lsp =
      * param lsp is of the form ["var1"; "var2"; ... ; "varn"; ")"]
      * varlist is used as an accumulator *)
     match lsp with
-    | ")"::_ -> List.rev varlistr, lsp
+    | ")"::tl -> List.rev varlistr, tl
     | x::tl -> advance_catch_exit_point tl (x::varlistr)
     | _ -> assert false
   in
