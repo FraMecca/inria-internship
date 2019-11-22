@@ -7,4 +7,3 @@ let a = fun t -> match t with
   | K2 true -> "K2:true"
   | K2 false -> "K2:false"
   | K3 -> "K3"
-  | _ -> "unused"

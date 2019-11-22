@@ -1,0 +1,13 @@
+(setglobal Example0!
+  (let
+    (mm/1204 =
+       (function param/1206
+         (catch
+           (let (switcher/1208 =a (-2+ param/1206))
+             (if (isout 2 switcher/1208) (exit 1)
+               (switch* switcher/1208
+                case int 0: "2"
+                case int 1: "3"
+                case int 2: "4")))
+          with (1) "_")))
+    (makeblock 0 mm/1204)))

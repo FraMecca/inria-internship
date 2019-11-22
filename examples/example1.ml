@@ -1,2 +1,2 @@
-let m = match t with
+let m t = match t with
   | _ -> "wildcard"

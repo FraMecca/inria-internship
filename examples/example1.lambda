@@ -1,2 +1,2 @@
-File "example1.ml", line 1, characters 14-15:
-Error: Unbound value t
+(setglobal Example1!
+  (let (m/1204 = (function t/1205 "wildcard")) (makeblock 0 m/1204)))
