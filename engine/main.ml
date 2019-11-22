@@ -1,5 +1,4 @@
 [@@@ warning "-30"]
-open BatList
 
 type source_program  = {
   scrutinee: variable;
@@ -35,6 +34,7 @@ and
   | Int of int
   | Bool of bool
   | String of string
+  | Addition of int * variable 
   | Function of variable * sexpr
   | Let of binding list * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
@@ -43,6 +43,7 @@ and
   | Switch of sexpr * switch_case list * sexpr option
   | Field of int * variable
   | Comparison of bop * sexpr * int
+  | Isout of int * variable
   | TBlackbox of target_blackbox
 and
   binding = variable * sexpr
@@ -52,6 +53,7 @@ and
   bexpr =
   | Comparison of bop * sexpr * int
   | Field of int * variable
+  | Isout of int * variable
   | Var of variable
 and
   switch_case = switch_test * sexpr
@@ -103,10 +105,11 @@ let tokenize lsp =
   |> String.split_on_char ' '
   |> List.filter (fun c -> c <> "" && not(String.contains c ' '))
 
-type eng = { stm: string; pi: bool }
+let print op = if false then Printf.printf "%s\n%!" op else ()
 
 let rec parse_lambda lsp =
-  let print op = Printf.printf "%s\n%!" op
+  let is_int_addition tk =
+    Str.string_match (Str.regexp "-[0-9]+\\+") tk 0
   in
   let advance_two_sexpr lsp = (* helper function to read two sexpr at a time *)
     let s1, rem = parse_lambda lsp in
@@ -116,9 +119,10 @@ let rec parse_lambda lsp =
   let consume_last_paren lsp = (* helper function to read a token expected to be ")" *)
     match lsp with
     | ")"::tl -> tl
+    | [] -> print "ASSERT FAILURE: Nothing to consume"; assert false
     | x ->
        print ("ASSERT FAILURE IN "
-              ^(String.concat " " (List.init 10 (List.nth x))));
+              ^(String.concat " " (BatList.init 10 (List.nth x))));
        assert false
   in
   let rec advance_catch_exit_point lsp varlistr =
@@ -178,10 +182,11 @@ let rec parse_lambda lsp =
       | _ -> assert false in
     parse_list parse_binding rest in
   let parse_special_form = function
-    | "setglobal" :: _global :: rest ->
+    | "setglobal" :: _ :: rest ->
        (* accept and ignore the "setglobal" call
           present at the top of examples *)
-       parse_lambda rest
+      parse_lambda rest
+    | "makeblock"::_::_::rest -> TBlackbox "makeblock", rest
     | "let"::rest -> print "(let";
       let bindings, rest = parse_let_bindings rest in
       let body, rest = parse_lambda rest in
@@ -200,6 +205,7 @@ let rec parse_lambda lsp =
        let bexpr : bexpr = match bexpr with
          | Comparison (op, v, n) -> Comparison (op, v, n)
          | Field (i, v) -> Field (i, v)
+         | Isout (i, v) -> Isout (i, v)
          | Var v -> Var v
          | _ ->
             assert false
@@ -224,39 +230,253 @@ let rec parse_lambda lsp =
       let stail, rem'' = parse_lambda rem'
       in
       Catch (shead, exitpoint, varlist, stail), rem''
-    | other :: _ -> print other; assert false
+    | "isout"::i::var::tl -> print ("isout"^i^" "^var);
+      begin match int_of_string_opt i with
+        | Some i -> Isout (i, var), tl
+        | None -> assert false
+      end
+    | ((">"|"<"|">="|"<="|"=="|"!=") as bop)::tl -> print ("("^bop);  (* Comparison of bop * sexpr * int *)
+      let s1, s2, rem = advance_two_sexpr tl in
+      let op = match s2, bop with
+        | Int i, ">" -> Comparison (Gt, s1, i)
+        | Int i, "<" -> Comparison (Lt, s1, i)
+        | Int i, ">=" -> Comparison (Ge, s1, i)
+        | Int i, "<=" -> Comparison (Lt, s1, i)
+        | Int i, "==" -> Comparison (Eq, s1, i)
+        | Int i, "!=" -> Comparison (Nq, s1, i)
+        | _ -> assert false
+      in op, rem
+    | addint::var::tl when is_int_addition addint ->
+      begin match int_of_string_opt (BatString.rchop addint) with
+        | Some i -> Addition (i, var), tl
+        | None -> assert false
+      end
+    | other :: _ -> print ("Failure on "^other); assert false
     | [] -> assert false
   in
   match lsp with
   | (("true"|"false") as b)::")"::tl -> Bool (bool_of_string b), tl
-  | "("::((">"|"<"|">="|"<="|"=="|"!=") as bop)::tl -> print ("("^bop);  (* Comparison of bop * sexpr * int *)
-    let s1, s2, rem = advance_two_sexpr tl in
-    let op = match s2, bop with
-      | Int i, ">" -> Comparison (Gt, s1, i)
-      | Int i, "<" -> Comparison (Lt, s1, i)
-      | Int i, ">=" -> Comparison (Ge, s1, i)
-      | Int i, "<=" -> Comparison (Lt, s1, i)
-      | Int i, "==" -> Comparison (Eq, s1, i)
-      | Int i, "!=" -> Comparison (Nq, s1, i)
-      | _ -> assert false
-    in op, consume_last_paren rem
   | "("::rest ->
     let expr, rest = parse_special_form rest in
     expr, consume_last_paren rest
-  | x::tl ->
+  | x::tl -> 
      begin match int_of_string_opt x with
-       | Some i -> Int i, tl
+       | Some i -> print ("Int: "^x); Int i, tl
        | None ->
-          if x <> "" && x.[0] = '"' then
-            (assert (x.[String.length x - 1] = '"'); String x, tl)
-          else Var x, tl
+         assert (x <> ")") ;
+         if x <> "" && x.[0] = '"' then
+           (assert (x.[String.length x - 1] = '"'); print ("String: "^x); String x, tl)
+         else (print ("Var: "^x); Var x, tl)
      end
   | _ -> assert false
 
-let () =
+let parse_file filename =
   ignore target_example;
-  let target_example = BatFile.with_file_in Sys.argv.(1) BatIO.read_all in
+  let target_example = BatFile.with_file_in filename BatIO.read_all in
   let tk = tokenize target_example in
   let sexpr, tl = parse_lambda tk in
-  ignore sexpr;
-  if tl <> [] then Printf.eprintf "unparsed: %S\n%!" (String.concat " " tl)
+  if tl <> [] then Printf.eprintf "unparsed: %S\n%!" (String.concat " " tl); sexpr
+
+let () =
+  (* parse_file Sys.argv.(1) *)
+  let _ = parse_file "../examples/example0.lambda" in ()
+
+
+module SMap = Map.Make(String)
+
+type constraint_tree =
+  | Leaf of pi list * target_blackbox
+  | Node of constraint_tree list
+  | Jump of pi list * environment SMap.t * exitpoint
+and
+  pi = { var: variable; op: piop }
+and
+  environment =
+  | Accessor of accessor
+  | Addition of variable * int
+  | Function of variable * constraint_tree
+  | Catch of sexpr
+and
+  accessor =
+  | AcRoot of variable
+  | AcField of variable * int
+  | AcTag of variable * int
+and
+  piop =
+  | Tag of int
+  | NotTag of int
+  | Int of int
+  | NotInt of int
+  | Ge of int
+  | Gt of int
+  | Le of int
+  | Lt of int
+  | Eq of int
+  | Nq of int
+  | Isout of int
+  | Isin of int
+
+let rec sym_exec sexpr constraints env : constraint_tree =
+  let match_bop: (bop * int -> piop) = function
+    | Ge, i -> Ge i
+    | Gt, i -> Gt i
+    | Le, i -> Le i
+    | Lt, i -> Lt i
+    | Eq, i -> Eq i
+    | Nq, i -> Eq i
+  in
+  let match_switch: (switch_test -> piop) = function
+    | Tag i -> Tag i
+    | Int i -> Int i
+  in
+  let negate = function
+    | Tag i -> NotTag i
+    | NotTag i -> Tag i
+    | Int i -> NotInt i
+    | NotInt i -> Int i
+    | Ge i -> Lt i
+    | Gt i -> Le i
+    | Le i -> Gt i
+    | Lt i -> Ge i
+    | Eq i -> Nq i
+    | Nq i -> Eq i
+    | Isout i -> Isin i
+    | Isin i -> Isout i
+  in
+  let pi_to_str pi =
+    let op = match pi.op with
+      | Tag i -> "Tag "^(string_of_int i)
+      | NotTag i -> "NotTag "^(string_of_int i)
+      | Int i-> "Int "^(string_of_int i)
+      | NotInt i-> "NotInt "^(string_of_int i)
+      | Ge i -> "Ge "^(string_of_int i)
+      | Gt i -> "Gt "^(string_of_int i)
+      | Le i -> "Le "^(string_of_int i)
+      | Lt i -> "Lt "^(string_of_int i)
+      | Eq i -> "Eq "^(string_of_int i)
+      | Nq i -> "Nq "^(string_of_int i)
+      | Isout i -> "Isout "^(string_of_int i)
+      | Isin i -> "Isin "^(string_of_int i)
+    in
+    "{ var="^pi.var^"; op="^op^"; }"
+  in
+  let rec tree_to_str ntabs tree =
+    let sep = "\n"^(BatList.init ntabs (fun _ -> "\t") |>  String.concat "" ) in
+    match tree with
+    | Leaf (pilist, target_blackbox) ->
+      "Leaf="^target_blackbox^sep^(List.map (fun pi -> pi_to_str pi) pilist |> String.concat sep)
+    | Node (cst_list) ->
+      "Node="^sep^(List.map (fun t -> tree_to_str (ntabs+1) t) cst_list |> String.concat sep)
+    | Jump (pilist, _, ext) ->
+      "Jump="^(string_of_int ext)^(List.map (fun pi -> pi_to_str pi) pilist |> String.concat sep)
+  in
+  let print_env env =
+    SMap.iter (fun key entry ->
+        let value = match entry with
+          | Accessor a -> begin
+              match a with
+              | AcRoot (v) -> "AcRoot="^v
+              | AcField (v, i) -> "AcField="^v^","^(string_of_int i)
+              | AcTag (v, i) -> "AcTag="^v^","^(string_of_int i)
+            end
+          | Addition (v, i) -> "Addition="^v^","^(string_of_int i)
+          | Function (v, constraint_tree) -> "Function="^v^",ConstraintTree: "^(tree_to_str 1 constraint_tree)
+          | Catch _ -> "Catch"
+        in
+        BatIO.write_line BatIO.stdout (key^": "^value)
+      ) env
+  in
+  let expand_env variable (entry: environment) =
+    let _ = match SMap.find_opt variable env with
+      | Some _ -> assert false
+      | None -> ()
+    in
+    SMap.add variable entry env
+  in
+  (* perform union on two maps, keys should never clash *)
+  let union env1 env2 = SMap.union (fun _ a b -> assert (a = b); Some a) env1 env2
+  in
+  let match_let_accessor = function
+    | Var v -> Accessor (AcRoot v)
+    | Field (i, v) -> Accessor (AcField (v, i))
+    | Function (v, sxp) ->
+      let constraint_tree = sym_exec sxp constraints env in
+      Function (v, constraint_tree)
+    | String _ -> assert false
+    | TBlackbox _ -> assert false
+    | Int _ -> assert false
+    | Bool _ -> assert false
+    | Addition (i, v)  ->  Addition (v, i)
+    | Let _ -> assert false
+    | Catch _ -> assert false
+    | Exit _ -> assert false
+    | If _ -> assert false
+    | Switch _ -> assert false
+    | Comparison _ -> assert false
+    | Isout _ -> assert false
+  in
+  match sexpr with
+  | Let (blist, next_sexpr) ->
+    let env' = blist |>
+               List.map (fun (var, sxp) -> expand_env var (match_let_accessor sxp)) |>
+               List.fold_left union env
+    in
+    sym_exec next_sexpr constraints env'
+  | Function (variable, sxp) ->
+    let function_constraints = sym_exec sxp constraints env in
+    let _ = expand_env variable (Function (variable, function_constraints)) in ();
+    function_constraints
+  | If (bexpr, strue, sfalse) ->
+    let piop, sxp =
+      match bexpr with
+      | Comparison (bop, sxp, i) -> (match_bop (bop, i)), sxp
+      | Isout (i, v) -> Isout i, Var v
+      | _ -> assert false (* TODO *)
+    in
+    let svar = match sxp with
+      | Var v -> v
+      | _ -> assert false
+    in
+    let child1 = sym_exec strue ({var=svar; op=piop}::constraints) env
+    in
+    let child2 = sym_exec sfalse ({var=svar; op=negate piop}::constraints) env
+    in
+    Node [child1; child2;]
+  | Switch (sexpr, swlist, defcase) ->
+    let var =
+      match sexpr with
+      | Var v -> v;
+      | _ -> assert false
+    in
+    let constraintsxtargets = List.map (fun c -> (match_switch (fst c), snd c)) swlist
+    in
+    let defcase_constraints = List.map (fun (c,_) -> {var=var; op=negate c}) constraintsxtargets
+    in
+    let children = constraintsxtargets |>
+                   List.map (fun (c, target) -> sym_exec target ({var=var; op=c}::constraints) env)
+    in
+    begin
+      match defcase with
+      | Some defcase -> Node (children@[sym_exec defcase (defcase_constraints@constraints) env])
+      | None -> Node children
+    end
+  | Catch (sxp, extpt, _, sxp') ->
+    let env' = expand_env (string_of_int extpt) (Catch sxp') in
+    sym_exec sxp constraints env'
+  | Exit (i, _) -> Jump (constraints, env, i)
+  | String s -> print "Leaf String"; Leaf (constraints, s)
+  | Isout _ -> assert false
+  | Addition _ -> assert false
+  | Field _ -> assert false
+  | Int _ -> assert false
+  | Comparison _ -> assert false
+  | Var _ -> assert false
+  | Bool _ -> assert false
+  | TBlackbox t ->
+    print_env env;
+    Leaf (constraints, t)
+
+let () =
+  let ast = parse_file "../examples/example0.lambda" in
+  let _ = sym_exec ast [] SMap.empty in
+  ()
