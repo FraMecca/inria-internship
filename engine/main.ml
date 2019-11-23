@@ -265,7 +265,7 @@ let rec parse_lambda lsp =
        | None ->
          assert (x <> ")") ;
          if x <> "" && x.[0] = '"' then
-           (assert (x.[String.length x - 1] = '"'); print ("String: "^x); String x, tl)
+           (print ("String: "^x); assert (x.[String.length x - 1] = '"'); String x, tl)
          else (print ("Var: "^x); Var x, tl)
      end
   | _ -> assert false
