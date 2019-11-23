@@ -285,17 +285,17 @@ let () =
 module SMap = Map.Make(String)
 
 type constraint_tree =
-  | Leaf of pi list * target_blackbox
+  | Leaf of pi list * target_blackbox * environment SMap.t
   | Node of constraint_tree list
-  | Jump of pi list * environment SMap.t * exitpoint
+  | Jump of pi list  * exitpoint * environment SMap.t
 and
   pi = { var: variable; op: piop }
 and
   environment =
   | Accessor of accessor
   | Addition of variable * int
-  | Function of variable * constraint_tree
-  | Catch of sexpr
+  | Function of variable * constraint_tree 
+  | Catch of exitpoint * constraint_tree
 and
   accessor =
   | AcRoot of variable
@@ -363,15 +363,22 @@ let rec sym_exec sexpr constraints env : constraint_tree =
   let rec tree_to_str ntabs tree =
     let sep = "\n"^(BatList.init ntabs (fun _ -> "\t") |>  String.concat "" ) in
     match tree with
-    | Leaf (pilist, target_blackbox) ->
-      "Leaf="^target_blackbox^sep^(List.map (fun pi -> pi_to_str pi) pilist |> String.concat sep)
+    | Leaf (pilist, target_blackbox, l_env) ->
+      let l_str = "Leaf="^target_blackbox^sep^(List.map (fun pi -> pi_to_str pi) pilist |> String.concat sep)
+      in
+      let e_str = (BatList.init (ntabs-1) (fun _ -> "\t") |>  String.concat "" )^
+                  "+> with env:"^sep^(env_to_str l_env ntabs)
+      in
+      l_str^"\n"^e_str
     | Node (cst_list) ->
       "Node="^sep^(List.map (fun t -> tree_to_str (ntabs+1) t) cst_list |> String.concat sep)
-    | Jump (pilist, _, ext) ->
+    | Jump (pilist, ext, _) ->
       "Jump="^(string_of_int ext)^(List.map (fun pi -> pi_to_str pi) pilist |> String.concat sep)
-  in
-  let print_env env =
-    SMap.iter (fun key entry ->
+  and
+  env_to_str env ntabs =
+    let sep = "\n"^(BatList.init ntabs (fun _ -> "\t") |>  String.concat "" ) in
+    SMap.bindings env |>
+    List.map (fun (key, entry) ->
         let value = match entry with
           | Accessor a -> begin
               match a with
@@ -380,11 +387,15 @@ let rec sym_exec sexpr constraints env : constraint_tree =
               | AcTag (v, i) -> "AcTag="^v^","^(string_of_int i)
             end
           | Addition (v, i) -> "Addition="^v^","^(string_of_int i)
-          | Function (v, constraint_tree) -> "Function="^v^",ConstraintTree: "^(tree_to_str 1 constraint_tree)
-          | Catch _ -> "Catch"
+          | Function (v, f_tree) -> "Function="^v^",ConstraintTree: "^(tree_to_str (ntabs+1) f_tree)
+          | Catch (e, c_tree) ->"Catch="^string_of_int e^",ConstraintTree: "^(tree_to_str (ntabs+1) c_tree)
         in
-        BatIO.write_line BatIO.stdout (key^": "^value)
-      ) env
+        key^": "^value
+      ) |> String.concat sep
+  in
+  let print_env env =
+    let str_env = env_to_str env in
+    BatIO.write_line BatIO.stdout (str_env 0)
   in
   let expand_env variable (entry: environment) =
     let _ = match SMap.find_opt variable env with
@@ -422,10 +433,6 @@ let rec sym_exec sexpr constraints env : constraint_tree =
                List.fold_left union env
     in
     sym_exec next_sexpr constraints env'
-  | Function (variable, sxp) ->
-    let function_constraints = sym_exec sxp constraints env in
-    let _ = expand_env variable (Function (variable, function_constraints)) in ();
-    function_constraints
   | If (bexpr, strue, sfalse) ->
     let piop, sxp =
       match bexpr with
@@ -461,10 +468,11 @@ let rec sym_exec sexpr constraints env : constraint_tree =
       | None -> Node children
     end
   | Catch (sxp, extpt, _, sxp') ->
-    let env' = expand_env (string_of_int extpt) (Catch sxp') in
+    let c_tree = sym_exec sxp' constraints env in
+    let env' = expand_env (string_of_int extpt) (Catch (extpt, c_tree)) in
     sym_exec sxp constraints env'
-  | Exit (i, _) -> Jump (constraints, env, i)
-  | String s -> print "Leaf String"; Leaf (constraints, s)
+  | Exit (i, _) -> Jump (constraints, i, env)
+  | String s -> print "Leaf String"; Leaf (constraints, s, env)
   | Isout _ -> assert false
   | Addition _ -> assert false
   | Field _ -> assert false
@@ -472,11 +480,12 @@ let rec sym_exec sexpr constraints env : constraint_tree =
   | Comparison _ -> assert false
   | Var _ -> assert false
   | Bool _ -> assert false
+  | Function _ -> assert false
   | TBlackbox t ->
     print_env env;
-    Leaf (constraints, t)
+    Leaf (constraints, t, env)
 
 let () =
-  let ast = parse_file "../examples/example0.lambda" in
+  let ast = parse_file "../examples/example5.lambda" in
   let _ = sym_exec ast [] SMap.empty in
   ()
