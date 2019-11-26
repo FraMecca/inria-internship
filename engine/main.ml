@@ -277,10 +277,8 @@ let parse_file filename =
   let sexpr, tl = parse_lambda tk in
   if tl <> [] then Printf.eprintf "unparsed: %S\n%!" (String.concat " " tl); sexpr
 
-let () =
-  (* parse_file Sys.argv.(1) *)
-  let _ = parse_file "../examples/example0.lambda" in ()
-
+let example_ast =
+  parse_file Sys.argv.(1)
 
 module SMap = Map.Make(String)
 
@@ -486,6 +484,5 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     Leaf (constraints, t, env)
 
 let () =
-  let ast = parse_file "../examples/example5.lambda" in
-  let _ = sym_exec ast [] SMap.empty in
+  let _ = sym_exec example_ast [] SMap.empty in
   ()
