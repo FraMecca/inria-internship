@@ -315,6 +315,8 @@ and
   | Isout of int
   | Isin of int
 
+type fakeaccessor = | FakeField of int | FakeTag of int
+
 let rec sym_exec sexpr constraints env : constraint_tree =
   let match_bop: (bop * int -> piop) = function
     | Ge, i -> Ge i
@@ -341,6 +343,43 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     | Nq i -> Eq i
     | Isout i -> Isin i
     | Isin i -> Isout i
+  in
+  let extract_leaves tree =
+    let rec extract accum = function
+      | Leaf _ as l -> l::accum
+      | Node n -> (List.map (extract []) n |> List.flatten)@accum
+    in
+    extract [] tree
+  in
+  let replace_vars vars values lpis =
+    let rec reconstruct accs root = match accs with
+      | [] -> root
+      | acc::tl ->
+        let next = reconstruct tl root in
+        match acc with
+        | FakeField i -> AcField (next, i)
+        | FakeTag i -> AcTag (next, i)
+    in
+    let rec is_catch_root accum acc =
+      match acc with
+      | AcRoot v -> begin
+          match BatList.index_of v values with
+          | Some idx -> Some (List.nth vars idx |> reconstruct (List.rev accum))
+          | None -> None
+        end
+      | AcField (a, i) -> is_catch_root ((FakeField i)::accum) a
+      | AcTag (a, i) -> is_catch_root ((FakeTag i)::accum) a
+    in
+    lpis |>
+    List.map (fun old -> match is_catch_root [] old.var with
+        | Some nw -> {var=nw; op=old.op}
+        | None -> old
+      )
+  in
+  let rec accessor_to_str = function
+    | AcRoot (v) -> "AcRoot="^v
+    | AcField (a, i) -> "AcField("^(string_of_int i)^" "^(accessor_to_str a)^")"
+    | AcTag (a, i) -> "AcTag("^(string_of_int i)^" "^(accessor_to_str a)^")"
   in
   let pi_to_str pi =
     let op = match pi.op with
@@ -469,21 +508,28 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     let c_tree = sym_exec sxp' constraints env in
     let env' = expand_env (string_of_int extpt) (Catch (extpt, varlist, c_tree)) in
     sym_exec sxp constraints env'
-  | Exit (ext, _) ->  (* TODO: map exit values to catch vars *)
+  | Exit (ext, evalues) ->
+    let innervars = evalues |> List.map (fun v -> match v with
+        | Var inner -> inner
+        | _ -> assert false)
+    in
+    let inneraccs = innervars |> List.map(fun v -> match SMap.find_opt v env with
+        | Some (Accessor a) -> a
+        | _ -> assert false)
+    in
     let branch = match SMap.find_opt (string_of_int ext) env with
-      | Some (Catch (ext', _, c_tree)) -> assert (ext' = ext);
+      | Some (Catch (ext', vars, c_tree)) -> assert (ext' = ext);
         let leaves = extract_leaves c_tree
         in
-        (* let new_leaves = leaves |>
-         *                  List.map (function
-         *                      | Leaf (l, t) -> Leaf (replace_vars values vars l, t)
-         *                      | _ -> assert false)
-         * in
-         * if (List.length new_leaves) = 1 then
-         *   List.hd new_leaves
-         * else
-         *   Node new_leaves *)
-        Node leaves
+        let new_leaves = leaves |>
+                         List.map (function
+                             | Leaf (l, t) -> Leaf (replace_vars inneraccs vars l, t)
+                             | _ -> assert false)
+        in
+        if (List.length new_leaves) = 1 then
+          List.hd new_leaves
+        else
+          Node new_leaves
       | _ -> assert false
     in
     branch
