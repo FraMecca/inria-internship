@@ -290,7 +290,7 @@ and
 and
   symbolic_value =
   | Accessor of accessor
-  | Addition of variable * int
+  | Addition of int * accessor
   | Function of variable * constraint_tree 
   | Catch of exitpoint * variable list * constraint_tree
 and
@@ -412,8 +412,8 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     let bprint_binding buf (key, entry) =
       let bprint_value buf = function
         | Accessor a -> bprint_accessor buf a
-        | Addition (v, i) ->
-           bprintf buf "Addition=%s,%i" v i
+        | Addition (i, a) ->
+           bprintf buf "Addition=%d,%a" i bprint_accessor a
         | Function (v, f_tree) ->
            bprintf buf  "Function=%s,ConstraintTree: %a"
              v
@@ -457,6 +457,10 @@ let rec sym_exec sexpr constraints env : constraint_tree =
       in
       let constraint_tree = sym_exec sxp constraints env' in
       Function (v, constraint_tree)
+    | Addition (i, v) -> begin match SMap.find_opt v env with
+        | Some (Accessor a) -> Addition (i, a)
+        | _ -> assert false
+      end
     | _ -> assert false
   in
   match sexpr with
@@ -476,8 +480,9 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     let avar = match sxp with
       | Var v -> begin
           match SMap.find_opt v env with
-        | Some (Accessor a) -> a
-        | _ -> assert false
+          | Some (Accessor a) -> a
+          | Some (Addition _) -> assert false
+          | _ -> assert false
         end
       | _ -> assert false
     in
