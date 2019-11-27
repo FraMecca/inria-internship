@@ -311,9 +311,7 @@ and
   | Eq of int
   | Nq of int
   | Isout of int
-  | Isin of int
-
-type fakeaccessor = | FakeField of int | FakeTag of int
+  | Isin of int (* Lambda doesn't have this *)
 
 let rec sym_exec sexpr constraints env : constraint_tree =
   let match_bop: (bop * int -> piop) = function
@@ -349,30 +347,14 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     in
     extract [] tree
   in
-  let replace_vars vars values lpis =
-    let rec reconstruct accs root = match accs with
-      | [] -> root
-      | acc::tl ->
-        let next = reconstruct tl root in
-        match acc with
-        | FakeField i -> AcField (next, i)
-        | FakeTag i -> AcTag (next, i)
-    in
-    let rec is_catch_root accum acc =
-      match acc with
-      | AcRoot v -> begin
-          match BatList.index_of v values with
-          | Some idx -> Some (List.nth vars idx |> reconstruct (List.rev accum))
-          | None -> None
-        end
-      | AcField (a, i) -> is_catch_root ((FakeField i)::accum) a
-      | AcTag (a, i) -> is_catch_root ((FakeTag i)::accum) a
-    in
-    lpis |>
-    List.map (fun old -> match is_catch_root [] old.var with
-        | Some nw -> {var=nw; op=old.op}
-        | None -> old
-      )
+  let rec subst_accessor bindings = function
+    | AcRoot v -> begin
+        match List.assoc_opt v bindings with
+        | Some acc -> acc
+        | None -> AcRoot v
+      end
+    | AcField (acc', i) -> AcField (subst_accessor bindings acc', i)
+    | AcTag (acc', i) -> AcTag (subst_accessor bindings acc', i)
   in
   let bprintf = Printf.bprintf
   in
@@ -541,11 +523,18 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     in
     let branch = match SMap.find_opt (string_of_int ext) env with
       | Some (Catch (ext', vars, c_tree)) -> assert (ext' = ext);
+        assert (List.length vars = List.length inneraccs);
+        let bindings = List.combine vars inneraccs
+        in
         let leaves = extract_leaves c_tree
         in
         let new_leaves = leaves |>
                          List.map (function
-                             | Leaf (l, t) -> Leaf (replace_vars inneraccs vars l, t)
+                             | Leaf (pis, t) ->
+                               let pis' = List.map
+                                   (fun pi -> { pi with var = subst_accessor bindings pi.var }) pis
+                               in
+                               Leaf (pis', t)
                              | _ -> assert false)
         in
         if (List.length new_leaves) = 1 then
