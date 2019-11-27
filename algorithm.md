@@ -213,12 +213,10 @@ A node satisfies a ι-constraint when
 
 # Symbolic execution:
 
-Symbolic execution is done on the AST of the lambda code and its result is a tree with terminals of two possible kinds:
+Symbolic execution is done on the AST of the lambda code and its result is a tree.
+A Leaf is a tuple of (π list * blackbox * environment)
 
-* a Leaf: tuple of (π list * blackbox * environment)
-* a Jump: tuple of (π list * label * environment)
-
-π is a record that maps constraints to a variable.
+π is a record that contains a constraint on a variable.
 
 The lambda code doesn't have an entry point. For this reason every branch is evaluated symbolically when traversing the AST and stored in the environment.
-The environment is a map containing accessors for variables and branches that are are not accessed.
+The environment is a map containing accessors for variables and summaries for exit points and functions in scope.

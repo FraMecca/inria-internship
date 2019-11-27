@@ -286,13 +286,15 @@ type constraint_tree =
   | Leaf of pi list * target_blackbox
   | Node of constraint_tree list
 and
-  pi = { var: accessor; op: piop } (* record of variable and constraint on that variable *)
+  pi = { var: accessor; op: piop } (* record of a variable and a constraint on that variable *)
 and
-  environment =
+  symbolic_value =
   | Accessor of accessor
   | Addition of variable * int
   | Function of variable * constraint_tree 
   | Catch of exitpoint * variable list * constraint_tree
+and
+  environment = symbolic_value SMap.t
 and
   accessor =
   | AcRoot of variable
@@ -301,9 +303,9 @@ and
 and
   piop =
   | Tag of int
-  | NotTag of int
+  | NotTag of int (* Lambda doesn't have this *)
   | Int of int
-  | NotInt of int
+  | NotInt of int (* Lambda doesn't have this *)
   | Ge of int
   | Gt of int
   | Le of int
@@ -314,7 +316,7 @@ and
   | Isin of int (* Lambda doesn't have this *)
 
 let rec sym_exec sexpr constraints env : constraint_tree =
-  let match_bop: (bop * int -> piop) = function
+  let match_bop: bop * int -> piop = function
     | Ge, i -> Ge i
     | Gt, i -> Gt i
     | Le, i -> Le i
@@ -322,7 +324,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     | Eq, i -> Eq i
     | Nq, i -> Eq i
   in
-  let match_switch: (switch_test -> piop) = function
+  let match_switch: switch_test -> piop = function
     | Tag i -> Tag i
     | Int i -> Int i
   in
@@ -431,17 +433,14 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     bprint_env 0 buf env;
     BatIO.write_line BatIO.stdout (Buffer.contents buf)
   in
-  let expand_env variable entry : environment SMap.t = 
-    let _ = match SMap.find_opt variable env with
-      | Some _ -> assert false
-      | None -> ()
-    in
+  let expand_env variable entry : environment =
+    assert (not (SMap.mem variable env));
     SMap.add variable entry env
   in
   (* perform union on two maps, keys should never differ *)
   let union env1 env2 = SMap.union (fun _ a b -> assert (a = b); Some a) env1 env2
   in
-  let match_let_accessor env acc =
+  let eval_let_binding env acc =
     match acc with
     | Var v -> Accessor (AcRoot v)
     | Field (i, v) ->
@@ -463,7 +462,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
   match sexpr with
   | Let (blist, next_sexpr) ->
     let env' = blist |>
-               List.map (fun (var, sxp) -> expand_env var (match_let_accessor env sxp)) |>
+               List.map (fun (var, sxp) -> expand_env var (eval_let_binding env sxp)) |>
                List.fold_left union env
     in
     sym_exec next_sexpr constraints env'
@@ -496,20 +495,22 @@ let rec sym_exec sexpr constraints env : constraint_tree =
         end
       | _ -> assert false
     in
-    let constraintsxtargets = List.map (fun c -> (match_switch (fst c), snd c)) swlist
-    in
-    let defcase_constraints = List.map (fun (c,_) -> {var=var; op=negate c}) constraintsxtargets
+    let constraintsxtargets = List.map (fun (test, sxp) -> (match_switch test, sxp)) swlist
     in
     let children = constraintsxtargets |>
                    List.map (fun (c, target) -> sym_exec target ({var=var; op=c}::constraints) env)
     in
     begin
       match defcase with
-      | Some defcase -> Node (children@[sym_exec defcase (defcase_constraints@constraints) env])
+      | Some defcase ->
+        let defcase_constraints = constraintsxtargets |>
+                                  List.map (fun (c, _) -> {var=var; op=negate c})
+        in
+        Node (children @ [sym_exec defcase (defcase_constraints @ constraints) env])
       | None -> Node children
     end
-  | Catch (sxp, extpt, varlist, sxp') ->
-    let c_tree = sym_exec sxp' constraints env in
+  | Catch (sxp, extpt, varlist, exit_sxp) ->
+    let c_tree = sym_exec exit_sxp constraints env in
     let env' = expand_env (string_of_int extpt) (Catch (extpt, varlist, c_tree)) in
     sym_exec sxp constraints env'
   | Exit (ext, evalues) ->
