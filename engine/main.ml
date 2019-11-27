@@ -277,10 +277,8 @@ let parse_file filename =
   let sexpr, tl = parse_lambda tk in
   if tl <> [] then Printf.eprintf "unparsed: %S\n%!" (String.concat " " tl); sexpr
 
-let () =
-  (* parse_file Sys.argv.(1) *)
-  let _ = parse_file "../examples/example0.lambda" in ()
-
+let example_ast =
+  parse_file Sys.argv.(1)
 
 module SMap = Map.Make(String)
 
@@ -376,56 +374,80 @@ let rec sym_exec sexpr constraints env : constraint_tree =
         | None -> old
       )
   in
-  let rec accessor_to_str = function
-    | AcRoot (v) -> "AcRoot="^v
-    | AcField (a, i) -> "AcField("^(string_of_int i)^" "^(accessor_to_str a)^")"
-    | AcTag (a, i) -> "AcTag("^(string_of_int i)^" "^(accessor_to_str a)^")"
+  let bprintf = Printf.bprintf
   in
-  let pi_to_str pi =
-    let op = match pi.op with
-      | Tag i -> "Tag "^(string_of_int i)
-      | NotTag i -> "NotTag "^(string_of_int i)
-      | Int i-> "Int "^(string_of_int i)
-      | NotInt i-> "NotInt "^(string_of_int i)
-      | Ge i -> "Ge "^(string_of_int i)
-      | Gt i -> "Gt "^(string_of_int i)
-      | Le i -> "Le "^(string_of_int i)
-      | Lt i -> "Lt "^(string_of_int i)
-      | Eq i -> "Eq "^(string_of_int i)
-      | Nq i -> "Nq "^(string_of_int i)
-      | Isout i -> "Isout "^(string_of_int i)
-      | Isin i -> "Isin "^(string_of_int i)
-    in
-    "{ var="^(accessor_to_str pi.var)^"; op="^op^"; }"
+  let rec bprint_accessor buf = function
+    | AcRoot (v) -> bprintf buf "AcRoot=%s" v
+    | AcField (a, i) -> bprintf buf "AcField(%d %a)" i bprint_accessor a
+    | AcTag (a, i) -> bprintf buf "AcTag(%d %a)" i bprint_accessor a
   in
-  let rec tree_to_str ntabs tree =
-    let sep = "\n"^(BatList.init ntabs (fun _ -> "\t") |>  String.concat "" )
+  let bprint_pi buf pi =
+    let print_op buf = function
+      | Tag i -> bprintf buf "Tag %d" i
+      | NotTag i -> bprintf buf "NotTag %d" i
+      | Int i-> bprintf buf "Int %d" i
+      | NotInt i-> bprintf buf "NotInt %d" i
+      | Ge i -> bprintf buf "Ge %d" i
+      | Gt i -> bprintf buf "Gt %d" i
+      | Le i -> bprintf buf "Le %d" i
+      | Lt i -> bprintf buf "Lt %d" i
+      | Eq i -> bprintf buf "Eq %d" i
+      | Nq i -> bprintf buf "Nq %d" i
+      | Isout i -> bprintf buf "Isout %d" i
+      | Isin i -> bprintf buf "Isin %d" i
     in
+    bprintf buf "{ var=%a; op=%a; }" bprint_accessor pi.var print_op pi.op
+  in
+  let rec bprint_list ~sep bprint buf = function
+    | [] -> ()
+    | [x] -> bprint buf x
+    | x :: xs ->
+       bprintf buf "%a%t%a"
+         bprint x
+         sep
+         (bprint_list ~sep bprint) xs in
+  let break ntabs buf =
+    bprintf buf "\n%s" (BatList.init ntabs (fun _ -> "\t") |> String.concat "") in
+  let rec bprint_tree ntabs buf tree =
+    let sep = break ntabs in
     match tree with
     | Leaf (pilist, target_blackbox) ->
-      "Leaf="^target_blackbox^sep^(List.map (fun pi -> pi_to_str pi) pilist |>
-                                               String.concat sep) ^ "\n"
+       bprintf buf
+         "Leaf=%s\
+              %t%a"
+         target_blackbox
+         (break ntabs) (bprint_list ~sep bprint_pi) pilist
     | Node (cst_list) ->
-      "Node="^sep^(List.map (fun t -> tree_to_str (ntabs+1) t) cst_list |> String.concat sep)
+       bprintf buf
+         "Node=\
+          %t%a"
+         (break ntabs)
+         (bprint_list ~sep (bprint_tree (ntabs+1))) cst_list
   and
-  env_to_str env ntabs =
-    let sep = "\n"^(BatList.init ntabs (fun _ -> "\t") |>  String.concat "" )
+  bprint_env ntabs buf env =
+    let bprint_binding buf (key, entry) =
+      let bprint_value buf = function
+        | Accessor a -> bprint_accessor buf a
+        | Addition (v, i) ->
+           bprintf buf "Addition=%s,%i" v i
+        | Function (v, f_tree) ->
+           bprintf buf  "Function=%s,ConstraintTree: %a"
+             v
+             (bprint_tree (ntabs + 1)) f_tree
+        | Catch (e, vars, c_tree) ->
+          bprintf buf "Catch=%d %s,ConstraintTree: %a"
+            e
+            (String.concat " " vars)
+             (bprint_tree (ntabs + 1)) c_tree
+      in
+      bprintf buf "%s: %a" key bprint_value entry
     in
-    SMap.bindings env |>
-    List.map (fun (key, entry) ->
-        let value = match entry with
-          | Accessor a -> accessor_to_str a
-          | Addition (v, i) -> "Addition="^v^","^(string_of_int i)
-          | Function (v, f_tree) -> "Function="^v^",ConstraintTree: "^(tree_to_str (ntabs+1) f_tree)
-          | Catch (_, varlist, c_tree) ->
-            "Catch("^(String.concat " " varlist)^") ->"^(tree_to_str (ntabs+1) c_tree)
-        in
-        key^": "^value
-      ) |> String.concat sep
+    bprint_list ~sep:(break ntabs) bprint_binding buf (SMap.bindings env)
   in
   let print_env env =
-    let str_env = env_to_str env in
-    BatIO.write_line BatIO.stdout (str_env 0)
+    let buf = Buffer.create 42 in
+    bprint_env 0 buf env;
+    BatIO.write_line BatIO.stdout (Buffer.contents buf)
   in
   let expand_env variable entry : environment SMap.t = 
     let _ = match SMap.find_opt variable env with
@@ -540,6 +562,5 @@ let rec sym_exec sexpr constraints env : constraint_tree =
   | _ -> assert false
 
 let () =
-  let ast = parse_file "../examples/example5.lambda" in
-  let _ = sym_exec ast [] SMap.empty in
+  let _ = sym_exec example_ast [] SMap.empty in
   ()
