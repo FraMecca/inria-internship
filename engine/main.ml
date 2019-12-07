@@ -5,10 +5,12 @@ let target_example = {|(let
                             (function param/1206
                                 (if (!= param/1206 1) (if (!= param/1206 2) "0" "2") "1"))))|}
 
-open Manual_parser
-
 let example_ast =
-  parse_file Sys.argv.(1)
+  match Menhir_parser.parse_file Sys.argv.(1) with
+    | Ok ast -> ast
+    | Error (lexbuf, _exn) ->
+       Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
+       exit 1
 
 module SMap = Map.Make(String)
 module IMap = Map.Make(struct type t = int let compare = compare end)
@@ -287,7 +289,9 @@ let rec sym_exec sexpr constraints env : constraint_tree =
         Node new_leaves
     in
     branch
-  | String s -> print "Leaf String"; Leaf (constraints, s)
+  | String s ->
+     Manual_parser.print "Leaf String";
+     Leaf (constraints, s)
   | TBlackbox t ->
     print_env env;
     Leaf (constraints, t)

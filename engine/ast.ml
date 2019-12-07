@@ -91,3 +91,9 @@ and
   | Field of int * index
 and
   qualifier = bool
+
+let sexpr_of_bexpr : bexpr -> sexpr = function
+| Comparison (op, exp, n) -> Comparison (op, exp, n)
+| Field (i, v) -> Field (i, v)
+| Isout (i, v) -> Isout (i, v)
+| Var v -> Var v
