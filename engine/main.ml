@@ -92,11 +92,14 @@ and
 and
   qualifier = bool
 
-
 let target_example = {|(let 
                         (r/1204 =
                             (function param/1206
                                 (if (!= param/1206 1) (if (!= param/1206 2) "0" "2") "1"))))|}
+
+type token = string
+type input = token list
+type 'a parser = input -> 'a * input
 
 let tokenize lsp =
   lsp |> Str.global_replace (Str.regexp "(" ) " ( "
@@ -107,7 +110,7 @@ let tokenize lsp =
 
 let print op = if false then Printf.printf "%s\n%!" op else ()
 
-let rec parse_lambda lsp =
+let rec parse_lambda : target_program parser = fun lsp ->
   let is_int_addition tk =
     Str.string_match (Str.regexp "-[0-9]+\\+") tk 0
   in
@@ -181,7 +184,7 @@ let rec parse_lambda lsp =
          (id, def), rest
       | _ -> assert false in
     parse_list parse_binding rest in
-  let parse_special_form = function
+  let parse_special_form : sexpr parser = function
     | "setglobal" :: _ :: rest ->
        (* accept and ignore the "setglobal" call
           present at the top of examples *)
@@ -237,7 +240,7 @@ let rec parse_lambda lsp =
       end
     | ((">"|"<"|">="|"<="|"=="|"!=") as bop)::tl -> print ("("^bop);  (* Comparison of bop * sexpr * int *)
       let s1, s2, rem = advance_two_sexpr tl in
-      let op = match s2, bop with
+      let op : target_program = match s2, bop with
         | Int i, ">" -> Comparison (Gt, s1, i)
         | Int i, "<" -> Comparison (Lt, s1, i)
         | Int i, ">=" -> Comparison (Ge, s1, i)
@@ -271,7 +274,6 @@ let rec parse_lambda lsp =
   | _ -> assert false
 
 let parse_file filename =
-  ignore target_example;
   let target_example = BatFile.with_file_in filename BatIO.read_all in
   let tk = tokenize target_example in
   let sexpr, tl = parse_lambda tk in
@@ -465,7 +467,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
   }
       
   in
-  let eval_let_binding env sxp key =
+  let eval_let_binding env (sxp : sexpr) key =
     match sxp with
     | Var v ->
       put_value v (AcRoot v)
@@ -528,7 +530,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     let env' = put_exit extpt (extpt, varlist, c_tree) in
     sym_exec sxp constraints env'
   | Exit (ext, evalues) ->
-    let innervars = evalues |> List.map (fun v -> match v with
+    let innervars = evalues |> List.map (fun (v : sexpr) -> match v with
         | Var inner -> inner
         | _ -> assert false)
     in
