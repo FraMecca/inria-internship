@@ -225,7 +225,8 @@ let rec sym_exec sexpr constraints env : constraint_tree =
       match bexpr with
       | Comparison (bop, sxp, i) -> (match_bop (bop, i)), sxp
       | Isout (i, v) -> Isout i, Var v
-      | _ -> assert false (* TODO *)
+      | Var v -> Nq 0, Var v
+      | _ -> assert false
     in
     let avar = match sxp with
       | Var v -> SMap.find v env.values
