@@ -280,7 +280,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
                              let pis' = List.map
                                  (fun pi -> { pi with var = subst_svalue bindings pi.var }) pis
                              in
-                             Leaf (pis', t)
+                             Leaf (constraints @ pis', t)
                            | _ -> assert false)
       in
       if (List.length new_leaves) = 1 then
