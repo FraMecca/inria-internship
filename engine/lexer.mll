@@ -72,6 +72,7 @@ rule token = parse
   | (int as n) "+" { OFFSET (int_of_string n) }
 
   | (lowercase identchar* '/' int) as ident { LIDENT ident }
+  | ('*' lowercase identchar* '*' '/' int) as ident { LIDENT ident }
   | (uppercase identchar* '!') as ident { UIDENT ident }
 
   | eof { EOF }
