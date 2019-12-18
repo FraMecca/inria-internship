@@ -195,7 +195,6 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     functions=SMap.union (fun _ a b -> assert (a = b); Some a) env1.functions env2.functions;
     exits=IMap.union (fun _ a b -> assert (a = b); Some a) env1.exits env2.exits;
   }
-      
   in
   let eval_let_binding env (sxp : sexpr) key =
     match sxp with
