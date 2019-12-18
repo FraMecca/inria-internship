@@ -1,3 +1,12 @@
+(ocamllex
+  (modules lexer)
+)
+
+(menhir
+  (modules menhir_grammar)
+  (flags --unused-tokens --explain)
+)
+
 (executable
  (name main)
  (libraries batteries)
