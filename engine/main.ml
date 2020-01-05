@@ -304,3 +304,7 @@ let empty_environment () =
 let () =
   let _ = sym_exec example_ast [] (empty_environment ())  in
   ()
+
+let () =
+  if Array.length Sys.argv >= 2 then
+    Ocaml_parser.try_parse Sys.argv.(2)
