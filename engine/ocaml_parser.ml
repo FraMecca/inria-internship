@@ -45,21 +45,16 @@ let error_at loc fmt =
 open Ast
 
 let rec ast_of_ocaml ~file (prog : ocaml_program) : source_program =
-  let definition =
-    match prog with
+  let definition_body =
+    let value_definition def = match def.pstr_desc with
+      | Pstr_value (_rec_flag, [binding]) -> Some binding
+      | _ -> None in
+    match List.filter_map value_definition prog with
     | [] | _ :: _ :: _ ->
        error_at (Location.in_file file)
-         "a single declaration was expected"
-    | [def] ->
-       def in
-  let definition_body =
-    match definition.pstr_desc with
-    | Pstr_value (_, [binding]) ->
-       binding.pvb_expr
-    | _ ->
-       error_at definition.pstr_loc
-         "a value declaration was expected"
-  in
+         "a single value declaration was expected"
+    | [binding] ->
+       binding.pvb_expr in
   let cases =
     match definition_body.pexp_desc with
     | Pexp_function cases ->
