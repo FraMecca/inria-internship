@@ -1,7 +1,6 @@
 [@@@ warning "-30"]
 
 type source_program  = {
-  scrutinee: variable;
   clauses: clause list;
 }
 and
@@ -17,6 +16,7 @@ and
   | Variant of string
   | Int of int
   | Bool of bool
+  | String of string
   | Tuple
   | Nil
   | Cons
