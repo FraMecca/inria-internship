@@ -11,8 +11,8 @@ let () =
     match Ocaml_parser.ocaml_of_file file with
     | Error err -> Ocaml_parser.handle_error err
     | Ok ocaml_ast ->
-    match Ocaml_parser.ast_of_ocaml ~file ocaml_ast with
-    | exception exn -> Ocaml_parser.handle_error exn
-    | ast ->
-    ignore ast;
-    Format.printf "Source input:@.%a@." Ocaml_parser.pp_ocaml_program ocaml_ast;
+      match Ocaml_parser.ast_of_ocaml ~file ocaml_ast with
+      | exception exn -> Ocaml_parser.handle_error exn
+      | ast ->
+        Format.printf "Source input:@.%a@." Ocaml_parser.pp_ocaml_program ocaml_ast;
+        Source_sym_engine.eval ast;
