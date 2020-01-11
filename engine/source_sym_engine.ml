@@ -93,9 +93,9 @@ let print_result stree =
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
 let sym_exec (source: source_program) =
-  let shares_kst ?wildcard_to_none:(w=false) k ((pattern, expr):clause): clause option =
+  let shares_kst ~wildcard_to_none k ((pattern, expr):clause): clause option =
     match pattern with
-    | Wildcard when w = false-> Some (Wildcard, expr)
+    | Wildcard when wildcard_to_none = false-> Some (Wildcard, expr)
     | Constructor (k', plist) when k' = k ->
       if (List.length plist > 1) then
         Some (Constructor (Tuple, plist), expr)
@@ -151,7 +151,7 @@ let sym_exec (source: source_program) =
               flat_children @ eval_clauses constraints tl
             | Variant _ when plist <> [] ->
               let children = clauses
-                             |> List.filter_map (shares_kst k)
+                             |> List.filter_map (shares_kst ~wildcard_to_none:false k)
                              |> eval_clauses []
               in
               let brothers = clauses
