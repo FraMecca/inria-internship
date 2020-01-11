@@ -68,7 +68,7 @@ let print_result stree =
          %t"
         bprint_source_expr expr
         (break (ntabs+1)) ;
-        bprintf buf "constraints {%a}" (bprint_list ~sep bprint_pi) pilist
+      bprintf buf "constraints {%a}" (bprint_list ~sep bprint_pi) pilist
     | Node (pi, cst_list) ->
       bprintf buf
          "Node: constraints {%a}\
