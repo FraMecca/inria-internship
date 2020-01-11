@@ -93,8 +93,7 @@ let print_result stree =
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
 let sym_exec (source: source_program) =
-  let shares_kst ?wildcard_to_none:(w=false) k (clause:clause): clause option =
-    let pattern, expr = clause in 
+  let shares_kst ?wildcard_to_none:(w=false) k ((pattern, expr):clause): clause option =
     match pattern with
     | Wildcard when w = false-> Some (Wildcard, expr)
     | Constructor (k', plist) when k' = k ->
@@ -131,8 +130,7 @@ let sym_exec (source: source_program) =
   in
   let rec eval_clauses ?idx:(idx=0) constraints clauses : constraint_tree list =
     match clauses with
-    | clause::tl -> let pattern, exp = clause
-      in
+    | (pattern, exp)::tl ->
       begin match pattern with
         | Or (p1, p2) ->
           eval_clauses constraints ((p1,exp)::(p2,exp)::tl) 
