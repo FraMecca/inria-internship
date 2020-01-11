@@ -144,19 +144,20 @@ let sym_exec (source: source_program) =
               Leaf ([pi], exp)::(eval_clauses constraints' tl)
             | Cons | Tuple -> assert (plist <> []);
               let flat_children = plist |>
-                                  List.mapi (fun i pattern -> eval_clauses ~idx:i [] [(pattern, exp)]) |>
-                                  BatList.n_cartesian_product |>
-                                  List.map (fun n -> Conjunction n)
+                                  List.mapi (fun i pattern -> eval_clauses ~idx:i [] [(pattern, exp)])
+                                  |> BatList.n_cartesian_product
+                                  |> List.map (fun n -> Conjunction n)
               in
               flat_children @ eval_clauses constraints tl
             | Variant _ when plist <> [] ->
-              let children = clauses |>
-                          List.filter_map (shares_kst k) |>
-                          eval_clauses [] in
-              let brothers = clauses |>
-                             List.filter (fun c ->
-                                 shares_kst ~wildcard_to_none:true k c |> Option.is_none) |>
-                             eval_clauses constraints'
+              let children = clauses
+                             |> List.filter_map (shares_kst k)
+                             |> eval_clauses []
+              in
+              let brothers = clauses
+                             |> List.filter (fun c -> shares_kst ~wildcard_to_none:true k c
+                                                      |> Option.is_none)
+                             |> eval_clauses constraints'
               in
               Node (pi, children) :: brothers
             | Nil | Variant _ ->
