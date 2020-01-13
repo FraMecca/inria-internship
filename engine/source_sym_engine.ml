@@ -1,52 +1,11 @@
 open Ast
 
 type constraint_tree =
-  | Leaf of pi list * source_expr
-  | Node of pi * constraint_tree list
-  | Conjunction of constraint_tree list
-  | Root of constraint_tree list
-and
-  pi = { idx: int; op: piop }
-and
-  piop =
-  | IsK of string (* Variant *)
-  | NotK of string (* All variants except k *)
-  | IsTrue 
-  | IsFalse 
-  | IsTuple 
-  | NotTuple 
-  | IsNil
-  | NotNil
-  | IsCons
-  | NotCons
-  | EqInt of int
-  | NeqInt of int
-  | EqString of string
-  | NeqString of string
+  | Leaf of source_expr
+  | Node of (constructor * constraint_tree) list * constraint_tree option
 
 let print_result stree =
   let bprintf = Printf.bprintf
-  in
-  let bprint_piop buf piop = match piop with
-    | EqInt i -> bprintf buf "EqInt %d" i
-    | NeqInt i -> bprintf buf "NeqInt %d" i
-    | IsK s -> bprintf buf "IsK %s" s
-    | NotK s -> bprintf buf "NotK %s" s
-    | IsTrue -> bprintf buf "IsTrue"
-    | IsFalse -> bprintf buf "IsFalse"
-    | IsTuple -> bprintf buf "IsTuple"
-    | NotTuple -> bprintf buf "NotTuple"
-    | IsNil -> bprintf buf "IsNil"
-    | NotNil -> bprintf buf "NotNil"
-    | IsCons -> bprintf buf "IsCons"
-    | NotCons -> bprintf buf "NotCons"
-    | EqString s -> bprintf buf "EqString %s" s
-    | NeqString s -> bprintf buf "NeqString %s" s
-  in
-  let bprint_pi buf pi =
-    bprintf buf "{idx=%d; %a}"
-      pi.idx
-      bprint_piop pi.op
   in
   let bprint_source_expr buf = function SBlackbox s -> bprintf buf "%s" s in
   let rec bprint_list ~sep bprint buf = function
@@ -61,122 +20,102 @@ let print_result stree =
     bprintf buf "\n%s" (BatList.init ntabs (fun _ -> "\t") |> String.concat "") in
   let rec bprint_tree ntabs buf tree =
     let sep = break (ntabs+1) in
+    let bprint_constructor buf k = match k with
+      | Variant s -> bprintf buf "Variant %s" s
+      | Int i -> bprintf buf "Int %d" i
+      | Bool b -> bprintf buf "Bool %b" b
+      | String s -> bprintf buf "String %s" s
+      | Tuple narity -> bprintf buf "Tuple[%d]" narity
+      | Nil ->  bprintf buf "Nil"
+      | Cons -> bprintf buf "Cons"
+    in
     match tree with
-    | Leaf (pilist, expr) ->
+    | Leaf expr ->
       bprintf buf
-        "Leaf='%a':\
-         %t"
+        "Leaf='%a'"
         bprint_source_expr expr
-        (break (ntabs+1)) ;
-      bprintf buf "constraints {%a}" (bprint_list ~sep bprint_pi) pilist
-    | Node (pi, cst_list) ->
-      bprintf buf
-         "Node: constraints {%a}\
-          %t%a"
-         bprint_pi pi
-         (break (ntabs+1))
-         (bprint_list ~sep (bprint_tree (ntabs+1))) cst_list
-    | Conjunction (cst_list) ->
-      bprintf buf
-         "Conjunction:%t%a"
-         (break (ntabs+1))
-         (bprint_list ~sep (bprint_tree (ntabs+1))) cst_list
-    | Root cst_list ->
-       bprintf buf
-         "Root=\
-          %t%a"
-         (break (ntabs+1))
-         (bprint_list ~sep (bprint_tree (ntabs+1))) cst_list
+    | Node (k_cst_list, cst_opt) ->
+      bprintf buf "Node:{\
+                   %a \
+                   %t} Fallback: %a"
+        (bprint_list ~sep:sep
+           (fun buf (k,cst) -> bprintf buf "%t%a -> %t%a"
+               sep
+               bprint_constructor k
+               (break (ntabs+2))
+               (bprint_tree (ntabs+1)) cst))
+        k_cst_list
+        (break ntabs)
+        (fun buf -> begin match cst_opt with 
+             | Some cst -> fun _ -> bprint_tree (ntabs+1) buf cst
+             | None -> fun _ -> bprintf buf "None" 
+           end) buf
   in
   let buf = Buffer.create 42 in
   bprint_tree 0 buf stree;
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
-let sym_exec (source: source_program) =
-  let shares_kst ~wildcard_to_none k ((pattern, expr):clause): clause option =
-    match pattern with
-    | Wildcard when wildcard_to_none = false-> Some (Wildcard, expr)
-    | Constructor (k', plist) when k' = k ->
-      if (List.length plist > 1) then
-        Some (Constructor (Tuple, plist), expr)
-      else
-        Some (plist |> List.hd, expr)
-    | _ -> None
+type row = pattern list * source_expr
+
+let sym_exec source =
+  let kst_rows_assoc rows : (constructor * row list) list * row option =
+    let hashtbl = Hashtbl.create 42
+    in
+    let with_wildcard = ref []
+    in
+    let relevant_wildcard_opt = function
+      | [] -> None
+      | wildcards -> Some (wildcards |> List.rev |> List.hd)
+    in
+    let map_to_hashtable = 
+      fun ((pattern, expr):row) ->
+        match List.hd pattern with
+        | Constructor (k, plist) ->
+          let binding = match Hashtbl.find_opt hashtbl k with
+            | Some clause_lst -> (plist, expr)::clause_lst
+            | None -> (plist, expr)::[]
+          in
+          Hashtbl.replace hashtbl k binding
+        | Wildcard -> with_wildcard := (pattern, expr)::!with_wildcard
+        | _ -> ()
+    in
+    List.iter map_to_hashtable rows;
+    let fst = BatHashtbl.bindings hashtbl
+              |> List.map (fun (k, rows) ->
+                  (k, List.rev (!with_wildcard@rows)))
+    in
+    let snd = relevant_wildcard_opt !with_wildcard
+    in
+    (fst, snd)
   in
-  let negate_piop = function
-    | EqInt i -> NeqInt i
-    | NeqInt i -> EqInt i
-    | IsK s -> NotK s
-    | NotK s -> IsK s
-    | IsTrue -> IsFalse
-    | IsFalse -> IsTrue
-    | IsTuple -> NotTuple
-    | NotTuple -> IsTuple
-    | IsNil -> NotNil
-    | NotNil -> IsNil
-    | IsCons -> NotCons
-    | NotCons -> IsCons
-    | EqString s -> NeqString s
-    | NeqString s -> EqString s
-  in
-  let piop_of_constructor = function
-    | Variant s -> IsK s
-    | Int i -> EqInt i
-    | Bool b -> if b then IsTrue else IsFalse
-    | String s -> EqString s
-    | Tuple -> IsTuple
-    | Nil -> IsNil
-    | Cons -> IsCons
-  in
-  let rec eval_clauses ?idx:(idx=0) constraints clauses : constraint_tree list =
-    match clauses with
-    | (pattern, exp)::tl ->
+  let rec decompose (rows: row list) : constraint_tree =
+    match rows with
+    | ((pattern::ptl), expr)::tl ->
       begin match pattern with
         | Or (p1, p2) ->
-          eval_clauses constraints ((p1,exp)::(p2,exp)::tl) 
-        | Constructor (k, plist) ->
-          let pi = {idx=idx; op=piop_of_constructor k} in
-          let notpi = {pi with op=negate_piop pi.op} in 
-          let constraints' = (notpi :: constraints) in
-          begin match k with
-            | Int _ | String _ | Bool _ ->
-              assert (plist = []);
-              Leaf ([pi], exp)::(eval_clauses constraints' tl)
-            | Cons | Tuple -> assert (plist <> []);
-              let flat_children = plist |>
-                                  List.mapi (fun i pattern -> eval_clauses ~idx:i [] [(pattern, exp)])
-                                  |> BatList.n_cartesian_product
-                                  |> List.map (fun n -> Conjunction n)
-              in
-              flat_children @ eval_clauses constraints tl
-            | Variant _ when plist <> [] ->
-              let children = clauses
-                             |> List.filter_map (shares_kst ~wildcard_to_none:false k)
-                             |> eval_clauses []
-              in
-              let brothers = clauses
-                             |> List.filter (fun c -> shares_kst ~wildcard_to_none:true k c
-                                                      |> Option.is_none)
-                             |> eval_clauses constraints'
-              in
-              Node (pi, children) :: brothers
-            | Nil | Variant _ ->
-              assert (plist = []);
-              Leaf ([pi], exp) :: (eval_clauses constraints' tl)
-          end
-        | As (pattern, _) -> eval_clauses constraints ((pattern, exp)::tl)
-        | Wildcard ->
-          (* There could be a wildcard after another one, eg:
-           *   | K2 true -> ...
-           *   | K2 _ -> ...
-           *   | _ -> ...
-           * In that case we ignore it
-          *)
-          [Leaf (constraints, exp)]
+          decompose (((p1::ptl), expr) :: ((p2::ptl), expr) :: tl)
+        | Constructor (_, _) ->
+          let split, fallback = kst_rows_assoc rows
+          in
+          let split_evaluated =  split
+                                 |> List.map (fun (k, clause_lst) ->
+                                     k, decompose clause_lst)
+          in
+          let fallback_evaluated = match fallback with
+            | Some clause -> Some (decompose [clause])
+            | None -> None
+          in
+          Node (split_evaluated, fallback_evaluated)
+        | As (pattern, _) -> decompose (([pattern], expr)::tl)
+        | Wildcard -> ignore tl;
+          Leaf expr
       end
-    | [] -> []
+    | [] -> assert false
+    | ([], expr)::[] -> Leaf expr
+    | ([], expr)::tl -> ignore tl; Leaf expr (* TODO: DISCUSS: is it correct to ignore tail? *)
   in
-  Root (eval_clauses [] source.clauses)
+  source.clauses |> List.map (fun (pattern, expr) -> ([pattern], expr)) |> decompose
+
 
 let eval source_ast =
   let result = sym_exec source_ast in
