@@ -118,7 +118,7 @@ and pattern_of_ocaml p : Ast.pattern =
      Constructor (cstr, args)
   | Ppat_tuple args ->
      let args = List.map pattern_of_ocaml args in
-     Constructor (Tuple, args)
+     Constructor (Tuple (List.length args), args)
   | _ -> error "unsupported pattern"
 
 and ident_of_ocaml lid =
