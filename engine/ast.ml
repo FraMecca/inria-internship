@@ -17,7 +17,7 @@ and
   | Int of int
   | Bool of bool
   | String of string
-  | Tuple
+  | Tuple of int
   | Nil
   | Cons
 and
