@@ -9,8 +9,8 @@ module SMap = Map.Make(String)
 module IMap = Map.Make(struct type t = int let compare = compare end)
 
 type constraint_tree =
-  | Leaf of pi list * target_blackbox
-  | Node of constraint_tree list
+  | Leaf of target_blackbox
+  | Node of (pi list * constraint_tree) list
 and
   pi = { var: sym_value; op: piop } (* record of a variable and a constraint on that variable *)
 and
@@ -78,40 +78,44 @@ let print_env env =
          bprint x
          sep
          (bprint_list ~sep bprint) xs in
+  let indent ntabs buf =
+    bprintf buf "%s" (List.init ntabs (fun _ -> "\t") |> String.concat "")
+  in
   let break ntabs buf =
-    bprintf buf "\n%s" (BatList.init ntabs (fun _ -> "\t") |> String.concat "") in
+    bprintf buf "\n%t" (indent ntabs)
+  in
   let rec bprint_tree ntabs buf tree =
-    let sep = break ntabs in
     match tree with
-    | Leaf (pilist, target_blackbox) ->
-       bprintf buf
-         "Leaf='%s'\
-              %t%a"
-         target_blackbox
-         (break ntabs) (bprint_list ~sep bprint_pi) pilist
-    | Node (cst_list) ->
-       bprintf buf
-         "Node=\
-          %t%a"
-         (break ntabs)
-         (bprint_list ~sep (bprint_tree (ntabs+1))) cst_list
+    | Leaf target_blackbox ->
+       bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
+    | Node children ->
+       let bprint_child buf (pis, tree) =
+         bprintf buf
+           "%tNode (%a) =\n%a"
+           (indent ntabs)
+           (bprint_list ~sep:(fun buf -> bprintf buf ", ") bprint_pi) pis
+           (bprint_tree (ntabs+1)) tree
+       in
+       bprint_list ~sep:ignore bprint_child buf children
   and
   bprint_env ntabs buf env =
     let bprint_function buf binding =
       let (k, fn) = binding in
         let (v, f_tree) = fn
         in
-        bprintf buf "%s: Function=%s,ConstraintTree: %a"
+        bprintf buf "%s: Function=%s,ConstraintTree:%t%a"
           k v
+        (break ntabs)
         (bprint_tree (ntabs + 1)) f_tree
       in
       let bprint_exits buf binding =
       let (k, catch) = binding in
         let (e, vars, c_tree) = catch
         in
-        bprintf buf "%d: Catch=%d %s,ConstraintTree: %a"
+        bprintf buf "%d: Catch=%d %s,ConstraintTree:%t%a"
           k e
           (String.concat " " vars)
+          (break ntabs)
           (bprint_tree (ntabs + 1)) c_tree
     in
     let bprint_svalues buf binding =
@@ -126,7 +130,30 @@ let print_env env =
     bprint_env 0 buf env;
     BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
-let rec sym_exec sexpr constraints env : constraint_tree =
+
+let rec subst_svalue bindings = function
+  | AcRoot v -> begin
+      match List.assoc_opt v bindings with
+        | Some svalue -> svalue
+        | None -> AcRoot v
+    end
+  | AcField (acc', i) -> AcField (subst_svalue bindings acc', i)
+  | AcTag (acc', i) -> AcTag (subst_svalue bindings acc', i)
+  | AcAdd (svalue', i) -> AcAdd (subst_svalue bindings svalue', i)
+
+let rec subst_tree bindings = function
+  | Leaf result -> Leaf result
+  | Node children ->
+     let subst_pi bindings {var; op} =
+       {var = subst_svalue bindings var; op}
+     in
+     let subst (pis, tree) =
+       (List.map (subst_pi bindings) pis,
+        subst_tree bindings tree)
+     in
+     Node (List.map subst children)
+
+let rec sym_exec sexpr env : constraint_tree =
   let match_bop: bop * int -> piop = function
     | Ge, i -> Ge i
     | Gt, i -> Gt i
@@ -153,23 +180,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     | Isout i -> Isin i
     | Isin i -> Isout i
   in
-  let extract_leaves tree =
-    let rec extract accum = function
-      | Leaf _ as l -> l::accum
-      | Node n -> (List.map (extract []) n |> List.flatten)@accum
-    in
-    extract [] tree
-  in
-  let rec subst_svalue bindings = function
-    | AcRoot v -> begin
-        match List.assoc_opt v bindings with
-        | Some svalue -> svalue
-        | None -> AcRoot v
-      end
-    | AcField (acc', i) -> AcField (subst_svalue bindings acc', i)
-    | AcTag (acc', i) -> AcTag (subst_svalue bindings acc', i)
-    | AcAdd (svalue', i) -> AcAdd (subst_svalue bindings svalue', i)
-  in
+  let negate_pi {var; op} = {var; op = negate op} in
   let put_function variable fn : environment =
     assert (not (SMap.mem variable env.functions));
     {env with functions = SMap.add variable fn env.functions }
@@ -189,6 +200,10 @@ let rec sym_exec sexpr constraints env : constraint_tree =
     exits=IMap.union (fun _ a b -> assert (a = b); Some a) env1.exits env2.exits;
   }
   in
+  let find_var env : sexpr -> sym_value = function
+    | Var v -> SMap.find v env.values
+    | _ -> assert false
+  in
   let eval_let_binding env (sxp : sexpr) key =
     match sxp with
     | Var v ->
@@ -201,7 +216,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
       put_value key (AcField (svalue, i))
     | Function (v, sxp) ->
       let envf = put_value v (AcRoot v) in
-      let c_tree = sym_exec sxp constraints envf in
+      let c_tree = sym_exec sxp envf in
       put_function key (v, c_tree)
     | _ -> assert false
   in
@@ -211,7 +226,7 @@ let rec sym_exec sexpr constraints env : constraint_tree =
                List.map (fun (var, sxp) -> eval_let_binding env sxp var) |>
                List.fold_left union env
     in
-    sym_exec next_sexpr constraints env'
+    sym_exec next_sexpr env'
   | If (bexpr, strue, sfalse) ->
     let piop, sxp =
       match bexpr with
@@ -220,79 +235,46 @@ let rec sym_exec sexpr constraints env : constraint_tree =
       | Var v -> Nq 0, Var v
       | _ -> assert false
     in
-    let avar = match sxp with
-      | Var v -> SMap.find v env.values
-      | _ -> assert false
-    in
-    let child1 = sym_exec strue ({var=avar; op=piop}::constraints) env
-    in
-    let child2 = sym_exec sfalse ({var=avar; op=negate piop}::constraints) env
-    in
-    Node [child1; child2;]
+    let var = find_var env sxp in
+    let pi = {var; op = piop} in
+    Node [
+      ([pi], sym_exec strue env);
+      ([negate_pi pi], sym_exec sfalse env)
+    ]
   | Switch (sxp, swlist, defcase) ->
-    let var = match sxp with
-      | Var v -> SMap.find v env.values
-      | _ -> assert false
+    let cases =
+      let var = find_var env sxp in
+      List.map (fun (test, sxp) -> {var; op = match_switch test}, sxp) swlist
     in
-    let constraintsxtargets = List.map (fun (test, sxp) -> (match_switch test, sxp)) swlist
-    in
-    let children = constraintsxtargets |>
-                   List.map (fun (c, target) -> sym_exec target ({var=var; op=c}::constraints) env)
-    in
-    begin
-      match defcase with
-      | Some defcase ->
-        let defcase_constraints = constraintsxtargets |>
-                                  List.map (fun (c, _) -> {var=var; op=negate c})
-        in
-        Node (children @ [sym_exec defcase (defcase_constraints @ constraints) env])
-      | None -> Node children
-    end
+    let not_any_case = List.map negate_pi (List.map fst cases) in
+    let run_case (pi, sxp) = ([pi], sym_exec sxp env) in
+    let run_default default = (not_any_case, sym_exec default env) in
+    Node (
+      (Option.to_list (Option.map run_default defcase))
+      @ List.map run_case cases
+    )
   | Catch (sxp, extpt, varlist, exit_sxp) ->
-    let c_tree = sym_exec exit_sxp constraints env in
+    let c_tree = sym_exec exit_sxp env in
     let env' = put_exit extpt (extpt, varlist, c_tree) in
-    sym_exec sxp constraints env'
-  | Exit (ext, evalues) ->
-    let innervars = evalues |> List.map (fun (v : sexpr) -> match v with
-        | Var inner -> inner
-        | _ -> assert false)
-    in
-    let innersvalues = innervars |> List.map (fun v -> SMap.find v env.values)
-    in
-    let branch =
-      let (ext', vars, c_tree) = IMap.find ext env.exits in
-      assert (ext' = ext);
-      assert (List.length vars = List.length innersvalues);
-      let bindings = List.combine vars innersvalues
-      in
-      let leaves = extract_leaves c_tree
-      in
-      let new_leaves = leaves |>
-                       List.map (function
-                           | Leaf (pis, t) ->
-                             let pis' = List.map
-                                 (fun pi -> { pi with var = subst_svalue bindings pi.var }) pis
-                             in
-                             Leaf (constraints @ pis', t)
-                           | _ -> assert false)
-      in
-      if (List.length new_leaves) = 1 then
-        List.hd new_leaves
-      else
-        Node new_leaves
-    in
-    branch
+    sym_exec sxp env'
+  | Exit (ext, sxps) ->
+    let values = List.map (find_var env) sxps in
+    let (ext', vars, c_tree) = IMap.find ext env.exits in
+    assert (ext' = ext);
+    assert (List.length vars = List.length values);
+    let bindings = List.combine vars values in
+    subst_tree bindings c_tree
   | String s ->
      Manual_parser.print "Leaf String";
-     Leaf (constraints, s)
+     Leaf s
   | TBlackbox t ->
     print_env env;
-    Leaf (constraints, t)
+    Leaf t
   | _ -> assert false
 
 let empty_environment () =
   { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
 
 let eval target_ast =
-  let _ = sym_exec target_ast [] (empty_environment ()) in
+  let _ = sym_exec target_ast (empty_environment ()) in
   ()
