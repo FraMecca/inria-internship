@@ -59,29 +59,22 @@ let print_result stree =
 
 type row = pattern list * source_expr
 
-type hashable_constructor = | HConstructor of constructor | HWildcard
-
 let sym_exec source =
   let group_constructors rows : (constructor * row list) list * row list =
     let grouptbl = Hashtbl.create 42
     in
-    let (ksttbl: (string, int) Hashtbl.t) = Hashtbl.create 42
+    let (ksttbl: (constructor, int) Hashtbl.t) = Hashtbl.create 42
     in
-    let narity_of_k = function
-      | Nil -> 0
-      | Int _ | Bool _ | String _ -> 1
-      | Cons -> 2
-      | Tuple n -> n
-      | Variant v -> Hashtbl.find ksttbl v
+    let wildcardgroup = ref []
     in
-    let nary_wildcard n wildcards =
-      let add_wildcards n (wlist, expr) : pattern list * source_expr =
-        if n > 0 then
-          (List.rev_append (List.init n (fun _: pattern -> Wildcard)) wlist, expr)
-        else
-          (wlist, expr)
-        in
-      List.map (add_wildcards (n-List.length wildcards)) wildcards
+    let arity_of_k k =
+      Hashtbl.find ksttbl k
+    in
+    let add_wildcards n (wlist, expr) : pattern list * source_expr =
+      if n > 0 then
+        (List.rev_append (List.init n (fun _: pattern -> Wildcard)) wlist, expr)
+      else
+        (wlist, expr)
     in
     let rec collect_constructors : pattern list -> unit = function
       | [] -> ()
@@ -91,60 +84,39 @@ let sym_exec source =
         | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
         | As (p, _) -> collect_constructors (p::ptl)
         | Constructor (k, plist) ->
-          match k with
-          | Variant v -> 
-            let narity = List.length plist in
-            Hashtbl.replace ksttbl v narity;
-            collect_constructors plist;
-            collect_constructors ptl
-          | _ -> () (* Don't consider constructors that are not variants *)
+          let narity = List.length plist in
+          Hashtbl.replace ksttbl k narity;
+          collect_constructors ptl
     in
     let rec put_in_group : pattern list * source_expr -> unit = function
       | ([], _expr) -> assert false
       | ((pattern::ptl), expr) ->
         match pattern with
         | Constructor (k, plist) ->
-          let binding = match Hashtbl.find_opt grouptbl (HConstructor k) with
-            | Some (idx, lst) -> (idx, (plist@ptl, expr)::lst)
-            | None -> let idx = Hashtbl.length grouptbl in
-              (idx, (plist@ptl, expr)::[])
+          let binding = match Hashtbl.find_opt grouptbl k with
+            | Some lst -> (plist@ptl, expr)::lst
+            | None -> (plist@ptl, expr)::[]
           in
-          Hashtbl.replace grouptbl (HConstructor k) binding
-        | Wildcard ->
-          let binding = match Hashtbl.find_opt grouptbl HWildcard with
-          | Some (idx, lst) -> (idx, (ptl, expr)::lst)
-          | None -> let idx = Hashtbl.length grouptbl in
-            (idx, (ptl, expr)::[])
-          in
-          Hashtbl.replace grouptbl HWildcard binding
+          Hashtbl.replace grouptbl k binding
+        | Wildcard -> let wclause = (ptl, expr)
+          in (
+            wildcardgroup := wclause::!wildcardgroup;
+            grouptbl |> BatHashtbl.map_inplace
+              (fun k lst -> let n = (arity_of_k k - List.length ptl) in
+                (add_wildcards n wclause)::lst)
+          )
         | As (pattern, _) -> put_in_group (pattern::ptl, expr)
         | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr) 
     in
     List.iter (fun row -> fst row |> collect_constructors) rows;
     List.iter put_in_group rows;
-    let rec take_until_wildcards accum wildcards = function
-      | [] -> accum, wildcards
-      | hd::tl -> let (hk, (idx, rows)) = hd in
-        match hk with
-        | HWildcard ->  assert (wildcards = (0, [])); take_until_wildcards accum (idx, rows) tl
-        | HConstructor k -> take_until_wildcards ((k, rows)::accum) wildcards tl
+    let fst = BatHashtbl.bindings grouptbl
+            |> List.map (fun (k, ptl) -> (k, List.rev ptl))
     in
-    let (k_rows, (last_idx, wildcards)) = BatHashtbl.bindings grouptbl
-                              |> List.sort (fun (_k, (idx, _rows)) (_, (idx', _)) -> Int.compare idx' idx)
-                              |> take_until_wildcards [] (0, [])
-    in
-    let fst = if (wildcards = []) then
-        k_rows
-      else
-        BatList.split_at last_idx k_rows
-        |> fst
-        |> List.map (fun (k, rows) -> let n = narity_of_k k in 
-                      (k, List.rev_append rows (nary_wildcard n wildcards)))
-    in
-    let snd = wildcards
+    let snd = !wildcardgroup
     in
     (fst, snd)
-    in
+  in
   let rec decompose (rows: row list) : constraint_tree =
     match rows with
     | [] -> assert false
