@@ -15,4 +15,4 @@ let () =
       | exception exn -> Ocaml_parser.handle_error exn
       | ast ->
         Format.printf "Source input:@.%a@." Ocaml_parser.pp_ocaml_program ocaml_ast;
-        ignore ast
+        Source_sym_engine.eval ast;
