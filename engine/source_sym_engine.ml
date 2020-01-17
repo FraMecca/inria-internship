@@ -65,7 +65,7 @@ let sym_exec source =
   let group_constructors rows : (constructor * row list) list * row list =
     let grouptbl = Hashtbl.create 42
     in
-    let (ksttbl: (source_blackbox , int) Hashtbl.t) = Hashtbl.create 42
+    let (ksttbl: (string, int) Hashtbl.t) = Hashtbl.create 42
     in
     let narity_of_k = function
       | Nil -> 0
@@ -75,31 +75,28 @@ let sym_exec source =
       | Variant v -> Hashtbl.find ksttbl v
     in
     let nary_wildcard n wildcards =
-      let rec inc_narity n ((wlist, expr):pattern list * source_expr) =
-        assert ( n >= 0);
-        if n > 0
-        then inc_narity (n-1) (Wildcard::wlist, expr)
-        else (wlist, expr)
-      in
-      List.map (inc_narity (n-List.length wildcards)) wildcards
+      let add_wildcards n (wlist, expr) : pattern list * source_expr =
+        if n > 0 then
+          (List.rev_append (List.init n (fun _: pattern -> Wildcard)) wlist, expr)
+        else
+          (wlist, expr)
+        in
+      List.map (add_wildcards (n-List.length wildcards)) wildcards
     in
-    let rec first_scan : pattern list -> unit = function
+    let rec collect_constructors : pattern list -> unit = function
       | [] -> ()
       | (pattern::ptl) ->
         match pattern with
         | Wildcard -> ()
-        | Or (p1, p2) -> first_scan [p1; p2]
-        | As (p, _) -> first_scan [p]
+        | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
+        | As (p, _) -> collect_constructors (p::ptl)
         | Constructor (k, plist) ->
           match k with
           | Variant v -> 
-            let len_ptl = List.length plist in
-            begin match Hashtbl.find_opt ksttbl v with 
-              | Some (narity:int) -> if len_ptl > narity then Hashtbl.replace ksttbl v len_ptl
-              | None -> Hashtbl.add ksttbl v len_ptl
-            end;
-            first_scan plist;
-            first_scan ptl
+            let narity = List.length plist in
+            Hashtbl.replace ksttbl v narity;
+            collect_constructors plist;
+            collect_constructors ptl
           | _ -> () (* Don't consider constructors that are not variants *)
     in
     let rec put_in_group : pattern list * source_expr -> unit = function
@@ -123,7 +120,7 @@ let sym_exec source =
         | As (pattern, _) -> put_in_group (pattern::ptl, expr)
         | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr) 
     in
-    List.iter (fun row -> fst row |> first_scan) rows;
+    List.iter (fun row -> fst row |> collect_constructors) rows;
     List.iter put_in_group rows;
     let rec take_until_wildcards accum wildcards = function
       | [] -> accum, wildcards
