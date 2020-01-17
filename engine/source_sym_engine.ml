@@ -67,9 +67,6 @@ let sym_exec source =
     in
     let wildcardgroup = ref []
     in
-    let arity_of_k k =
-      Hashtbl.find ksttbl k
-    in
     let add_wildcards n (wlist, expr) : pattern list * source_expr =
       if n > 0 then
         (List.rev_append (List.init n (fun _: pattern -> Wildcard)) wlist, expr)
@@ -88,22 +85,24 @@ let sym_exec source =
           Hashtbl.replace ksttbl k narity;
           collect_constructors ptl
     in
+    let hashtbl_cons hst k el = 
+          let binding = match Hashtbl.find_opt hst k with
+            | Some lst -> el::lst
+            | None -> el::[]
+          in
+          Hashtbl.replace grouptbl k binding
+    in
     let rec put_in_group : pattern list * source_expr -> unit = function
       | ([], _expr) -> assert false
       | ((pattern::ptl), expr) ->
         match pattern with
         | Constructor (k, plist) ->
-          let binding = match Hashtbl.find_opt grouptbl k with
-            | Some lst -> (plist@ptl, expr)::lst
-            | None -> (plist@ptl, expr)::[]
-          in
-          Hashtbl.replace grouptbl k binding
+          hashtbl_cons grouptbl k (plist@ptl, expr)
         | Wildcard -> let wclause = (ptl, expr)
           in (
             wildcardgroup := wclause::!wildcardgroup;
-            grouptbl |> BatHashtbl.map_inplace
-              (fun k lst -> let n = (arity_of_k k - List.length ptl) in
-                (add_wildcards n wclause)::lst)
+            ksttbl |> Hashtbl.iter 
+              (fun k n -> hashtbl_cons grouptbl k (add_wildcards n wclause))
           )
         | As (pattern, _) -> put_in_group (pattern::ptl, expr)
         | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr) 
@@ -113,7 +112,7 @@ let sym_exec source =
     let fst = BatHashtbl.bindings grouptbl
             |> List.map (fun (k, ptl) -> (k, List.rev ptl))
     in
-    let snd = !wildcardgroup
+    let snd = !wildcardgroup |> List.rev
     in
     (fst, snd)
   in
@@ -134,8 +133,6 @@ let sym_exec source =
         | clause -> decompose clause
       in
       Node (groups_evaluated, fallback_evaluated)
-      (* TODO: DISCUSS: 
-       * Sometime groups_evaluated = []; Do we want to express that better? *)
     in
     source.clauses |> List.map (fun (pattern, expr) -> ([pattern], expr)) |> decompose
 
