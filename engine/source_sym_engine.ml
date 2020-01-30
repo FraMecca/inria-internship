@@ -1,9 +1,13 @@
 open Ast
 
+type accessor =
+  | AcRoot
+  | AcField of accessor * int
+
 type constraint_tree =
   | Empty
   | Leaf of source_expr
-  | Node of (constructor * constraint_tree) list * constraint_tree
+  | Node of accessor * (constructor * constraint_tree) list * constraint_tree
 
 let string_of_source_expr = function
   | SBlackbox s -> s
@@ -11,7 +15,13 @@ let string_of_source_expr = function
 let print_result stree =
   let bprintf = Printf.bprintf
   in
-  let bprint_source_expr buf = function SBlackbox s -> bprintf buf "%s" s in
+  let bprint_source_expr buf = function
+    | SBlackbox s -> bprintf buf "%s" s
+  in
+  let rec bprint_accessor buf = function
+    | AcRoot -> bprintf buf "AcRoot"
+    | AcField (a, i) -> bprintf buf "%a.%d" bprint_accessor a i
+  in
   let rec bprint_list ~sep bprint buf = function
     | [] -> ()
     | [x] -> bprint buf x
@@ -39,10 +49,11 @@ let print_result stree =
       bprintf buf
         "Leaf='%a'"
         bprint_source_expr expr
-    | Node (k_cst_list, fallback_cst) ->
-      bprintf buf "Node:{\
+    | Node (ac, k_cst_list, fallback_cst) ->
+      bprintf buf "Node %a:{\
                    %a \
                    %t} Fallback: %a"
+        bprint_accessor ac
         (bprint_list ~sep:sep
            (fun buf (k,cst) -> bprintf buf "%t%a -> %t%a"
                sep
@@ -58,83 +69,101 @@ let print_result stree =
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
 type row = pattern list * source_expr
+type matrix = accessor list * row list
+
+type group = {
+  arity: int;
+  accessors: accessor list;
+  rev_rows: row list ref;
+}
+
+let matrix_of_group { accessors; rev_rows; _ } : matrix =
+  (accessors, List.rev !rev_rows)
+
+let empty_group acs arity =
+  match acs with
+  | [] -> assert false
+  | ac :: acs ->
+     let accessors = List.init arity (fun i -> AcField(ac, i)) @ acs in
+     {
+       arity;
+       accessors;
+       rev_rows = ref [];
+     }
+
+let group_add_children { arity; rev_rows; _ } children (rest, rhs) =
+  assert (List.length children = arity);
+  rev_rows := (children @ rest, rhs) :: !rev_rows
+
+let group_add_omegas { arity; rev_rows; _ } (rest, rhs) =
+  let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
+  rev_rows := (List.rev_append wildcards rest, rhs) :: !rev_rows
+
+let group_constructors (acs, rows) : (constructor * matrix) list * matrix =
+  let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
+  let wildcard_group = empty_group acs 0 in
+  let rec collect_constructors : pattern list -> unit = function
+    | [] -> ()
+    | (pattern::ptl) ->
+      match pattern with
+      | Wildcard -> ()
+      | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
+      | As (p, _) -> collect_constructors (p::ptl)
+      | Constructor (k, plist) ->
+        if not (Hashtbl.mem group_tbl k) then begin
+          let arity = List.length plist in
+          Hashtbl.add group_tbl k (empty_group acs arity)
+        end;
+        collect_constructors ptl
+  in
+  List.iter (fun (pats, _) -> collect_constructors pats) rows;
+  let all_constructor_groups =
+    group_tbl |> Hashtbl.to_seq_values |> List.of_seq
+  in
+  let rec put_in_group : pattern list * source_expr -> unit = function
+    | ([], _expr) -> assert false
+    | ((pattern::ptl), expr) ->
+      let row_rest = (ptl, expr) in
+      match pattern with
+      | Constructor (k, plist) ->
+        let group = Hashtbl.find group_tbl k in
+        group_add_children group plist row_rest
+      | Wildcard ->
+        List.iter (fun group -> group_add_omegas group row_rest)
+          (wildcard_group :: all_constructor_groups);
+      | As (pattern, _) -> put_in_group (pattern::ptl, expr)
+      | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr)
+  in
+  List.iter put_in_group rows;
+  let constructor_matrices =
+    group_tbl
+    |> Hashtbl.to_seq
+    |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
+    |> List.of_seq
+  in
+  let wildcard_matrix = matrix_of_group wildcard_group in
+  (constructor_matrices, wildcard_matrix)
 
 let sym_exec source =
-  let group_constructors rows : (constructor * row list) list * row list =
-    let grouptbl = Hashtbl.create 42
-    in
-    let (ksttbl: (constructor, int) Hashtbl.t) = Hashtbl.create 42
-    in
-    let wildcardgroup = ref []
-    in
-    let add_wildcards n (wlist, expr) : pattern list * source_expr =
-      if n > 0 then
-        (List.rev_append (List.init n (fun _: pattern -> Wildcard)) wlist, expr)
-      else
-        (wlist, expr)
-    in
-    let rec collect_constructors : pattern list -> unit = function
-      | [] -> ()
-      | (pattern::ptl) ->
-        match pattern with
-        | Wildcard -> ()
-        | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
-        | As (p, _) -> collect_constructors (p::ptl)
-        | Constructor (k, plist) ->
-          let narity = List.length plist in
-          Hashtbl.replace ksttbl k narity;
-          collect_constructors ptl
-    in
-    let hashtbl_cons hst k el = 
-          let binding = match Hashtbl.find_opt hst k with
-            | Some lst -> el::lst
-            | None -> el::[]
-          in
-          Hashtbl.replace grouptbl k binding
-    in
-    let rec put_in_group : pattern list * source_expr -> unit = function
-      | ([], _expr) -> assert false
-      | ((pattern::ptl), expr) ->
-        match pattern with
-        | Constructor (k, plist) ->
-          hashtbl_cons grouptbl k (plist@ptl, expr)
-        | Wildcard -> let wclause = (ptl, expr)
-          in (
-            wildcardgroup := wclause::!wildcardgroup;
-            ksttbl |> Hashtbl.iter 
-              (fun k n -> hashtbl_cons grouptbl k (add_wildcards n wclause))
-          )
-        | As (pattern, _) -> put_in_group (pattern::ptl, expr)
-        | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr) 
-    in
-    List.iter (fun row -> fst row |> collect_constructors) rows;
-    List.iter put_in_group rows;
-    let fst = BatHashtbl.bindings grouptbl
-            |> List.map (fun (k, ptl) -> (k, List.rev ptl))
-    in
-    let snd = !wildcardgroup |> List.rev
-    in
-    (fst, snd)
-  in
-  let rec decompose (rows: row list) : constraint_tree =
-    match rows with
-    | [] -> assert false
-    | ([], expr)::[] -> Leaf expr
-    | ([], expr)::tl -> ignore tl; Leaf expr
-    | ((_pattern::_ptl), _expr)::_tl ->
-      let groups, fallback = group_constructors rows
-      in
-      let groups_evaluated =  groups
-                              |> List.map (fun (k, clause_lst) ->
-                                  k, decompose clause_lst)
+  let rec decompose matrix : constraint_tree =
+    match matrix with
+    | (_, []) -> assert false
+    | ([] as _no_acs, ([] as _no_columns, expr)::_) -> Leaf expr
+    | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
+    | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false
+    | (ac_head::_ as _acs, ((_::_) as _columns, _)::_) ->
+      let groups, fallback = group_constructors matrix in
+      let groups_evaluated =
+        groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in
       let fallback_evaluated = match fallback with
-        | [] -> Empty
-        | clause -> decompose clause
+        | (_, []) -> Empty
+        | nonempty_matrix -> decompose nonempty_matrix
       in
-      Node (groups_evaluated, fallback_evaluated)
+      Node (ac_head, groups_evaluated, fallback_evaluated)
     in
-    source.clauses |> List.map (fun (pattern, expr) -> ([pattern], expr)) |> decompose
+    let row_of_clause (pat, expr) = ([pat], expr) in
+    decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 let eval source_ast =
   let result = sym_exec source_ast in
