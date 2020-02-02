@@ -5,9 +5,41 @@ type accessor =
   | AcField of accessor * int
 
 type constraint_tree =
-  | Empty
+  | Unreachable
+  | Failure
   | Leaf of source_expr
   | Node of accessor * (constructor * constraint_tree) list * constraint_tree
+(* We distinguish
+   - Unreachable: we statically know that no value can go there
+   - Failure: a value matching this part results in an error
+
+  If we had a type-declaration-based analysis to know the list of constructors
+  at a given type, we could produce Unreachable instead of Failure for
+  fallbacks of closed signature:
+
+    (function true -> 1)
+
+  returns in, morally
+
+    Node ([(true, Leaf 1)], Failure)
+
+  while
+
+    (function true -> 1 | false -> 2)
+
+  will (somday) give
+
+    Node ([(true, Leaf 1); (false, Leaf 2)], Unreachable)
+
+  In the meantime, it is possible to produce Unreachable examples by using
+  OCaml refutation clauses (a "dot" in the right-hand-side)
+
+    (function true -> 1 | false -> 2 | _ -> .)
+
+  We trust this annotation, which is reasonable as the OCaml type-checker
+  verifies that it indeed holds.
+*)
+
 
 let string_of_source_expr = function
   | SBlackbox s -> s
@@ -44,7 +76,8 @@ let print_result stree =
       | Cons -> bprintf buf "Cons"
     in
     match tree with
-    | Empty -> bprintf buf "Empty"
+    | Failure -> bprintf buf "Failure"
+    | Unreachable -> bprintf buf "Unreachable"
     | Leaf expr ->
       bprintf buf
         "Leaf='%a'"
@@ -68,7 +101,7 @@ let print_result stree =
   bprint_tree 0 buf stree;
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
-type row = pattern list * source_expr
+type row = pattern list * source_rhs
 type matrix = accessor list * row list
 
 type group = {
@@ -120,7 +153,7 @@ let group_constructors (acs, rows) : (constructor * matrix) list * matrix =
   let all_constructor_groups =
     group_tbl |> Hashtbl.to_seq_values |> List.of_seq
   in
-  let rec put_in_group : pattern list * source_expr -> unit = function
+  let rec put_in_group : pattern list * source_rhs -> unit = function
     | ([], _expr) -> assert false
     | ((pattern::ptl), expr) ->
       let row_rest = (ptl, expr) in
@@ -148,7 +181,11 @@ let sym_exec source =
   let rec decompose matrix : constraint_tree =
     match matrix with
     | (_, []) -> assert false
-    | ([] as _no_acs, ([] as _no_columns, expr)::_) -> Leaf expr
+    | ([] as _no_acs, ([] as _no_columns, rhs)::_) ->
+       begin match (rhs : source_rhs) with
+         | Unreachable -> Unreachable
+         | Expr expr -> Leaf expr
+       end
     | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
     | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false
     | (ac_head::_ as _acs, ((_::_) as _columns, _)::_) ->
@@ -157,12 +194,12 @@ let sym_exec source =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in
       let fallback_evaluated = match fallback with
-        | (_, []) -> Empty
+        | (_, []) -> Failure
         | nonempty_matrix -> decompose nonempty_matrix
       in
       Node (ac_head, groups_evaluated, fallback_evaluated)
     in
-    let row_of_clause (pat, expr) = ([pat], expr) in
+    let row_of_clause (pat, rhs) = ([pat], rhs) in
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 let eval source_ast =

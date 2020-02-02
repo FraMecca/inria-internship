@@ -1,0 +1,4 @@
+(setglobal Example9!
+  (let (test/80 = (function param/81 : int (if (!= param/81 0) 0 1)))
+    (makeblock 0 test/80)))
+

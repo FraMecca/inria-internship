@@ -4,7 +4,11 @@ type source_program  = {
   clauses: clause list;
 }
 and
-  clause = pattern * source_expr
+  clause = pattern * source_rhs
+and
+  source_rhs =
+  | Unreachable (* OCaml refutation clauses: | Foo -> . *)
+  | Expr of source_expr
 and
   pattern =
   | Wildcard
