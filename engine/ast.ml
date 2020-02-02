@@ -48,6 +48,7 @@ and
   | Field of int * variable
   | Comparison of bop * sexpr * int
   | Isout of int * variable
+  | Match_failure
   | TBlackbox of target_blackbox
 and
   binding = variable * sexpr

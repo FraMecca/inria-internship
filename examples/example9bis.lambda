@@ -1,0 +1,10 @@
+(setglobal Example9bis!
+  (let
+    (test/80 =
+       (function param/81
+         (if (!= param/81 0) 0
+           (raise
+             (makeblock 0 (global Match_failure/18!)
+               [0: "examples/example9bis.ml" 1 11])))))
+    (makeblock 0 test/80)))
+
