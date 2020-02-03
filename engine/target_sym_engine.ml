@@ -9,6 +9,7 @@ module SMap = Map.Make(String)
 module IMap = Map.Make(struct type t = int let compare = compare end)
 
 type constraint_tree =
+  | Failure
   | Leaf of target_blackbox
   | Node of (pi list * constraint_tree) list
 and
@@ -86,6 +87,8 @@ let print_env env =
   in
   let rec bprint_tree ntabs buf tree =
     match tree with
+    | Failure ->
+       bprintf buf "%tFailure" (indent ntabs)
     | Leaf target_blackbox ->
        bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
     | Node children ->
@@ -142,6 +145,7 @@ let rec subst_svalue bindings = function
   | AcAdd (svalue', i) -> AcAdd (subst_svalue bindings svalue', i)
 
 let rec subst_tree bindings = function
+  | Failure -> Failure
   | Leaf result -> Leaf result
   | Node children ->
      let subst_pi bindings {var; op} =
@@ -267,9 +271,12 @@ let rec sym_exec sexpr env : constraint_tree =
   | String s ->
      Manual_parser.print "Leaf String";
      Leaf s
+  | Int n ->
+     Leaf (string_of_int n)
   | TBlackbox t ->
     print_env env;
     Leaf t
+  | Match_failure -> Failure
   | _ -> assert false
 
 let empty_environment () =

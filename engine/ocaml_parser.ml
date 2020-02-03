@@ -84,8 +84,13 @@ and clause_of_ocaml { pc_lhs = pattern; pc_guard = guard; pc_rhs = expr } : clau
      Location.alert ~kind:"Warning" guard.pexp_loc "Ignored pattern guard";
   end;
   let pattern = pattern_of_ocaml pattern in
-  let expr = blackbox_of_ocaml expr in
-  (pattern, expr)
+  let rhs = rhs_of_ocaml expr in
+  (pattern, rhs)
+
+and rhs_of_ocaml expr : source_rhs =
+  match expr.pexp_desc with
+    | Pexp_unreachable -> Unreachable
+    | _ -> Expr (blackbox_of_ocaml expr)
 
 and pattern_of_ocaml p : Ast.pattern =
   let error fmt = error_at p.ppat_loc fmt in

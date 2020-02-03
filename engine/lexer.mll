@@ -38,6 +38,8 @@ rule token = parse
 
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
   | "=" { EQUAL }
   | "=a" { EQUALA }
   | "!=" { BANGEQUAL }
@@ -58,6 +60,8 @@ rule token = parse
   | "let" { LET }
   | "makeblock" { MAKEBLOCK }
   | "setglobal" { SETGLOBAL }
+  | "global" { GLOBAL }
+  | "raise" { RAISE }
   | "switch" { SWITCH }
   | "switch*" { SWITCHSTAR }
   | "tag" { TAGSYMBOL }
@@ -74,6 +78,7 @@ rule token = parse
   | (lowercase identchar* '/' int) as ident { LIDENT ident }
   | ('*' lowercase identchar* '*' '/' int) as ident { LIDENT ident }
   | (uppercase identchar* '!') as ident { UIDENT ident }
+  | (uppercase identchar* '/' int '!') as ident { UIDENT ident }
 
   | eof { EOF }
 

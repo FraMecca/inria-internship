@@ -7,8 +7,8 @@
 %token <Ast.variable> LIDENT
 %token <Ast.variable> UIDENT
 
-%token LPAREN
-%token RPAREN
+%token LPAREN RPAREN
+%token LBRACKET RBRACKET
 %token EQUALA
 %token LESS
 %token LESSEQUAL
@@ -29,6 +29,8 @@
 %token LET
 %token MAKEBLOCK
 %token SETGLOBAL
+%token GLOBAL
+%token RAISE
 %token SWITCH
 %token SWITCHSTAR
 %token INTSYMBOL
@@ -39,6 +41,12 @@
 
 %{
 open Ast
+
+let is_match_failure str =
+  let pat = "Match_failure/" in
+  let patlen = String.length pat in
+  String.length str >= patlen
+  && String.sub str 0 patlen = pat
 %}
 
 %%
@@ -65,6 +73,15 @@ let body :=
   <>
 | MAKEBLOCK; tag=INT; args=list(sexp);
   { ignore (tag, args); TBlackbox "makeblock" }
+| LBRACKET; tag=INT; COLON; args=list(sexp); RBRACKET;
+  { ignore (tag, args); TBlackbox "constant-block" }
+| RAISE; LPAREN;
+    MAKEBLOCK; _=INT;
+      LPAREN; GLOBAL; exn=UIDENT; RPAREN;
+      LBRACKET; _=INT; COLON; _=list(sexp); RBRACKET;
+  RPAREN;
+  { if is_match_failure exn then (Match_failure : sexpr)
+    else TBlackbox "raise" }
 | LET; ~=let_bindings; ~=sexp; <Let>
 | FUNCTION; x=variable; body=sexp; <Function>
 | IF; cond=bexp; then_=sexp; else_=sexp; <If>
