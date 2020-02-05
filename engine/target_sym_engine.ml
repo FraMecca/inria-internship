@@ -11,7 +11,7 @@ module IMap = Map.Make(struct type t = int let compare = compare end)
 type constraint_tree =
   | Failure
   | Leaf of target_blackbox
-  | Node of (pi list * constraint_tree) list
+  | Node of (pi * constraint_tree) list * (pi list * constraint_tree) option
 and
   pi = { var: sym_value; op: piop } (* record of a variable and a constraint on that variable *)
 and
@@ -91,15 +91,22 @@ let print_env env =
        bprintf buf "%tFailure" (indent ntabs)
     | Leaf target_blackbox ->
        bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
-    | Node children ->
-       let bprint_child buf (pis, tree) =
+    | Node (children, fallback) ->
+       let bprint_child buf (pi, tree) =
          bprintf buf
            "%tNode (%a) =\n%a"
            (indent ntabs)
-           (bprint_list ~sep:(fun buf -> bprintf buf ", ") bprint_pi) pis
+           bprint_pi pi
            (bprint_tree (ntabs+1)) tree
        in
-       bprint_list ~sep:ignore bprint_child buf children
+       bprint_list ~sep:ignore bprint_child buf children;
+       match fallback with
+       | Some (pis, tree) ->
+         bprintf buf "%tFallback=Node (%a) =\n%a"
+           (indent ntabs)
+           (bprint_list ~sep:ignore bprint_pi) pis
+           (bprint_tree (ntabs+1)) tree
+       | None -> bprintf buf "%tFallback=None\n" (indent ntabs)
   and
   bprint_env ntabs buf env =
     let bprint_function buf binding =
@@ -147,15 +154,19 @@ let rec subst_svalue bindings = function
 let rec subst_tree bindings = function
   | Failure -> Failure
   | Leaf result -> Leaf result
-  | Node children ->
+  | Node (children, fallback) ->
      let subst_pi bindings {var; op} =
        {var = subst_svalue bindings var; op}
      in
-     let subst (pis, tree) =
-       (List.map (subst_pi bindings) pis,
+     let subst (pi, tree) =
+       (subst_pi bindings pi,
         subst_tree bindings tree)
      in
-     Node (List.map subst children)
+     let fallback' = fallback
+                     |> Option.map (fun (pis, tree) ->
+                         ((List.map (subst_pi bindings) pis), subst_tree bindings tree))
+     in
+     Node ((List.map subst children), fallback')
 
 let rec sym_exec sexpr env : constraint_tree =
   let match_bop: bop * int -> piop = function
@@ -241,22 +252,22 @@ let rec sym_exec sexpr env : constraint_tree =
     in
     let var = find_var env sxp in
     let pi = {var; op = piop} in
-    Node [
-      ([pi], sym_exec strue env);
-      ([negate_pi pi], sym_exec sfalse env)
-    ]
+    Node ([
+      (pi, sym_exec strue env);
+      (negate_pi pi, sym_exec sfalse env)
+    ], None)
   | Switch (sxp, swlist, defcase) ->
     let cases =
       let var = find_var env sxp in
       List.map (fun (test, sxp) -> {var; op = match_switch test}, sxp) swlist
     in
     let not_any_case = List.map negate_pi (List.map fst cases) in
-    let run_case (pi, sxp) = ([pi], sym_exec sxp env) in
-    let run_default default = (not_any_case, sym_exec default env) in
-    Node (
-      (Option.to_list (Option.map run_default defcase))
-      @ List.map run_case cases
-    )
+    let children = List.map (fun (pi, sxp) -> (pi, sym_exec sxp env)) cases in
+    let fallback = match defcase with
+      | Some tree -> Some (not_any_case, sym_exec tree env)
+      | None -> None
+    in
+    Node (children, fallback)
   | Catch (sxp, extpt, varlist, exit_sxp) ->
     let c_tree = sym_exec exit_sxp env in
     let env' = put_exit extpt (extpt, varlist, c_tree) in
