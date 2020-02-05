@@ -162,10 +162,9 @@ let rec subst_tree bindings = function
        (subst_pi bindings pi,
         subst_tree bindings tree)
      in
-     let fallback' = match fallback with
-       | None -> None
-       | Some (pis, tree) ->
-         Some ((List.map (subst_pi bindings) pis), subst_tree bindings tree)
+     let fallback' = fallback
+                     |> Option.map (fun (pis, tree) ->
+                         ((List.map (subst_pi bindings) pis), subst_tree bindings tree))
      in
      Node ((List.map subst children), fallback')
 
