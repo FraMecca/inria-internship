@@ -294,5 +294,5 @@ let empty_environment () =
   { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
 
 let eval target_ast =
-  let _ = sym_exec target_ast (empty_environment ()) in
-  ()
+  sym_exec target_ast (empty_environment ()) (* TODO: DISCUSS should return env? *)
+(* What about all the functions in env? *)
