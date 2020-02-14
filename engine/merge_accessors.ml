@@ -17,7 +17,18 @@ and
   | AcTag of sym_value * int
 
 let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
-  let rec subst_pi (pi: Target_sym_engine.pi) : pi =
+  let rec map_sym_value (pi: Target_sym_engine.pi) : pi =
+    match pi.var with
+    | AcRoot v -> {var=AcRoot v; op=pi.op}
+    | AcField (s, i) ->
+      let inner = map_sym_value {var=s; op=pi.op} in
+      {var=AcField (inner.var, i); op=inner.op}
+    | AcTag (s, i) ->
+      let inner = map_sym_value {var=s; op=pi.op} in
+      {var=AcTag (inner.var, i); op=inner.op}
+    | AcAdd (_, _) -> assert false
+  in
+  let rec subst_acadd (pi: Target_sym_engine.pi) : pi =
     match pi.var with
     | AcAdd (svalue, a) -> let op':Target_sym_engine.piop =  match pi.op with
         | Tag i -> Tag (a+i)
@@ -33,22 +44,16 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
         | Isout i -> Isout (a+i)
         | Isin i -> Isin (a+i)
       in
-      subst_pi {var=svalue; op=op'}
-    | AcRoot v -> {var=AcRoot v; op=pi.op}
-    | AcField (s, i) ->
-      let inner = subst_pi {var=s; op=pi.op} in
-      {var=AcField (inner.var, i); op=inner.op}
-    | AcTag (s, i) ->
-      let inner = subst_pi {var=s; op=pi.op} in
-      {var=AcTag (inner.var, i); op=inner.op}
+      subst_acadd {var=svalue; op=op'}
+    | _ -> map_sym_value pi
   in
   function
   | Target_sym_engine.Failure -> Failure
   | Target_sym_engine.Leaf l -> Leaf l
   | Target_sym_engine.Node (children, fallback) -> 
-    let subst_children = List.map (fun (pi, c_tree) -> (subst_pi pi, merge c_tree))
+    let subst_children = List.map (fun (pi, c_tree) -> (subst_acadd pi, merge c_tree))
     in
     let subst_fallback = Option.map (fun (pilst, c_tree) ->
-        (pilst |> List.map subst_pi, merge c_tree))
+        (pilst |> List.map subst_acadd, merge c_tree))
     in
     Node (subst_children children, subst_fallback fallback)
