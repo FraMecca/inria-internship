@@ -3,7 +3,7 @@ let () =
     | Error (lexbuf, _exn) ->
        Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
        exit 1
-    | Ok ast -> Target_sym_engine.eval ast
+    | Ok ast -> let _ = Target_sym_engine.eval ast |> Merge_accessors.merge in ()
     
 let () =
   if Array.length Sys.argv >= 3 then
