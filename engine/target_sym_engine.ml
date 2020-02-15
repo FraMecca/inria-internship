@@ -38,7 +38,7 @@ and
 
 module Domain = struct
   module Set = struct
-    let set interval = IntSet.add interval IntSet.empty
+    let set interv = IntSet.add interv IntSet.empty
     let point n = set (IntSet.Interval.make n n)
     let interval low high = set (IntSet.Interval.make low high)
 
@@ -55,6 +55,26 @@ module Domain = struct
 
     let union = IntSet.union
     let inter = IntSet.inter
+
+    let shift n set =
+      let open IntSet in
+      let shift_interval n intev =
+        let open Interval in
+        make (x intev + n) (y intev + n) in
+      let on_interval intev acc =
+        add (shift_interval n intev) acc in
+      IntSet.fold on_interval set IntSet.empty
+      (* TODO: this definition is incorrect in the case of overflows;
+         for example
+           x+1 <= 2
+         gets translated to the set
+           x+2 ∈ [min_int; 2]
+         The version shifted by -1 should not be
+           x ∈ [min_int-2; 0]
+           (which is the nonsensical x ∈ [max_int; 1])
+         but rather
+           x ∈ [min_int; 0] ∪ [max_int-1; max_int]
+       *)
 
     let to_string set =
       let on_interval interv acc =
