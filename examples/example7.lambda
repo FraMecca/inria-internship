@@ -1,0 +1,7 @@
+(setglobal Example7!
+  (let
+    (mm/80 =
+       (function param/81
+         (let (*match*/84 =a (field 1 param/81))
+           (if (!= *match*/84 0) "true" "false"))))
+    (makeblock 0 mm/80)))

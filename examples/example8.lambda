@@ -1,0 +1,19 @@
+(setglobal Example8!
+  (let
+    (mm/80 =
+       (function param/81
+         (let (*match*/83 =a (field 0 param/81))
+           (catch
+             (if *match*/83
+               (let (*match*/84 =a (field 0 *match*/83))
+                 (if (!= *match*/84 0) (exit 1)
+                   (let (*match*/85 =a (field 1 param/81))
+                     (stringswitch *match*/85
+                      case "whatever": "whatever"
+                      default: (exit 1)))))
+               (let (*match*/86 =a (field 1 param/81))
+                 (stringswitch *match*/86
+                  case "none": "none"
+                  default: (exit 1))))
+            with (1) (let (*match*/87 =a (field 1 param/81)) "fallback")))))
+    (makeblock 0 mm/80)))
