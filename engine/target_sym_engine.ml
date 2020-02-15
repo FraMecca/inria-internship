@@ -8,12 +8,15 @@ let target_example = {|(let
 module SMap = Map.Make(String)
 module IMap = Map.Make(struct type t = int let compare = compare end)
 
+(* efficient unions-of-intervals using the Diet library *)
+module IntSet = Diet.Int
+
 type constraint_tree =
   | Failure
   | Leaf of target_blackbox
-  | Node of (pi * constraint_tree) list * (pi list * constraint_tree) option
+  | Node of sym_value * (domain * constraint_tree) list * (domain * constraint_tree) option
 and
-  pi = { var: sym_value; op: piop } (* record of a variable and a constraint on that variable *)
+  pi = { var: sym_value; domain: domain } (* record of a variable and a constraint on that variable *)
 and
   sym_function = variable * constraint_tree
 and
@@ -31,19 +34,80 @@ and
   | AcTag of sym_value * int
   | AcAdd of sym_value * int
 and
-  piop =
-  | Tag of int
-  | NotTag of int (* Lambda doesn't have this *)
-  | Int of int
-  | NotInt of int (* Lambda doesn't have this *)
-  | Ge of int
-  | Gt of int
-  | Le of int
-  | Lt of int
-  | Eq of int
-  | Nq of int
-  | Isout of int
-  | Isin of int (* Lambda doesn't have this *)
+  domain = { tag: IntSet.t; int: IntSet.t }
+
+module Domain = struct
+  module Set = struct
+    let set interval = IntSet.add interval IntSet.empty
+    let point n = set (IntSet.Interval.make n n)
+    let interval low high = set (IntSet.Interval.make low high)
+
+    let lt n = interval min_int (n - 1)
+    let le n = interval min_int n
+    let ge n = interval n max_int
+    let gt n = interval (n+1) max_int
+
+    let empty = IntSet.empty
+    let full = interval min_int max_int
+    let negate set = IntSet.diff full set
+    let is_empty set = IntSet.is_empty set
+    let is_full set = IntSet.is_empty (negate set)
+
+    let union = IntSet.union
+    let inter = IntSet.inter
+
+    let to_string set =
+      let on_interval interv acc =
+        let low, high = IntSet.Interval.x interv, IntSet.Interval.y interv in
+        let str =
+          if low = high then string_of_int low
+          else Printf.sprintf "[%s; %s]"
+                 (if low = min_int then "-∞" else string_of_int low)
+                 (if high = max_int then "+∞" else string_of_int high)
+        in str :: acc
+      in
+      if is_empty set then "∅"
+      else if is_full set then "_"
+      else
+        IntSet.fold on_interval set []
+        |> List.rev
+        |> String.concat " "
+  end
+
+  let int set = {int = set; tag = Set.empty}
+  let tag set = {int = Set.empty; tag = set}
+
+  let full = {int = Set.full; tag = Set.full}
+
+  let negate dom = {
+    int = Set.negate dom.int;
+    tag = Set.negate dom.tag;
+  }
+  let union dom1 dom2 = {
+    int = Set.union dom1.int dom2.int;
+    tag = Set.union dom1.tag dom2.tag;
+  }
+  let inter dom1 dom2 = {
+    int = Set.inter dom1.int dom2.int;
+    tag = Set.inter dom1.tag dom2.tag;
+  }
+
+  let isin n = int (Set.interval 0 n)
+  let isout n = negate (isin n)
+  let isnot n = negate (int (Set.point n))
+
+  let to_string {int; tag} =
+    let show_int set = "Int " ^ Set.to_string set in
+    let show_tag set = "Tag " ^ Set.to_string set in
+    if Set.is_empty int && Set.is_empty tag then "false"
+    else if Set.is_full int && Set.is_full tag then "true"
+    else if Set.is_empty int then show_tag tag
+    else if Set.is_empty tag then show_int int
+    else Printf.sprintf "%s ∨ %s" (show_int int) (show_tag tag)
+
+  let bprint buf domain =
+    Printf.bprintf buf "%s" (to_string domain)
+end
 
 let print_env env =
   let bprintf = Printf.bprintf
@@ -55,21 +119,7 @@ let print_env env =
     | AcAdd (a, i) -> bprintf buf "AcAdd(%d %a)" i bprint_svalue a
   in
   let bprint_pi buf pi =
-    let print_op buf = function
-      | Tag i -> bprintf buf "Tag %d" i
-      | NotTag i -> bprintf buf "NotTag %d" i
-      | Int i-> bprintf buf "Int %d" i
-      | NotInt i-> bprintf buf "NotInt %d" i
-      | Ge i -> bprintf buf "Ge %d" i
-      | Gt i -> bprintf buf "Gt %d" i
-      | Le i -> bprintf buf "Le %d" i
-      | Lt i -> bprintf buf "Lt %d" i
-      | Eq i -> bprintf buf "Eq %d" i
-      | Nq i -> bprintf buf "Nq %d" i
-      | Isout i -> bprintf buf "Isout %d" i
-      | Isin i -> bprintf buf "Isin %d" i
-    in
-    bprintf buf "{ var=%a; op=%a; }" bprint_svalue pi.var print_op pi.op
+    bprintf buf "{ var=%a; dom=%a; }" bprint_svalue pi.var Domain.bprint pi.domain
   in
   let rec bprint_list ~sep bprint buf = function
     | [] -> ()
@@ -91,20 +141,20 @@ let print_env env =
        bprintf buf "%tFailure" (indent ntabs)
     | Leaf target_blackbox ->
        bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
-    | Node (children, fallback) ->
-       let bprint_child buf (pi, tree) =
+    | Node (var, children, fallback) ->
+       let bprint_child buf (domain, tree) =
          bprintf buf
            "%tNode (%a) =\n%a"
            (indent ntabs)
-           bprint_pi pi
+           bprint_pi { var; domain }
            (bprint_tree (ntabs+1)) tree
        in
        bprint_list ~sep:ignore bprint_child buf children;
        match fallback with
-       | Some (pis, tree) ->
+       | Some (domain, tree) ->
          bprintf buf "%tFallback=Node (%a) =\n%a"
            (indent ntabs)
-           (bprint_list ~sep:ignore bprint_pi) pis
+           bprint_pi {var; domain}
            (bprint_tree (ntabs+1)) tree
        | None -> bprintf buf "%tFallback=None\n" (indent ntabs)
   and
@@ -154,48 +204,27 @@ let rec subst_svalue bindings = function
 let rec subst_tree bindings = function
   | Failure -> Failure
   | Leaf result -> Leaf result
-  | Node (children, fallback) ->
-     let subst_pi bindings {var; op} =
-       {var = subst_svalue bindings var; op}
+  | Node (var, children, fallback) ->
+     let subst (dom, tree) =
+       (dom, subst_tree bindings tree)
      in
-     let subst (pi, tree) =
-       (subst_pi bindings pi,
-        subst_tree bindings tree)
-     in
-     let fallback' = fallback
-                     |> Option.map (fun (pis, tree) ->
-                         ((List.map (subst_pi bindings) pis), subst_tree bindings tree))
-     in
-     Node ((List.map subst children), fallback')
+     Node (subst_svalue bindings var,
+           List.map subst children,
+           Option.map subst fallback)
 
 let rec sym_exec sexpr env : constraint_tree =
-  let match_bop: bop * int -> piop = function
-    | Ge, i -> Ge i
-    | Gt, i -> Gt i
-    | Le, i -> Le i
-    | Lt, i -> Lt i
-    | Eq, i -> Eq i
-    | Nq, i -> Eq i
+  let eval_bop (bop, i) = match bop with
+    | Ge -> Domain.(int (Set.ge i))
+    | Gt -> Domain.(int (Set.gt i))
+    | Le -> Domain.(int (Set.le i))
+    | Lt -> Domain.(int (Set.lt i))
+    | Eq -> Domain.(int (Set.point i))
+    | Nq -> Domain.(negate (int (Set.point i)))
   in
-  let match_switch: switch_test -> piop = function
-    | Tag i -> Tag i
-    | Int i -> Int i
+  let eval_switch_test: switch_test -> domain = function
+    | Tag i -> Domain.(tag (Set.point i))
+    | Int i -> Domain.(int (Set.point i))
   in
-  let negate = function
-    | Tag i -> NotTag i
-    | NotTag i -> Tag i
-    | Int i -> NotInt i
-    | NotInt i -> Int i
-    | Ge i -> Lt i
-    | Gt i -> Le i
-    | Le i -> Gt i
-    | Lt i -> Ge i
-    | Eq i -> Nq i
-    | Nq i -> Eq i
-    | Isout i -> Isin i
-    | Isin i -> Isout i
-  in
-  let negate_pi {var; op} = {var; op = negate op} in
   let put_function variable fn : environment =
     assert (not (SMap.mem variable env.functions));
     {env with functions = SMap.add variable fn env.functions }
@@ -243,31 +272,34 @@ let rec sym_exec sexpr env : constraint_tree =
     in
     sym_exec next_sexpr env'
   | If (bexpr, strue, sfalse) ->
-    let piop, sxp =
+    let test, sxp =
       match bexpr with
-      | Comparison (bop, sxp, i) -> (match_bop (bop, i)), sxp
-      | Isout (i, v) -> Isout i, Var v
-      | Var v -> Nq 0, Var v
+      | Comparison (bop, sxp, i) -> (eval_bop (bop, i)), sxp
+      | Isout (i, v) -> Domain.isout i, Var v
+      | Var v -> Domain.isnot 0, Var v
       | _ -> assert false
     in
     let var = find_var env sxp in
-    let pi = {var; op = piop} in
-    Node ([
-      (pi, sym_exec strue env);
-      (negate_pi pi, sym_exec sfalse env)
+    Node (var, [
+      (test, sym_exec strue env);
+      (Domain.negate test, sym_exec sfalse env);
     ], None)
   | Switch (sxp, swlist, defcase) ->
+    let var = find_var env sxp in
     let cases =
-      let var = find_var env sxp in
-      List.map (fun (test, sxp) -> {var; op = match_switch test}, sxp) swlist
+      List.map (fun (test, sxp) -> (eval_switch_test test, sxp)) swlist
     in
-    let not_any_case = List.map negate_pi (List.map fst cases) in
-    let children = List.map (fun (pi, sxp) -> (pi, sym_exec sxp env)) cases in
+    let not_any_case =
+      cases
+      |> List.map (fun (dom, _) -> Domain.negate dom)
+      |> List.fold_left Domain.inter Domain.full
+    in
+    let children = List.map (fun (dom, sxp) -> (dom, sym_exec sxp env)) cases in
     let fallback = match defcase with
       | Some tree -> Some (not_any_case, sym_exec tree env)
       | None -> None
     in
-    Node (children, fallback)
+    Node (var, children, fallback)
   | Catch (sxp, extpt, varlist, exit_sxp) ->
     let c_tree = sym_exec exit_sxp env in
     let env' = put_exit extpt (extpt, varlist, c_tree) in
