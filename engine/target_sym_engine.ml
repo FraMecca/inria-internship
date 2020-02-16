@@ -14,25 +14,25 @@ module IntSet = Diet.Int
 type constraint_tree =
   | Failure
   | Leaf of target_blackbox
-  | Node of sym_value * (domain * constraint_tree) list * (domain * constraint_tree) option
+  | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
 and
-  pi = { var: sym_value; domain: domain } (* record of a variable and a constraint on that variable *)
+  pi = { var: accessor; domain: domain } (* record of a variable and a constraint on that variable *)
 and
   sym_function = variable * constraint_tree
 and
   sym_catch = exitpoint * variable list * constraint_tree
 and
   environment = {
-  values: sym_value SMap.t;
+  values: accessor SMap.t;
   functions: sym_function SMap.t;
   exits: sym_catch IMap.t;
 }
 and
-  sym_value =
+  accessor =
   | AcRoot of variable
-  | AcField of sym_value * int
-  | AcTag of sym_value * int
-  | AcAdd of sym_value * int
+  | AcField of accessor * int
+  | AcTag of accessor * int
+  | AcAdd of accessor * int
 and
   domain = { tag: IntSet.t; int: IntSet.t }
 
@@ -264,7 +264,7 @@ let rec sym_exec sexpr env : constraint_tree =
     exits=IMap.union (fun _ a b -> assert (a = b); Some a) env1.exits env2.exits;
   }
   in
-  let find_var env : sexpr -> sym_value = function
+  let find_var env : sexpr -> accessor = function
     | Var v -> SMap.find v env.values
     | _ -> assert false
   in
