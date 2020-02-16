@@ -1,0 +1,21 @@
+File "nary_wildcards.ml", line 3, characters 4-15:
+3 |   | ((_, _), _) -> "3"
+        ^^^^^^^^^^^
+Warning 11: this match case is unused.
+File "nary_wildcards.ml", line 4, characters 4-20:
+4 |   | ((_, _), (_, _)) -> "4"
+        ^^^^^^^^^^^^^^^^
+Warning 11: this match case is unused.
+(setglobal Nary_wildcards!
+  (let
+    (mm/80 =
+       (function param/81
+         (let
+           (*match*/86 =a (field 1 param/81)
+            *match*/88 =a (field 1 *match*/86)
+            *match*/87 =a (field 0 *match*/86)
+            *match*/83 =a (field 0 param/81)
+            *match*/85 =a (field 1 *match*/83)
+            *match*/84 =a (field 0 *match*/83))
+           "t2")))
+    (makeblock 0 mm/80)))
