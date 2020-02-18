@@ -15,4 +15,13 @@ let () =
       | exception exn -> Ocaml_parser.handle_error exn
       | ast ->
         Format.printf "Source input:@.%a@." Ocaml_parser.pp_ocaml_program ocaml_ast;
-        Source_sym_engine.eval ast;
+        Source_sym_engine.eval ast
+
+let () =
+  match Menhir_parser.parse_file Sys.argv.(1) with
+    | Error (lexbuf, _exn) ->
+       Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
+       exit 1
+    | Ok ast ->
+      let result = Target_sym_engine.eval ast |> Merge_accessors.merge in
+      assert (Equivalence.compare result result)
