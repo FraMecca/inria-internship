@@ -280,7 +280,7 @@ let rec sym_exec sexpr env : constraint_tree =
       put_value key (AcField (acc, i))
     | Addition (i, v) ->
       let svalue = SMap.find v env.values in
-      put_value key (AcField (svalue, i))
+      put_value key (AcAdd (svalue, i))
     | Function (v, sxp) ->
       let envf = put_value v (AcRoot v) in
       let c_tree = sym_exec sxp envf in
