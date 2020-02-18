@@ -53,6 +53,8 @@ module Domain = struct
     let is_empty set = IntSet.is_empty set
     let is_full set = IntSet.is_empty (negate set)
 
+    let equal = IntSet.equal
+
     let union = IntSet.union
     let inter = IntSet.inter
 
@@ -98,6 +100,10 @@ module Domain = struct
   let tag set = {int = Set.empty; tag = set}
 
   let full = {int = Set.full; tag = Set.full}
+
+  let is_empty dom = Set.is_empty dom.int && Set.is_empty dom.tag
+
+  let equal dom dom' = Set.equal dom.int dom'.int && Set.equal dom.tag dom'.tag
 
   let negate dom = {
     int = Set.negate dom.int;
