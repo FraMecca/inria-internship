@@ -14,13 +14,11 @@ and
   accessor =
   | AcRoot of variable
   | AcField of accessor * int
-  | AcTag of accessor * int
 
 let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
   let rec map_accessor : Target_sym_engine.accessor -> accessor = function
     | AcRoot v -> AcRoot v
     | AcField (s, i) -> AcField(map_accessor s, i)
-    | AcTag (s, i) -> AcTag(map_accessor s, i)
     | AcAdd (_, _) -> assert false
   in
   let rec split : Target_sym_engine.accessor -> accessor * int = function

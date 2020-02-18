@@ -31,7 +31,6 @@ and
   accessor =
   | AcRoot of variable
   | AcField of accessor * int
-  | AcTag of accessor * int
   | AcAdd of accessor * int
 and
   domain = { tag: IntSet.t; int: IntSet.t }
@@ -141,7 +140,6 @@ let print_env env =
   let rec bprint_svalue buf = function
     | AcRoot (v) -> bprintf buf "AcRoot=%s" v
     | AcField (a, i) -> bprintf buf "AcField(%d %a)" i bprint_svalue a
-    | AcTag (a, i) -> bprintf buf "AcTag(%d %a)" i bprint_svalue a
     | AcAdd (a, i) -> bprintf buf "AcAdd(%d %a)" i bprint_svalue a
   in
   let bprint_pi buf pi =
@@ -224,7 +222,6 @@ let rec subst_svalue bindings = function
         | None -> AcRoot v
     end
   | AcField (acc', i) -> AcField (subst_svalue bindings acc', i)
-  | AcTag (acc', i) -> AcTag (subst_svalue bindings acc', i)
   | AcAdd (svalue', i) -> AcAdd (subst_svalue bindings svalue', i)
 
 let rec subst_tree bindings = function
