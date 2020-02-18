@@ -82,21 +82,6 @@ type source_constraint =
   | Constructor of constructor * source_constraint list
   | As of source_constraint * variable
 
-type target_constraints = a_constraint list
-and
-  a_constraint = qualifier * aop * index
-and
-  aop =
-  | Immediate of bop * int
-  | Tag of int
-  | Isrange of int list
-and
-  index =
-  | Root
-  | Field of int * index
-and
-  qualifier = bool
-
 let sexpr_of_bexpr : bexpr -> sexpr = function
 | Comparison (op, exp, n) -> Comparison (op, exp, n)
 | Field (i, v) -> Field (i, v)
