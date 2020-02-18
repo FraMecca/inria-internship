@@ -5,7 +5,7 @@ type constraint_tree =
   | Leaf of Ast.target_blackbox
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
 and
-  domain = Target_sym_engine.domain
+  domain = Target_domain.t
 and
   sym_function = variable * constraint_tree
 and
@@ -27,12 +27,12 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
     | other -> (map_accessor other, 0)
   in
   let shift_domain offset domain =
-    let open Target_sym_engine in
+    let open Target_domain in
     (* Note: AcAdd is only use on integer concrete values,
        not tags. Thus, we only shift the set of possible integer values,
        and preserve the set of possible tags. *)
     {
-      int = Domain.Set.shift (-offset) domain.int;
+      int = Set.shift (-offset) domain.int;
       tag = domain.tag;
     } in
   function
