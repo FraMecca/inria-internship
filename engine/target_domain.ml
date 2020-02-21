@@ -66,6 +66,7 @@ let int set = {int = set; tag = Set.empty}
 let tag set = {int = Set.empty; tag = set}
 
 let full = {int = Set.full; tag = Set.full}
+let empty = {int = Set.empty; tag = Set.empty}
 
 let is_empty dom = Set.is_empty dom.int && Set.is_empty dom.tag
 
