@@ -82,6 +82,10 @@ type source_constraint =
   | Constructor of constructor * source_constraint list
   | As of source_constraint * variable
 
+type accessor =
+  | AcRoot
+  | AcField of accessor * int
+
 let sexpr_of_bexpr : bexpr -> sexpr = function
 | Comparison (op, exp, n) -> Comparison (op, exp, n)
 | Field (i, v) -> Field (i, v)

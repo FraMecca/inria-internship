@@ -10,14 +10,10 @@ and
   sym_function = variable * constraint_tree
 and
   sym_catch = exitpoint * variable list * constraint_tree
-and
-  accessor =
-  | AcRoot of variable
-  | AcField of accessor * int
 
 let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
   let rec map_accessor : Target_sym_engine.accessor -> accessor = function
-    | AcRoot v -> AcRoot v
+    | AcRoot _ -> AcRoot
     | AcField (s, i) -> AcField(map_accessor s, i)
     | AcAdd (_, _) -> assert false
   in
