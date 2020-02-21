@@ -1,9 +1,5 @@
 open Ast
 
-type accessor =
-  | AcRoot
-  | AcField of accessor * int
-
 type constraint_tree =
   | Unreachable
   | Failure
