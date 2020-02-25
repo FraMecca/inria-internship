@@ -3,6 +3,17 @@ open Ast
 
 module Domain = Target_sym_engine.Domain
 
+module AcMap = Map.Make(
+  struct type t = accessor
+    let rec compare a a' =
+      match (a, a') with
+      | (AcRoot, AcRoot) -> 0
+      | (AcRoot, AcField _) -> -1
+      | (AcField _, AcRoot) -> 1
+      | (AcField (a, i), AcField (a', i')) when a = a' -> Int.compare i i'
+      | (AcField (a, _), AcField (a', _)) -> compare a a'
+  end)
+
 type source_tree = Source_sym_engine.constraint_tree
 type target_tree = Merge_accessors.constraint_tree
 
@@ -40,15 +51,22 @@ let compare (left: source_tree) (right: target_tree) : bool =
         in
         Node (node_acc, children', fallback')
     in
-    let input_space = assert false in (* TODO: DISCUSS *)
-    if Domain.equal input_space Domain.empty then
+  let dead_end input_space =
+    AcMap.for_all (fun _ value -> not (Domain.is_empty value)) input_space
+  in
+  let rec compare_ (left: source_tree) (right: target_tree) (input_space: domain AcMap.t) : bool =
+    if dead_end input_space then
       true
     else
       match (left, right) with
       | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
         Option.to_list fallback @ children
-        |> List.for_all (fun (_, child) -> _compare terminal child)
+        |> List.for_all (fun (_, child) -> compare_ terminal child input_space)
       | Node (acc, children, fallback), _ ->
+        let compare_branch (pi, branch) =
+          let input_pi = AcMap.find acc input_space in
+          let input_space' = AcMap.add acc (Domain.inter input_pi pi) input_space in
+          compare_ branch (trim acc pi right) input_space'
         let branches = match fallback with
           | Unreachable -> children
           | _ -> (fallback_constructor left, fallback) :: children in
@@ -58,4 +76,4 @@ let compare (left: source_tree) (right: target_tree) : bool =
       | (Failure, Leaf _) | (Leaf _, Failure) | (Unreachable, _) ->
         false
   in
-  _compare left right
+  compare_ left right AcMap.empty
