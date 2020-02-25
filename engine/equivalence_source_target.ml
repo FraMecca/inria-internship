@@ -20,37 +20,32 @@ type target_tree = Merge_accessors.constraint_tree
 type source_constructor = Ast.constructor
 
 let constructor_to_domain (_: source_constructor) : Domain.t = assert false
-let fallback_constructor (_: source_tree) : source_constructor = assert false
+let fallback_domain (_: source_tree) : domain = assert false
 
 let compare (left: source_tree) (right: target_tree) : bool =
-  let specialize (k: source_constructor) (pi': domain) : domain =
-    let pi = constructor_to_domain k in
-    Domain.inter pi pi'
-  in
-  let rec _compare (left: source_tree) (right: target_tree) : bool =
-    let rec trim src_acc (constructor: source_constructor) =
-      let specialize_same_acc  node_acc (dom, s_tree) =
-        if Domain.is_empty dom then
-          None
-        else if src_acc = node_acc then
-          Some (specialize constructor dom, trim src_acc constructor s_tree)
-        else
-          Some (dom, trim src_acc constructor s_tree)
-      in
-      function
-      | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
-      | Failure -> Failure
-      | Leaf l -> Leaf l
-      | Node (node_acc, children, fallback) ->
-        let children' =
-          children
-          |> List.filter_map (specialize_same_acc node_acc) 
-        in
-        let fallback' =
-          Option.bind fallback (specialize_same_acc node_acc)
-        in
-        Node (node_acc, children', fallback')
+  let rec trim src_acc src_pi =
+    let specialize_same_acc  node_acc (pi, s_tree) =
+      if Domain.is_empty pi then
+        None
+      else if src_acc = node_acc then
+        Some (Domain.inter src_pi pi, trim src_acc src_pi s_tree)
+      else
+        Some (pi, trim src_acc src_pi s_tree)
     in
+    function
+    | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
+    | Failure -> Failure
+    | Leaf l -> Leaf l
+    | Node (node_acc, children, fallback) ->
+      let children' =
+        children
+        |> List.filter_map (specialize_same_acc node_acc) 
+      in
+      let fallback' =
+        Option.bind fallback (specialize_same_acc node_acc)
+      in
+      Node (node_acc, children', fallback')
+  in
   let dead_end input_space =
     AcMap.for_all (fun _ value -> not (Domain.is_empty value)) input_space
   in
@@ -67,10 +62,12 @@ let compare (left: source_tree) (right: target_tree) : bool =
           let input_pi = AcMap.find acc input_space in
           let input_space' = AcMap.add acc (Domain.inter input_pi pi) input_space in
           compare_ branch (trim acc pi right) input_space'
+        in
+        let children' = List.map (fun (kst, tree) -> (constructor_to_domain kst, tree)) children in
         let branches = match fallback with
-          | Unreachable -> children
-          | _ -> (fallback_constructor left, fallback) :: children in
-        List.for_all (fun (kst, child) ->  _compare child (trim acc kst right)) branches
+          | Unreachable -> children'
+          | _ -> (fallback_domain left, fallback) :: children' in
+        List.for_all compare_branch branches
       | (Unreachable, _) ->
         prerr_endline "Warning: unreachable branch";
         true
