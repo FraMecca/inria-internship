@@ -71,9 +71,12 @@ let compare (left: source_tree) (right: target_tree) : bool =
           | Unreachable -> children
           | _ -> (fallback_constructor left, fallback) :: children in
         List.for_all (fun (kst, child) ->  _compare child (trim acc kst right)) branches
+      | (Unreachable, _) ->
+        prerr_endline "Warning: unreachable branch";
+        true
       | (Failure, Failure) -> true
       | (Leaf (SBlackbox slf), Leaf rlf) -> slf = rlf (* blackbox comparison is simply string eq *)
-      | (Failure, Leaf _) | (Leaf _, Failure) | (Unreachable, _) ->
+      | (Failure, Leaf _) | (Leaf _, Failure) ->
         false
   in
   compare_ left right AcMap.empty
