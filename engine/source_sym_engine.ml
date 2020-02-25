@@ -128,7 +128,7 @@ let group_add_omegas { arity; rev_rows; _ } (rest, rhs) =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
   rev_rows := (List.rev_append wildcards rest, rhs) :: !rev_rows
 
-let group_constructors (acs, rows) : (constructor * matrix) list * matrix =
+let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
   let wildcard_group = empty_group acs 0 in
   let rec collect_constructors : pattern list -> unit = function
@@ -138,9 +138,9 @@ let group_constructors (acs, rows) : (constructor * matrix) list * matrix =
       | Wildcard -> ()
       | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
       | As (p, _) -> collect_constructors (p::ptl)
-      | Constructor (k, plist) ->
+      | Constructor (k, _plist) ->
         if not (Hashtbl.mem group_tbl k) then begin
-          let arity = List.length plist in
+          let arity = Source_env.constructor_arity type_env k in
           Hashtbl.add group_tbl k (empty_group acs arity)
         end;
         collect_constructors ptl
@@ -174,6 +174,7 @@ let group_constructors (acs, rows) : (constructor * matrix) list * matrix =
   (constructor_matrices, wildcard_matrix)
 
 let sym_exec source =
+  let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose matrix : constraint_tree =
     match matrix with
     | (_, []) -> assert false
@@ -185,7 +186,7 @@ let sym_exec source =
     | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
     | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false
     | (ac_head::_ as _acs, ((_::_) as _columns, _)::_) ->
-      let groups, fallback = group_constructors matrix in
+      let groups, fallback = group_constructors type_env matrix in
       let groups_evaluated =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in

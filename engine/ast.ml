@@ -1,6 +1,7 @@
 [@@@ warning "-30"]
 
 type source_program  = {
+  type_decls: type_decl list;
   clauses: clause list;
 }
 and
@@ -17,7 +18,7 @@ and
   | As of pattern * variable
 and
   constructor =
-  | Variant of string
+  | Variant of variant_name
   | Int of int
   | Bool of bool
   | String of string
@@ -25,11 +26,24 @@ and
   | Nil
   | Cons
 and
+  variant_name = string
+and
   variable = string
-and 
+and
   source_expr = SBlackbox of source_blackbox
 and
   source_blackbox = string
+and type_decl = {
+  name: type_name;
+  constructors: constructor_decl list;
+}
+and
+  type_name = string
+and constructor_decl = {
+  constructor_name: variant_name;
+  args: type_expr list;
+}
+and type_expr = unit (* we only care about the arity for now *)
 
 type target_program = sexpr
 and
@@ -38,7 +52,7 @@ and
   | Int of int
   | Bool of bool
   | String of string
-  | Addition of int * variable 
+  | Addition of int * variable
   | Function of variable * sexpr
   | Let of binding list * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
