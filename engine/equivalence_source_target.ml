@@ -19,10 +19,30 @@ type target_tree = Merge_accessors.constraint_tree
 
 type source_constructor = Ast.constructor
 
-let constructor_to_domain (_: source_constructor) : Domain.t = assert false
-let fallback_domain (_: source_tree) : domain = assert false
+let constructor_to_domain repr_env : constructor -> domain = function
+  | Int i -> Domain.int (Domain.Set.point i)
+  | Bool false -> Domain.int (Domain.Set.point 0)
+  | Bool true -> Domain.int (Domain.Set.point 1)
+  | String _ -> assert false (* Still not handled *)
+  | Nil -> Domain.int (Domain.Set.point 0)
+  | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
+  | Variant v ->
+    let open Source_env in
+    match ConstructorMap.find v repr_env with
+    | Int i -> Domain.int (Domain.Set.point i)
+    | Tag t -> Domain.tag (Domain.Set.point t)
 
-let compare (left: source_tree) (right: target_tree) : bool =
+let constrained_subtrees repr_env children fallback =
+  let children' = List.map (fun (kst, tree) ->
+      (constructor_to_domain repr_env kst, tree)) children in
+  let fb_domain =
+    children'
+    |> List.map fst
+    |> List.fold_left Domain.union Domain.empty
+    |> Domain.negate in
+  ((fb_domain, fallback) :: children')
+
+let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec trim src_acc src_pi =
     let specialize_same_acc  node_acc (pi, s_tree) =
       if Domain.is_empty pi then
@@ -39,35 +59,38 @@ let compare (left: source_tree) (right: target_tree) : bool =
     | Node (node_acc, children, fallback) ->
       let children' =
         children
-        |> List.filter_map (specialize_same_acc node_acc) 
+        |> List.filter_map (specialize_same_acc node_acc)
       in
       let fallback' =
         Option.bind fallback (specialize_same_acc node_acc)
       in
       Node (node_acc, children', fallback')
   in
+  let specialize_input_space acc pi input_space =
+    let pi' = match AcMap.find_opt acc input_space with
+      | Some input_pi -> Domain.inter input_pi pi
+      | None -> pi
+    in
+    AcMap.add acc pi' input_space
+  in
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ (left: source_tree) (right: target_tree) (input_space: domain AcMap.t) : bool =
+  let rec compare_ (input_space: domain AcMap.t) (left: source_tree) (right: target_tree) : bool =
     if dead_end input_space then
       true
     else
       match (left, right) with
-      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
-        Option.to_list fallback @ children
-        |> List.for_all (fun (_, child) -> compare_ terminal child input_space)
       | Node (acc, children, fallback), _ ->
         let compare_branch (pi, branch) =
-          let input_pi = AcMap.find acc input_space in
-          let input_space' = AcMap.add acc (Domain.inter input_pi pi) input_space in
-          compare_ branch (trim acc pi right) input_space'
+          let input_space' = specialize_input_space acc pi input_space in
+          compare_ input_space' branch (trim acc pi right)
         in
-        let children' = List.map (fun (kst, tree) -> (constructor_to_domain kst, tree)) children in
-        let branches = match fallback with
-          | Unreachable -> children'
-          | _ -> (fallback_domain left, fallback) :: children' in
-        List.for_all compare_branch branches
+        constrained_subtrees repr_env children fallback
+        |> List.for_all compare_branch
+      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
+        Option.to_list fallback @ children
+        |> List.for_all (fun (_, child) -> compare_ input_space terminal child)
       | (Unreachable, _) ->
         prerr_endline "Warning: unreachable branch";
         true
@@ -76,4 +99,4 @@ let compare (left: source_tree) (right: target_tree) : bool =
       | (Failure, Leaf _) | (Leaf _, Failure) ->
         false
   in
-  compare_ left right AcMap.empty
+  compare_ AcMap.empty left right
