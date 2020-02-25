@@ -45,18 +45,32 @@ let error_at loc fmt =
 open Ast
 
 let rec ast_of_ocaml ~file (prog : ocaml_program) : source_program =
-  let definition_body =
-    let value_definition def = match def.pstr_desc with
-      | Pstr_value (_rec_flag, [binding]) -> Some binding
-      | _ -> None in
-    match List.filter_map value_definition prog with
-    | [] | _ :: _ :: _ ->
+  let parse_item (tydecls_rev, clauses) str_item =
+    match str_item.pstr_desc with
+    | Pstr_value (_rec_flag, [binding]) ->
+       begin match clauses with
+         | Some _ ->
+            error_at (Location.in_file file)
+              "a single value declaration was expected"
+         | None ->
+            (tydecls_rev, Some (value_of_ocaml binding.pvb_expr))
+       end
+    | Pstr_type (_rec_flag, type_decls) ->
+       (List.map type_decl_of_ocaml type_decls @ tydecls_rev, clauses)
+    | _ -> error_at str_item.pstr_loc "Unsupported structure item"
+  in
+  let (tydecls_rev, clauses) = List.fold_left parse_item ([], None) prog in
+  let type_decls = List.rev tydecls_rev in
+  let clauses = match clauses with
+    | Some clauses -> clauses
+    | None ->
        error_at (Location.in_file file)
-         "a single value declaration was expected"
-    | [binding] ->
-       binding.pvb_expr in
-  let cases =
-    match definition_body.pexp_desc with
+         "a least one value declaration was expected"
+  in
+  { type_decls; clauses; }
+
+and value_of_ocaml definition_body =
+  let cases = match definition_body.pexp_desc with
     | Pexp_function cases ->
        cases
     | Pexp_fun (_arg_label, _default_val, arg, body) ->
@@ -72,10 +86,7 @@ let rec ast_of_ocaml ~file (prog : ocaml_program) : source_program =
     | _ ->
        error_at definition_body.pexp_loc
          "expected (function ...) or (fun x -> match x with ...)"
-  in
-  {
-    clauses = List.map clause_of_ocaml cases;
-  }
+  in List.map clause_of_ocaml cases
 
 and clause_of_ocaml { pc_lhs = pattern; pc_guard = guard; pc_rhs = expr } : clause =
   begin match guard with
@@ -163,3 +174,29 @@ and blackbox_of_ocaml exp =
   match exp.pexp_desc with
     | Pexp_constant (Pconst_string (str, _)) -> SBlackbox str
     | _ -> SBlackbox "<expr>"
+
+and type_decl_of_ocaml decl =
+  let name = decl.ptype_name.txt in
+  (* we ignore parameters for now *)
+  let constructors =
+    match decl.ptype_kind with
+    | Ptype_abstract | Ptype_open ->
+       error_at decl.ptype_loc "Unsupported type declarations"
+    | Ptype_record _ ->
+       error_at decl.ptype_loc "Record types are not yet supported"
+    | Ptype_variant decls ->
+       List.map constructor_decl_of_ocaml decls
+  in
+  { name; constructors; }
+
+and constructor_decl_of_ocaml decl =
+  let constructor_name = decl.pcd_name.txt in
+  let args =
+    match decl.pcd_args with
+    | Pcstr_record _ ->
+       error_at decl.pcd_loc "Inline records are unsupported"
+    | Pcstr_tuple args ->
+       (* we only care about the arity for now *)
+       List.map (fun _arg_type -> ()) args
+  in
+  { constructor_name; args; }
