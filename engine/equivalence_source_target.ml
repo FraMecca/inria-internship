@@ -47,7 +47,7 @@ let compare (left: source_tree) (right: target_tree) : bool =
       Node (node_acc, children', fallback')
   in
   let dead_end input_space =
-    AcMap.for_all (fun _ value -> not (Domain.is_empty value)) input_space
+    AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
   let rec compare_ (left: source_tree) (right: target_tree) (input_space: domain AcMap.t) : bool =
     if dead_end input_space then
