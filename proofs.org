@@ -1,0 +1,49 @@
+* First blackboard
+
+** Definitions
+
+Translation to constraint trees:
+
+  [|_|]ₛ : Source Terms -> Source Constraint Trees
+  [|_|]ₜ : Target Terms -> Target Constraint Trees
+
+Running a {program, constraint tree} against an input
+
+  result r ::= Match bb | NoMatch
+  (same blackboxes 'bb' for source and target programs and constraint trees)
+
+  tₛ(vₛ) → r
+  tₜ(vₜ) → r
+
+  Cₛ(vₛ) → r
+  Cₜ(vₜ) → r
+
+Equivalence of values, programs and constraint trees:
+
+  vₛ ≃ vₜ    (TODO define, this talks about the representation of source values in the target)
+  tₛ ≃ tₜ := (∀vₛ≃vₜ, tₛ(vₛ)=tₜ(vₜ))
+  Cₛ ≃ Cₜ := (∀vₛ≃vₜ, Cₛ(vₛ)=Cₜ(vₜ))
+
+Our equivalence algorithm on constraint trees:
+
+  equiv Cₛ Cₜ → Yes | No(vₛ,vₜ)
+
+  (Yes: equivalent, No: here is a pair of inputs as counter-example)
+
+** Statements
+
+Theorem: Correctness of translation to constraint trees:
+
+  ∀vₛ, tₛ(vₛ) = [|tₛ|]ₛ(vₛ)
+  ∀vₜ, tₜ(vₜ) = [|tₜ|]ₜ(vₜ)
+
+Theorem: Correctness of the equivalence of constraint trees
+
+  (equiv Cₛ Cₜ = Yes)  ⇔  (Cₛ ≃ Cₜ)
+
+  Auxiliary Lemmas:
+    (equiv Cₛ Cₜ = Yes)        ⇒   (Cₛ ≃ Cₜ)
+    (equiv Cₛ Cₜ = No(vₛ,vₜ)   ⇒   vₛ≃vₜ ∧ Cₛ(vₛ)≠Cₜ(vₜ)
+  
+Corollary (our main result):
+  (equiv [|tₛ|]ₛ [|tₜ|]ₜ = Yes)  ⇔  tₛ ≃ tₜ
