@@ -47,3 +47,42 @@ Theorem: Correctness of the equivalence of constraint trees
   
 Corollary (our main result):
   (equiv [|tₛ|]ₛ [|tₜ|]ₜ = Yes)  ⇔  tₛ ≃ tₜ
+
+*** Draft of proof for equivalence between constraint trees and source/target programs
+
+tₛ      ::= (p → bb)ⁱ  # i ∈ I
+p       ::= | K(pᵢ)ⁱ, i ∈ I | (p|q) | n ∈ ℕ        # t should be T in latex
+tₜ      ::= if condₜ tₜ tₜ | let x = eₜ in tₜ | switch((pₜᵢ → tₜᵢ)ⁱ tₜ? | catch(tₜ, l(yᵢ)ⁱ  → tₜ) | exit l (eₜᵢ)ⁱ
+                 i ∈ I
+condₜ   ::= eₜ bop n eₜ::=x | eₜ.n
+
+Cₛ      ::= Leaf bb | Node(a, (Kᵢ → Cᵢ)ⁱ , C?) # i ∈ S
+a       ::= Here | n.a
+vₛ      ::= K(vᵢ)ⁱ | n ∈ ℕ   # i ∈ I
+
+
+[|_|] STerms -> STrees
+
+SMatrix mₛ := (aᵢ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ  # i ∈ I j ∈ Jᵢ # i columns, j rows, order matters
+[|((pᵢ → bbᵢ)ⁱ|] := [| (Root), ((pᵢ → bbᵢ)ⁱ |] # i ∈ I
+[| ∅, (∅ → bbᵢ)ⁱ |] := Leaf bbᵢ where i := min(I)
+
+[| aⱼ, rⱼ |] := (cols(mₛ)>1) := let Grups((aⱼ)ᴵ,(rᵢ)ⁱ) be (Kₖ → mₖ), m_{wildcards)
+                 Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ, [|m_{wildcards}|])
+[| (aⱼ)ʲ, ∅ |] := Unreachable
+
+
+**** Sterms -> STrees
+
+SMatrix mₛ := (aⱼ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ
+∀(vⱼ)ʲ, mₛ(vⱼ)ʲ = [|mₛ|](vⱼ)ʲ
+
+v(Here) = v
+K(vᵢ)ⁱ(k.a) = vₖ(a) if k ∈ [0;n[
+
+We also said that
+(Leaf bb)(v) := Match bb
+(Node(a, (kᵢ → cᵢ)ⁱ, c_{fallback}))(v)
+    let v(a) be K(vⱼ)ʲ
+        if k ∈ {Kᵢ}ⁱ then  C_{min{i}|k=kᵢ}(v)
+        else c_{fallback}(v)
