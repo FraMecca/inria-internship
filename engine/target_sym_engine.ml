@@ -33,7 +33,7 @@ and
 and
   domain = Domain.t
 
-let print_env env =
+let print_tree tree =
   let bprintf = Printf.bprintf
   in
   let rec bprint_svalue buf = function
@@ -48,70 +48,42 @@ let print_env env =
     | [] -> ()
     | [x] -> bprint buf x
     | x :: xs ->
-       bprintf buf "%a%t%a"
-         bprint x
-         sep
-         (bprint_list ~sep bprint) xs in
+      bprintf buf "%a%t%a"
+        bprint x
+        sep
+        (bprint_list ~sep bprint) xs in
   let indent ntabs buf =
     bprintf buf "%s" (List.init ntabs (fun _ -> "\t") |> String.concat "")
   in
-  let break ntabs buf =
+  let _break ntabs buf =
     bprintf buf "\n%t" (indent ntabs)
   in
   let rec bprint_tree ntabs buf tree =
     match tree with
     | Failure ->
-       bprintf buf "%tFailure" (indent ntabs)
+      bprintf buf "%tFailure" (indent ntabs)
     | Leaf target_blackbox ->
-       bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
+      bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
     | Node (var, children, fallback) ->
-       let bprint_child buf (domain, tree) =
-         bprintf buf
-           "%tNode (%a) =\n%a"
-           (indent ntabs)
-           bprint_pi { var; domain }
-           (bprint_tree (ntabs+1)) tree
-       in
-       bprint_list ~sep:ignore bprint_child buf children;
-       match fallback with
-       | Some (domain, tree) ->
-         bprintf buf "%tFallback=Node (%a) =\n%a"
-           (indent ntabs)
-           bprint_pi {var; domain}
-           (bprint_tree (ntabs+1)) tree
-       | None -> bprintf buf "%tFallback=None\n" (indent ntabs)
-  and
-  bprint_env ntabs buf env =
-    let bprint_function buf binding =
-      let (k, fn) = binding in
-        let (v, f_tree) = fn
-        in
-        bprintf buf "%s: Function=%s,ConstraintTree:%t%a"
-          k v
-        (break ntabs)
-        (bprint_tree (ntabs + 1)) f_tree
+      let bprint_child buf (domain, tree) =
+        bprintf buf
+          "%tNode (%a) =\n%a"
+          (indent ntabs)
+          bprint_pi { var; domain }
+          (bprint_tree (ntabs+1)) tree
       in
-      let bprint_exits buf binding =
-      let (k, catch) = binding in
-        let (e, vars, c_tree) = catch
-        in
-        bprintf buf "%d: Catch=%d %s,ConstraintTree:%t%a"
-          k e
-          (String.concat " " vars)
-          (break ntabs)
-          (bprint_tree (ntabs + 1)) c_tree
-    in
-    let bprint_svalues buf binding =
-      let (k, svalue) = binding in
-        bprintf buf "%s: %a" k bprint_svalue svalue
-      in
-    bprint_list ~sep:(break ntabs) bprint_function buf (SMap.bindings env.functions);
-    bprint_list ~sep:(break ntabs) bprint_exits buf (IMap.bindings env.exits);
-    bprint_list ~sep:(break ntabs) bprint_svalues buf (SMap.bindings env.values)
+      bprint_list ~sep:ignore bprint_child buf children;
+      match fallback with
+      | Some (domain, tree) ->
+        bprintf buf "%tFallback=Node (%a) =\n%a"
+          (indent ntabs)
+          bprint_pi {var; domain}
+          (bprint_tree (ntabs+1)) tree
+      | None -> bprintf buf "%tFallback=None\n" (indent ntabs)
   in
-    let buf = Buffer.create 42 in
-    bprint_env 0 buf env;
-    BatIO.write_line BatIO.stdout (Buffer.contents buf)
+  let buf = Buffer.create 42 in
+  bprint_tree 0 buf tree;
+  BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
 
 let rec subst_svalue bindings = function
@@ -239,9 +211,11 @@ let rec sym_exec sexpr env : constraint_tree =
   | Int n ->
      Leaf (string_of_int n)
   | TBlackbox t ->
-    print_env env;
     Leaf t
   | Match_failure -> Failure
+  | Function (v, sxp) ->
+    let envf = put_value v (AcRoot v) in
+    sym_exec sxp envf
   | _ -> assert false
 
 let empty_environment () =

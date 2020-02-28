@@ -3,8 +3,15 @@ let () =
     | Error (lexbuf, _exn) ->
        Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
        exit 1
-    | Ok ast -> let _ = Target_sym_engine.eval ast |> Merge_accessors.merge in ()
-    
+    | Ok ast ->
+      let body = match ast with
+        | Let ([(_, body)], _) -> body
+        | _ -> assert false
+      in
+      let tree = Target_sym_engine.eval body in
+      Target_sym_engine.print_tree tree;
+      let _ = Merge_accessors.merge tree in ()
+
 let () =
   if Array.length Sys.argv >= 3 then
     let file = Sys.argv.(2) in
