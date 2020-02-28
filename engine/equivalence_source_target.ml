@@ -56,6 +56,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
     | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
     | Failure -> Failure
     | Leaf l -> Leaf l
+    | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
     | Node (node_acc, children, fallback) ->
       let children' =
         children
@@ -76,7 +77,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ (input_space: domain AcMap.t) (left: source_tree) (right: target_tree) : bool =
+  let rec compare_ (input_space: domain AcMap.t) (guards: target_blackbox list) (left: source_tree) (right: target_tree) : bool =
     if dead_end input_space then
       true
     else
@@ -84,19 +85,28 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | Node (acc, children, fallback), _ ->
         let compare_branch (pi, branch) =
           let input_space' = specialize_input_space acc pi input_space in
-          compare_ input_space' branch (trim acc pi right)
+          compare_ input_space' guards branch (trim acc pi right)
         in
         constrained_subtrees repr_env children fallback
         |> List.for_all compare_branch
       | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
         Option.to_list fallback @ children
-        |> List.for_all (fun (_, child) -> compare_ input_space terminal child)
+        |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
       | (Unreachable, _) ->
         prerr_endline "Warning: unreachable branch";
         true
-      | (Failure, Failure) -> true
-      | (Leaf (SBlackbox slf), Leaf rlf) -> slf = rlf (* blackbox comparison is simply string eq *)
+      | (Guard (bb, ctrue, cfalse), _) ->
+         let guards' = guards@[bb] in
+         compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
+      | (_, Guard (bb, ctrue, cfalse)) ->
+        begin match guards with
+          | hd::grest when hd = bb ->  (* simple string comparison of source/target blackboxes *)
+            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
+          | _ -> false
+        end
+      | (Failure, Failure) -> guards = []
+      | (Leaf (SBlackbox slf), Leaf rlf) -> guards = [] &&  slf = rlf (* blackbox comparison is simply string eq *)
       | (Failure, Leaf _) | (Leaf _, Failure) ->
         false
   in
-  compare_ AcMap.empty left right
+  compare_ AcMap.empty [] left right

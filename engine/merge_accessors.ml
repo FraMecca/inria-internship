@@ -35,6 +35,7 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
   function
   | Target_sym_engine.Failure -> Failure
   | Target_sym_engine.Leaf l -> Leaf l
+  | Target_sym_engine.Guard (bb, ctrue, cfalse) -> Guard (bb, merge ctrue, merge cfalse)
   | Target_sym_engine.Node (var, children, fallback) ->
     let (var, offset) = split var in
     let subst (dom, c_tree) = (shift_domain offset dom, merge c_tree) in
