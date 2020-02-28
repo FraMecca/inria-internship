@@ -3,6 +3,7 @@ open Ast
 type constraint_tree =
   | Failure
   | Leaf of Ast.target_blackbox
+  | Guard of target_blackbox * constraint_tree * constraint_tree
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
 and
   domain = Target_domain.t

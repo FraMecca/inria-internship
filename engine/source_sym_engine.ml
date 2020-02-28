@@ -4,6 +4,7 @@ type constraint_tree =
   | Unreachable
   | Failure
   | Leaf of source_expr
+  | Guard of source_blackbox * constraint_tree * constraint_tree
   | Node of accessor * (constructor * constraint_tree) list * constraint_tree
 (* We distinguish
    - Unreachable: we statically know that no value can go there
@@ -78,6 +79,15 @@ let print_result stree =
       bprintf buf
         "Leaf='%a'"
         bprint_source_expr expr
+    | Guard (bb, ctrue, cfalse) ->
+      let bprint_child prefix tree =
+        bprintf buf
+          "%s =\n%a"
+          prefix
+          (bprint_tree 0) tree
+      in
+      bprintf buf "Guard (%S) =" bb;
+      bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
     | Node (ac, k_cst_list, fallback_cst) ->
       bprintf buf "Node %a:{\
                    %a \

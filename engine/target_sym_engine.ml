@@ -13,6 +13,7 @@ type constraint_tree =
   | Failure
   | Leaf of target_blackbox
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
+  | Guard of target_blackbox * constraint_tree * constraint_tree
 and
   pi = { var: accessor; domain: domain } (* record of a variable and a constraint on that variable *)
 and
@@ -64,6 +65,16 @@ let print_tree tree =
       bprintf buf "%tFailure" (indent ntabs)
     | Leaf target_blackbox ->
       bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
+    | Guard (bb, ctrue, cfalse) ->
+      let bprint_child prefix tree =
+        bprintf buf
+          "%t%s =\n%a"
+          (indent ntabs)
+          prefix
+          (bprint_tree (ntabs+1)) tree
+      in
+      bprintf buf "Guard (%S) =" bb;
+      bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
     | Node (var, children, fallback) ->
       let bprint_child buf (domain, tree) =
         bprintf buf
@@ -98,6 +109,7 @@ let rec subst_svalue bindings = function
 let rec subst_tree bindings = function
   | Failure -> Failure
   | Leaf result -> Leaf result
+  | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
   | Node (var, children, fallback) ->
      let subst (dom, tree) =
        (dom, subst_tree bindings tree)
@@ -212,10 +224,13 @@ let rec sym_exec sexpr env : constraint_tree =
      Leaf (string_of_int n)
   | TBlackbox t ->
     Leaf t
-  | Match_failure -> Failure
+  | Match_failure ->
+    Failure
   | Function (v, sxp) ->
     let envf = put_value v (AcRoot v) in
     sym_exec sxp envf
+  | IfApply (bb, strue, sfalse) ->
+    Guard (bb, sym_exec strue env, sym_exec sfalse env)
   | _ -> assert false
 
 let empty_environment () =
