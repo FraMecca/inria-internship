@@ -20,6 +20,7 @@ let compare (left: Merge_accessors.constraint_tree) (right: Merge_accessors.cons
       | Node (_, [], None) -> assert false
       | Failure -> Failure
       | Leaf l -> Leaf l
+      | Guard (_, _, _) -> failwith "Not implemented"
       | Node (node_acc, children, fallback) ->
         let children' =
           children
@@ -43,5 +44,6 @@ let compare (left: Merge_accessors.constraint_tree) (right: Merge_accessors.cons
       tbox = tbox'
     | (Failure, Failure) -> true
     | (Failure, Leaf _) | (Leaf _, Failure) -> false
+    | Guard (_, _, _), _ | _, Guard (_, _, _)-> failwith "Not implemented"
   in
   _compare left right
