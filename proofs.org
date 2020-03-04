@@ -9,7 +9,8 @@ Translation to constraint trees:
 
 Running a {program, constraint tree} against an input
 
-  result r ::= Match bb | NoMatch
+  result r ::= guard list * (Match bb | NoMatch)
+  guard := bb
   (same blackboxes 'bb' for source and target programs and constraint trees)
 
   tₛ(vₛ) → r
