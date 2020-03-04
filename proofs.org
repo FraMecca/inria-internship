@@ -49,6 +49,7 @@ Theorem: Correctness of the equivalence of constraint trees
 Corollary (our main result):
   (equiv [|tₛ|]ₛ [|tₜ|]ₜ = Yes)  ⇔  tₛ ≃ tₜ
 
+
 *** Draft of proof for equivalence between constraint trees and source/target programs
 
 tₛ      ::= (p → bb)ⁱ  # i ∈ I
@@ -87,3 +88,25 @@ We also said that
     let v(a) be K(vⱼ)ʲ
         if k ∈ {Kᵢ}ⁱ then  C_{min{i}|k=kᵢ}(v)
         else c_{fallback}(v)
+
+
+
+
+*** In-progress blackboard notes on the proof of the non-base case
+
+Correct(m) := ∀v, (vᵢ)ⁱ = v(aᵢ)ⁱ => m(vᵢ)ⁱ = [|m|](v)
+
+
+  (∀m', |m'| < |m| => Correct(m')) => Correct(m)
+  We are given: v, (vᵢ)ⁱ = v(aᵢ)ⁱ
+  Goal: m(vᵢ) = [|m|](v)
+
+  (0 = min(I))
+  case analysis on v₀: K(v'ₖ)ᵏ
+
+
+  Groups : (m) -> (Kₖ → mₖ)ᵏ, m_wildcard
+
+  ∀(vᵢ)ⁱ, (m)(vᵢ)ⁱ =
+    mₖ((v'ₕ)ʰ, (vᵢ)^{i>0})
+    where v₀ is Kₖ(v'ₕ)ʰ for some k
