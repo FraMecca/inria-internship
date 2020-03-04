@@ -62,16 +62,20 @@ Cₛ      ::= Leaf bb | Node(a, (Kᵢ → Cᵢ)ⁱ , C?) # i ∈ S
 a       ::= Here | n.a
 vₛ      ::= K(vᵢ)ⁱ | n ∈ ℕ   # i ∈ I
 
-
-[|_|] STerms -> STrees
-
 SMatrix mₛ := (aᵢ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ  # i ∈ I j ∈ Jᵢ # i columns, j rows, order matters
 [|((pᵢ → bbᵢ)ⁱ|] := [| (Root), ((pᵢ → bbᵢ)ⁱ |] # i ∈ I
-[| ∅, (∅ → bbᵢ)ⁱ |] := Leaf bbᵢ where i := min(I)
 
-[| aⱼ, rⱼ |] := (cols(mₛ)>1) := let Grups((aⱼ)ᴵ,(rᵢ)ⁱ) be (Kₖ → mₖ), m_{wildcards)
-                 Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ, [|m_{wildcards}|])
-[| (aⱼ)ʲ, ∅ |] := Unreachable
+∀(vᵢ)ⁱ, [|(aᵢ)ⁱ, (rᵢ)ⁱ|](vᵢ)ⁱ = ((aᵢ)ⁱ, (rᵢ)ⁱ)(vᵢ)ⁱ
+∀v (vᵢ)ⁱ = v(aᵢ)ⁱ → [|m|](v) = m(vᵢ)ⁱ for m = ((aᵢ)ⁱ, (rᵢ)ⁱ)
+# what about size of the matrix? How to write it?
+
+# base cases
+[| ∅, (∅ → bbᵢ)ⁱ |] := Leaf bbᵢ where i := min(I)
+[| (aⱼ)ʲ, ∅ |] := Unreachable 
+#
+
+[| aⱼ, rⱼ |] := (cols(mₛ)>1) := let Groups((aⱼ)ᴵ,(rᵢ)ⁱ) be (Kₖ → mₖ), m_{wildcards)
+                  Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ, [|m_{wildcards}|])
 
 
 **** Sterms -> STrees
