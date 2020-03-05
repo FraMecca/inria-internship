@@ -1,10 +1,14 @@
 open Ast
 
+type sym_value =
+  | SAccessor of accessor
+  | SCons of constructor * sym_value list
+
 type constraint_tree =
   | Unreachable
   | Failure
-  | Leaf of source_expr
-  | Guard of source_blackbox * constraint_tree * constraint_tree
+  | Leaf of sym_value list
+  | Guard of sym_value list * constraint_tree * constraint_tree
   | Node of accessor * (constructor * constraint_tree) list * constraint_tree
 (* We distinguish
    - Unreachable: we statically know that no value can go there
@@ -37,15 +41,8 @@ type constraint_tree =
   verifies that it indeed holds.
 *)
 
-
-let string_of_source_expr = function
-  | SBlackbox s -> s
-
 let print_result stree =
   let bprintf = Printf.bprintf
-  in
-  let bprint_source_expr buf = function
-    | SBlackbox s -> bprintf buf "%s" s
   in
   let rec bprint_accessor buf = function
     | AcRoot -> bprintf buf "AcRoot"
@@ -55,38 +52,47 @@ let print_result stree =
     | [] -> ()
     | [x] -> bprint buf x
     | x :: xs ->
-       bprintf buf "%a%t%a"
-         bprint x
-         sep
-         (bprint_list ~sep bprint) xs in
+      bprintf buf "%a%t%a"
+        bprint x
+        sep
+        (bprint_list ~sep bprint) xs
+  in
+  let bprint_constructor buf k = match k with
+    | Variant s -> bprintf buf "Variant %s" s
+    | Int i -> bprintf buf "Int %d" i
+    | Bool b -> bprintf buf "Bool %b" b
+    | String s -> bprintf buf "String \"%s\"" s
+    | Tuple narity -> bprintf buf "Tuple[%d]" narity
+    | Nil ->  bprintf buf "Nil"
+    | Cons -> bprintf buf "Cons"
+  in
+  let rec bprint_sym_value buf = function
+    | SAccessor acc -> bprintf buf "%a"
+                         bprint_accessor acc
+    | SCons (k, svl) -> bprintf buf "%a %a"
+                          bprint_constructor k
+                          (bprint_list ~sep:ignore bprint_sym_value) svl
+  in
   let break ntabs buf =
     bprintf buf "\n%s" (BatList.init ntabs (fun _ -> "\t") |> String.concat "") in
   let rec bprint_tree ntabs buf tree =
     let sep = break (ntabs+1) in
-    let bprint_constructor buf k = match k with
-      | Variant s -> bprintf buf "Variant %s" s
-      | Int i -> bprintf buf "Int %d" i
-      | Bool b -> bprintf buf "Bool %b" b
-      | String s -> bprintf buf "String \"%s\"" s
-      | Tuple narity -> bprintf buf "Tuple[%d]" narity
-      | Nil ->  bprintf buf "Nil"
-      | Cons -> bprintf buf "Cons"
-    in
     match tree with
     | Failure -> bprintf buf "Failure"
     | Unreachable -> bprintf buf "Unreachable"
-    | Leaf expr ->
+    | Leaf sym_value_list ->
       bprintf buf
         "Leaf='%a'"
-        bprint_source_expr expr
-    | Guard (bb, ctrue, cfalse) ->
+        (bprint_list ~sep:ignore bprint_sym_value) sym_value_list
+    | Guard (sym_value_list, ctrue, cfalse) ->
       let bprint_child prefix tree =
         bprintf buf
           "%s =\n%a"
           prefix
           (bprint_tree 0) tree
       in
-      bprintf buf "Guard (%S) =" bb;
+      bprintf buf "Guard (%a) ="
+        (bprint_list ~sep:ignore bprint_sym_value) sym_value_list;
       bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
     | Node (ac, k_cst_list, fallback_cst) ->
       bprintf buf "Node %a:{\
@@ -184,6 +190,10 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
   (constructor_matrices, wildcard_matrix)
 
 let sym_exec source =
+  let rec source_value_to_sym_value : source_value -> sym_value = function
+    | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
+    | VVar _ -> assert false
+  in
   let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose matrix : constraint_tree =
     match matrix with
@@ -191,7 +201,7 @@ let sym_exec source =
     | ([] as _no_acs, ([] as _no_columns, rhs)::_) ->
        begin match (rhs : source_rhs) with
          | Unreachable -> Unreachable
-         | Expr expr -> Leaf expr
+         | Expr expr -> Leaf (List.map source_value_to_sym_value expr)
        end
     | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
     | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false

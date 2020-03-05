@@ -9,7 +9,7 @@ and
 and
   source_rhs =
   | Unreachable (* OCaml refutation clauses: | Foo -> . *)
-  | Expr of source_expr
+  | Expr of source_value list
 and
   pattern =
   | Wildcard
@@ -30,9 +30,9 @@ and
 and
   variable = string
 and
-  source_expr = SBlackbox of source_blackbox
-and
-  source_blackbox = string
+  source_value =
+  | VConstructor of constructor * source_value list
+  | VVar of variable
 and type_decl = {
   name: type_name;
   constructors: constructor_decl list;
@@ -92,14 +92,14 @@ and
   | Eq
   | Nq
 
+type accessor =
+  | AcRoot
+  | AcField of accessor * int
+
 type source_constraint =
   | Wildcard
   | Constructor of constructor * source_constraint list
   | As of source_constraint * variable
-
-type accessor =
-  | AcRoot
-  | AcField of accessor * int
 
 let sexpr_of_bexpr : bexpr -> sexpr = function
 | Comparison (op, exp, n) -> Comparison (op, exp, n)

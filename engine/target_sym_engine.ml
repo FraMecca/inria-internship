@@ -11,9 +11,14 @@ module Domain = Target_domain
 
 type constraint_tree =
   | Failure
-  | Leaf of target_blackbox
+  | Leaf of target_value list
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
-  | Guard of target_blackbox * constraint_tree * constraint_tree
+  | Guard of target_value list * constraint_tree * constraint_tree
+and
+  target_value =
+  | VConstructor of {tag:int; args:target_value list}
+  | VAccessor of accessor
+  | VConstant of int
 and
   pi = { var: accessor; domain: domain } (* record of a variable and a constraint on that variable *)
 and
@@ -59,13 +64,26 @@ let print_tree tree =
   let _break ntabs buf =
     bprintf buf "\n%t" (indent ntabs)
   in
+  let rec bprint_accessor buf = function
+    | AcRoot v -> bprintf buf "AcRoot %s" v
+    | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
+    | AcAdd (a, i) -> bprintf buf "AcAdd %a.%d" bprint_accessor a i
+  in
+  let rec bprint_target_value buf = function
+    | VAccessor acc -> bprintf buf "VAccessor:%a" bprint_accessor acc
+    | VConstant i -> bprintf buf "VConstant:%d" i
+    | VConstructor {tag=t; args=a} -> bprintf buf "VConstructor:{tag=%d; args=%a}"
+                                        t
+                                        (bprint_list ~sep:ignore bprint_target_value) a
+  in
   let rec bprint_tree ntabs buf tree =
     match tree with
     | Failure ->
       bprintf buf "%tFailure" (indent ntabs)
-    | Leaf target_blackbox ->
-      bprintf buf "%tLeaf=%S\n" (indent ntabs) target_blackbox
-    | Guard (bb, ctrue, cfalse) ->
+    | Leaf observe ->
+      bprintf buf "%tLeaf=%a\n" (indent ntabs)
+        (bprint_list ~sep:ignore bprint_target_value) observe
+    | Guard (tgt_values, ctrue, cfalse) ->
       let bprint_child prefix tree =
         bprintf buf
           "%t%s =\n%a"
@@ -73,7 +91,8 @@ let print_tree tree =
           prefix
           (bprint_tree (ntabs+1)) tree
       in
-      bprintf buf "Guard (%S) =" bb;
+      bprintf buf "Guard (%a) ="
+        (bprint_list ~sep:ignore bprint_target_value) tgt_values;
       bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
     | Node (var, children, fallback) ->
       let bprint_child buf (domain, tree) =
@@ -119,6 +138,9 @@ let rec subst_tree bindings = function
            Option.map subst fallback)
 
 let rec sym_exec sexpr env : constraint_tree =
+  let target_value_list_from_blackbox : target_blackbox -> target_value list =
+    (* TODO: DISCUSS *) assert false
+  in
   let eval_bop (bop, i) = match bop with
     | Ge -> Domain.(int (Set.ge i))
     | Gt -> Domain.(int (Set.gt i))
@@ -217,22 +239,21 @@ let rec sym_exec sexpr env : constraint_tree =
     assert (List.length vars = List.length values);
     let bindings = List.combine vars values in
     subst_tree bindings c_tree
-  | String s ->
-     Manual_parser.print "Leaf String";
-     Leaf s
+  | String _ ->
+    failwith "Not implemented"
   | Int n ->
-     Leaf (string_of_int n)
-  | TBlackbox t ->
-    Leaf t
+     Leaf [VConstant n]
+  | TBlackbox bb ->
+    Leaf (target_value_list_from_blackbox bb)
   | Match_failure ->
     Failure
   | Function (v, sxp) ->
     let envf = put_value v (AcRoot v) in
     sym_exec sxp envf
-  | IfApply (bb, strue, sfalse) ->
   | IfGuard (bb, strue, sfalse) ->
-    Guard (bb, sym_exec strue env, sym_exec sfalse env)
+    Guard (target_value_list_from_blackbox bb, sym_exec strue env, sym_exec sfalse env)
   | _ -> assert false
+
 
 let empty_environment () =
   { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
