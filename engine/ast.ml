@@ -57,7 +57,7 @@ and
   | Let of binding list * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
   | Exit of exitpoint * sexpr list (* could be "exit 1 var1 var2" *)
-  | IfApply of target_blackbox * sexpr * sexpr
+  | IfGuard of target_blackbox * sexpr * sexpr
   | If of bexpr * sexpr * sexpr
   | Switch of sexpr * switch_case list * sexpr option
   | Field of int * variable

@@ -230,6 +230,7 @@ let rec sym_exec sexpr env : constraint_tree =
     let envf = put_value v (AcRoot v) in
     sym_exec sxp envf
   | IfApply (bb, strue, sfalse) ->
+  | IfGuard (bb, strue, sfalse) ->
     Guard (bb, sym_exec strue env, sym_exec sfalse env)
   | _ -> assert false
 
