@@ -67,6 +67,9 @@ let tag set = {int = Set.empty; tag = set}
 
 let full = {int = Set.full; tag = Set.full}
 let empty = {int = Set.empty; tag = Set.empty}
+let is_int_singleton dom = IntSet.cardinal dom.int = 1 && IntSet.is_empty dom.tag
+let get_int_singleton dom =
+  assert (is_int_singleton dom); IntSet.fold_individual (fun x _ -> x) dom.int 0
 
 let is_empty dom = Set.is_empty dom.int && Set.is_empty dom.tag
 

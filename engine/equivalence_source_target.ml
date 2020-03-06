@@ -20,13 +20,11 @@ type target_tree = Merge_accessors.constraint_tree
 type source_constructor = Ast.constructor
 type sym_values = Source_sym_engine.sym_value list
 
-let target_value_from_source_sym_value _ = assert false
-
 let constructor_to_domain repr_env : constructor -> domain = function
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
   | Bool true -> Domain.int (Domain.Set.point 1)
-  | String _ -> assert false (* Still not handled *)
+  | String _ -> failwith "not implemented"
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
   | Variant v ->
@@ -45,21 +43,75 @@ let constrained_subtrees repr_env children fallback =
     |> Domain.negate in
   ((fb_domain, fallback) :: children')
 
-let tag_of_constructor : source_constructor -> int = assert false (* TODO: discuss *)
-  
+type source_grade =
+  | Int of int
+  | NonSingleton of accessor
+  | Block of int * source_grade list
+
+type target_grade =
+  | Int of int
+  | NonSingleton of accessor
+  | Block of int * target_grade list
+  | Tag of accessor * int (* We don't know about other fields *)
+
+(* TODO: rename to canonical form *)
+
+let rec compare_grade repr_env input_space : (Source_sym_engine.sym_value * Target_sym_engine.target_value) -> bool =
+  let grade_of_source_sym_value : Source_sym_engine.sym_value -> source_grade = function
+    | SAccessor acc ->
+      begin
+        match AcMap.find_opt acc input_space with
+        | Some pi -> if Domain.is_int_singleton pi then
+            Point (Domain.get_int_singleton pi)
+          else
+            Dom acc
+        | None -> assert false
+      end
+    | SCons (constructor, rest) ->
+      begin match constructor with
+        | Int i -> Point i
+        | Bool false -> Point 0
+        | Bool true -> Point 1
+        | String _ -> failwith "not implemented"
+        | Nil -> Block (0, []) (* TODO: deal with rest *)
+        | Cons | Tuple _ -> Block (0, []) (* TODO: deal with rest *)
+        | Variant v ->
+          let open Source_env in
+          match ConstructorMap.find v repr_env with
+          | Int i -> Point i
+          | Tag t -> Block (t, List.map grade_of_source_sym_value rest)
+      end
+  in
+  let grade_of_target_sym_value : Target_sym_engine.target_value -> target_grade = function
+    | VConstant i -> Int i
+    | VAccessor acc ->
+      begin
+        match AcMap.find_opt acc input_space with
+        | Some pi -> if Domain.is_int_singleton pi then
+            Point (Domain.get_int_singleton pi)
+          else (* TODO: handle tag singletons *)
+            NonSingleton acc
+        | None -> assert false
+      end
+    | VConstructor {tag=t; args} -> assert false (* TODO same as source *)
+
 let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec sym_values_eq  (sym_values:sym_values) (target_values:target_value list): bool =
-    let equal_ : (Source_sym_engine.sym_value * target_value) -> bool = function
-      | (SAccessor acc, VAccessor acc') -> acc = acc'
-      | (SCons (Int i, []) , VConstant i') -> i = i'
-      | (SCons (k, rest), VConstructor {tag=t; args=rest'}) ->
-        (tag_of_constructor k) = t && sym_values_eq rest rest'         
-      | _ -> false
-    in
-    match (sym_values, target_values) with
-    | (shd::stl,  thd::ttl) when equal_ (shd, thd) -> sym_values_eq stl ttl
-    | ([], []) -> true
-    | _ -> false
+    (* let equal_ : (Source_sym_engine.sym_value * target_value) -> bool = function
+     *   | (SAccessor acc, VAccessor acc') -> acc = acc'
+     *                                        (\* points: equality
+     *                                         * not points: same accs 
+     *                                         * block: tag = tag' and recur arg list *\)
+     *   | (SCons (Int i, []) , VConstant i') -> i = i' (\* TODO Match on constructor *\)
+     *   | (SCons (k, rest), VConstructor {tag=t; args=rest'}) ->
+     *     (tag_of_constructor k) = t && sym_values_eq rest rest'         
+     *   | _ -> false
+     * in
+     * match (sym_values, target_values) with
+     * | (shd::stl,  thd::ttl) when equal_ (shd, thd) -> sym_values_eq stl ttl
+     * | ([], []) -> true
+     * | _ -> false *)
+    assert false
   in
   let rec trim src_acc src_pi =
     let specialize_same_acc  node_acc (pi, s_tree) =
