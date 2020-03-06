@@ -137,127 +137,134 @@ let rec subst_tree bindings = function
            List.map subst children,
            Option.map subst fallback)
 
-let rec sym_exec sexpr env : constraint_tree =
-  let target_value_list_from_blackbox : target_blackbox -> target_value list =
-    (* TODO: DISCUSS *) assert false
-  in
-  let eval_bop (bop, i) = match bop with
-    | Ge -> Domain.(int (Set.ge i))
-    | Gt -> Domain.(int (Set.gt i))
-    | Le -> Domain.(int (Set.le i))
-    | Lt -> Domain.(int (Set.lt i))
-    | Eq -> Domain.(int (Set.point i))
-    | Nq -> Domain.(negate (int (Set.point i)))
-  in
-  let eval_switch_test: switch_test -> domain = function
-    | Tag i -> Domain.(tag (Set.point i))
-    | Int i -> Domain.(int (Set.point i))
-  in
-  let put_function variable fn : environment =
-    assert (not (SMap.mem variable env.functions));
-    {env with functions = SMap.add variable fn env.functions }
-  in
-  let put_exit variable ext : environment =
-    assert (not (IMap.mem variable env.exits));
-    {env with exits = IMap.add variable ext env.exits }
-  in
-  let put_value variable value : environment =
-    assert (not (SMap.mem variable env.values));
-    {env with values = SMap.add variable value env.values }
-  in
-  (* perform union on two maps, keys should never differ *)
-  let union env1 env2 = {
-    values=SMap.union (fun _ a b -> assert (a = b); Some a) env1.values env2.values;
-    functions=SMap.union (fun _ a b -> assert (a = b); Some a) env1.functions env2.functions;
-    exits=IMap.union (fun _ a b -> assert (a = b); Some a) env1.exits env2.exits;
-  }
-  in
-  let find_var env : sexpr -> accessor = function
-    | Var v -> SMap.find v env.values
-    | _ -> assert false
-  in
-  let eval_let_binding env (sxp : sexpr) key =
-    match sxp with
-    | Var v ->
-      put_value v (AcRoot v)
-    | Field (i, v) ->
-      let acc = SMap.find v env.values in
-      put_value key (AcField (acc, i))
-    | Addition (i, v) ->
-      let svalue = SMap.find v env.values in
-      put_value key (AcAdd (svalue, i))
-    | Function (v, sxp) ->
-      let envf = put_value v (AcRoot v) in
-      let c_tree = sym_exec sxp envf in
-      put_function key (v, c_tree)
-    | _ -> assert false
-  in
-  match sexpr with
-  | Let (blist, next_sexpr) ->
-    let env' = blist |>
-               List.map (fun (var, sxp) -> eval_let_binding env sxp var) |>
-               List.fold_left union env
-    in
-    sym_exec next_sexpr env'
-  | If (bexpr, strue, sfalse) ->
-    let test, sxp =
-      match bexpr with
-      | Comparison (bop, sxp, i) -> (eval_bop (bop, i)), sxp
-      | Isout (i, v) -> Domain.isout i, Var v
-      | Var v -> Domain.isnot 0, Var v
-      | _ -> assert false
-    in
-    let var = find_var env sxp in
-    Node (var, [
-      (test, sym_exec strue env);
-      (Domain.negate test, sym_exec sfalse env);
-    ], None)
-  | Switch (sxp, swlist, defcase) ->
-    let var = find_var env sxp in
-    let cases =
-      List.map (fun (test, sxp) -> (eval_switch_test test, sxp)) swlist
-    in
-    let not_any_case =
-      cases
-      |> List.map (fun (dom, _) -> Domain.negate dom)
-      |> List.fold_left Domain.inter Domain.full
-    in
-    let children = List.map (fun (dom, sxp) -> (dom, sym_exec sxp env)) cases in
-    let fallback = match defcase with
-      | Some tree -> Some (not_any_case, sym_exec tree env)
-      | None -> None
-    in
-    Node (var, children, fallback)
-  | Catch (sxp, extpt, varlist, exit_sxp) ->
-    let c_tree = sym_exec exit_sxp env in
-    let env' = put_exit extpt (extpt, varlist, c_tree) in
-    sym_exec sxp env'
-  | Exit (ext, sxps) ->
-    let values = List.map (find_var env) sxps in
-    let (ext', vars, c_tree) = IMap.find ext env.exits in
-    assert (ext' = ext);
-    assert (List.length vars = List.length values);
-    let bindings = List.combine vars values in
-    subst_tree bindings c_tree
-  | String _ ->
-    failwith "Not implemented"
-  | Int n ->
-     Leaf [VConstant n]
-  | TBlackbox bb ->
-    Leaf (target_value_list_from_blackbox bb)
-  | Match_failure ->
-    Failure
-  | Function (v, sxp) ->
-    let envf = put_value v (AcRoot v) in
-    sym_exec sxp envf
-  | IfGuard (bb, strue, sfalse) ->
-    Guard (target_value_list_from_blackbox bb, sym_exec strue env, sym_exec sfalse env)
-  | _ -> assert false
-
-
-let empty_environment () =
-  { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
 
 let eval target_ast =
-  sym_exec target_ast (empty_environment ()) (* TODO: DISCUSS should return env? *)
-(* What about all the functions in env? *)
+  let empty_environment =
+    { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
+  in
+  let rec eval_target_value env : Ast.target_value -> target_value = function
+    | VConstant i ->
+      VConstant i
+    | VConstructor {tag=t; args} ->
+      let args' = List.map (eval_target_value env) args in
+      VConstructor {tag=t; args=args'}
+    | VVariable var ->
+      let acc = SMap.find var env.values in
+      VAccessor acc
+    (* TODO: rename target_value to sym_value *)
+  in
+  let rec sym_exec sexpr env : constraint_tree =
+    let eval_bop (bop, i) = match bop with
+      | Ge -> Domain.(int (Set.ge i))
+      | Gt -> Domain.(int (Set.gt i))
+      | Le -> Domain.(int (Set.le i))
+      | Lt -> Domain.(int (Set.lt i))
+      | Eq -> Domain.(int (Set.point i))
+      | Nq -> Domain.(negate (int (Set.point i)))
+    in
+    let eval_switch_test: switch_test -> domain = function
+      | Tag i -> Domain.(tag (Set.point i))
+      | Int i -> Domain.(int (Set.point i))
+    in
+    let put_function variable fn : environment =
+      assert (not (SMap.mem variable env.functions));
+      {env with functions = SMap.add variable fn env.functions }
+    in
+    let put_exit variable ext : environment =
+      assert (not (IMap.mem variable env.exits));
+      {env with exits = IMap.add variable ext env.exits }
+    in
+    let put_value variable value : environment =
+      assert (not (SMap.mem variable env.values));
+      {env with values = SMap.add variable value env.values }
+    in
+    (* perform union on two maps, keys should never differ *)
+    let union env1 env2 = {
+      values=SMap.union (fun _ a b -> assert (a = b); Some a) env1.values env2.values;
+      functions=SMap.union (fun _ a b -> assert (a = b); Some a) env1.functions env2.functions;
+      exits=IMap.union (fun _ a b -> assert (a = b); Some a) env1.exits env2.exits;
+    }
+    in
+    let find_var env : sexpr -> accessor = function
+      | Var v -> SMap.find v env.values
+      | _ -> assert false
+    in
+    let eval_let_binding env (sxp : sexpr) key =
+      match sxp with
+      | Var v ->
+        put_value v (AcRoot v)
+      | Field (i, v) ->
+        let acc = SMap.find v env.values in
+        put_value key (AcField (acc, i))
+      | Addition (i, v) ->
+        let svalue = SMap.find v env.values in
+        put_value key (AcAdd (svalue, i))
+      | Function (v, sxp) ->
+        let envf = put_value v (AcRoot v) in
+        let c_tree = sym_exec sxp envf in
+        put_function key (v, c_tree)
+      | _ -> assert false
+    in
+    match sexpr with
+    | Let (blist, next_sexpr) ->
+      let env' = blist |>
+                 List.map (fun (var, sxp) -> eval_let_binding env sxp var) |>
+                 List.fold_left union env
+      in
+      sym_exec next_sexpr env'
+    | If (bexpr, strue, sfalse) ->
+      let test, sxp =
+        match bexpr with
+        | Comparison (bop, sxp, i) -> (eval_bop (bop, i)), sxp
+        | Isout (i, v) -> Domain.isout i, Var v
+        | Var v -> Domain.isnot 0, Var v
+        | _ -> assert false
+      in
+      let var = find_var env sxp in
+      Node (var, [
+          (test, sym_exec strue env);
+          (Domain.negate test, sym_exec sfalse env);
+        ], None)
+    | Switch (sxp, swlist, defcase) ->
+      let var = find_var env sxp in
+      let cases =
+        List.map (fun (test, sxp) -> (eval_switch_test test, sxp)) swlist
+      in
+      let not_any_case =
+        cases
+        |> List.map (fun (dom, _) -> Domain.negate dom)
+        |> List.fold_left Domain.inter Domain.full
+      in
+      let children = List.map (fun (dom, sxp) -> (dom, sym_exec sxp env)) cases in
+      let fallback = match defcase with
+        | Some tree -> Some (not_any_case, sym_exec tree env)
+        | None -> None
+      in
+      Node (var, children, fallback)
+    | Catch (sxp, extpt, varlist, exit_sxp) ->
+      let c_tree = sym_exec exit_sxp env in
+      let env' = put_exit extpt (extpt, varlist, c_tree) in
+      sym_exec sxp env'
+    | Exit (ext, sxps) ->
+      let values = List.map (find_var env) sxps in
+      let (ext', vars, c_tree) = IMap.find ext env.exits in
+      assert (ext' = ext);
+      assert (List.length vars = List.length values);
+      let bindings = List.combine vars values in
+      subst_tree bindings c_tree
+    | String _ ->
+      failwith "Not implemented"
+    | Int n ->
+      Leaf [VConstant n]
+    | TBlackbox bb ->
+      Leaf (List.map (eval_target_value env) bb)
+    | Match_failure ->
+      Failure
+    | Function (v, sxp) ->
+      let envf = put_value v (AcRoot v) in
+      sym_exec sxp envf
+    | IfGuard (bb, strue, sfalse) ->
+      Guard (List.map (eval_target_value env) bb, sym_exec strue env, sym_exec sfalse env)
+    | _ -> assert false
+  in
+  sym_exec target_ast empty_environment

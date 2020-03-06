@@ -57,14 +57,14 @@ and
   | Let of binding list * sexpr
   | Catch of sexpr * exitpoint * variable list * sexpr
   | Exit of exitpoint * sexpr list (* could be "exit 1 var1 var2" *)
-  | IfGuard of target_blackbox * sexpr * sexpr
+  | IfGuard of target_value list * sexpr * sexpr
   | If of bexpr * sexpr * sexpr
   | Switch of sexpr * switch_case list * sexpr option
   | Field of int * variable
   | Comparison of bop * sexpr * int
   | Isout of int * variable
   | Match_failure
-  | TBlackbox of target_blackbox
+  | TBlackbox of target_value list
 and
   binding = variable * sexpr
 and
@@ -82,7 +82,10 @@ and
   | Tag of int
   | Int of int
 and
-  target_blackbox = string
+  target_value = 
+  | VConstructor of {tag:int; args:target_value list}
+  | VVariable of variable
+  | VConstant of int
 and
   bop =
   | Ge
