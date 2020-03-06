@@ -106,7 +106,7 @@ Correct(m) := ∀v, (vᵢ)ⁱ = v(aᵢ)ⁱ => m(vᵢ)ⁱ = [|m|](v)
 Groups(m) = (kᵣ → mᵣ)ᵏ, m_{wild}
 (vᵢ)ᴵ, v₀ = k(v'ₗ)ˡ  ## l ∈ Idx(k) ## v' child of the constructor
 if k = kₖ for some k then
-    m(vᵢ)ⁱ = mₖ((v'ₗ)ˡ ++ (vᵢ)ⁱ  ## where last i:= i ≠ 0
+    m(vᵢ)ⁱ = mₖ((v'ₗ)ˡ ++ (vᵢ)ⁱ)  ## where last i:= i ≠ 0
 else
     m(vᵢ)ⁱ = m_{wild}(vᵢ)ⁱ ## where last i:= i ≠ 0
 
