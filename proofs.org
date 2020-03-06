@@ -96,21 +96,40 @@ We also said that
 
 
 
-*** In-progress blackboard notes on the proof of the non-base case
+**** Proof of the non-base case
+let Idx(k) = [0; arity(k)[
+let First(∅) = ⊥
+let First((aⱼ)ʲ) = aₘᵢₙ₍ⱼ₎ ## where j ∈ J ≠ ∅
 
 Correct(m) := ∀v, (vᵢ)ⁱ = v(aᵢ)ⁱ => m(vᵢ)ⁱ = [|m|](v)
 
+Groups(m) = (kᵣ → mᵣ)ᵏ, m_{wild}
+(vᵢ)ᴵ, v₀ = k(v'ₗ)ˡ  ## l ∈ Idx(k) ## v' child of the constructor
+if k = kₖ for some k then
+    m(vᵢ)ⁱ = mₖ((v'ₗ)ˡ ++ (vᵢ)ⁱ  ## where last i:= i ≠ 0
+else
+    m(vᵢ)ⁱ = m_{wild}(vᵢ)ⁱ ## where last i:= i ≠ 0
 
-  (∀m', |m'| < |m| => Correct(m')) => Correct(m)
-  We are given: v, (vᵢ)ⁱ = v(aᵢ)ⁱ
-  Goal: m(vᵢ) = [|m|](v)
 
-  (0 = min(I))
-  case analysis on v₀: K(v'ₖ)ᵏ
+m(vᵢ)ⁱ = First(rⱼ(vᵢ)ⁱ)ʲ for m = ((aᵢ)ⁱ, (rⱼ)ʲ)
+(pᵢ)ⁱ (vᵢ)ⁱ  =  {
+    if p₀ = k(qₗ)ˡ, v₀ = k'(v'ₖ)ᵏ, k=Idx(k') and l=Idx(k)
+      if k ≠ k' then ⊥ 
+      if k = k' then ((qₗ)ˡ ++ (pᵢ)ⁱ) ((v'ₖ)ᵏ ++ (vᵢ)ⁱ) ## where i ≠ 0
+    if p₀ = (q₁|q₂) then
+      First(  (q₁pᵢⁱ) vᵢⁱ, (q₂pᵢⁱ) vᵢⁱ  ) ## where i ≠ 0
+}
 
-
-  Groups : (m) -> (Kₖ → mₖ)ᵏ, m_wildcard
-
-  ∀(vᵢ)ⁱ, (m)(vᵢ)ⁱ =
-    mₖ((v'ₕ)ʰ, (vᵢ)^{i>0})
-    where v₀ is Kₖ(v'ₕ)ʰ for some k
+let Groups(m) where m = ((aᵢ)ⁱ ((pᵢⱼ)ⁱ → eⱼ)ⁱʲ) =
+let (kₖ)ᵏ = headconstructor(pᵢ₀)ⁱ in
+( kₖ →
+    ((a₀.ₗ)ˡ ++ (aᵢ)ⁱ),   ## where l ∈ Idx(kₖ) and i ∈ I\{0}
+    (
+     if pₒⱼ is k(qₗ) then
+        (qₗ)ˡ ++ (pᵢⱼ)ⁱ  → eⱼ  ## i ≠ 0
+     if pₒⱼ is _ then
+        (_)ˡ ++ (pᵢⱼ)ⁱ   → eⱼ  ## i ≠ 0
+     else ⊥
+    )ʲ
+),(
+  (aᵢ)ⁱ, ((pᵢⱼ)ⁱ  → eⱼ if p₀ⱼ is _ else ⊥)ʲ ## where i ≠ 0 and j ∈ J
