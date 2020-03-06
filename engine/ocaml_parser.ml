@@ -171,9 +171,7 @@ and bound_var_of_ocaml arg =
     | _ -> error "a single bound variable was expected"
 
 and blackbox_of_ocaml exp =
-  match exp.pexp_desc with
-    | Pexp_constant (Pconst_string (str, _)) -> SBlackbox str
-    | _ -> SBlackbox "<expr>"
+  (* TODO *) ignore exp; []
 
 and type_decl_of_ocaml decl =
   let name = decl.ptype_name.txt in

@@ -3,6 +3,7 @@
 %token <bool> BOOL
 %token <string> STRING
 %token <int> INT
+%token <int> INTA
 %token <int> OFFSET
 %token <Ast.variable> LIDENT
 %token <Ast.variable> UIDENT
@@ -39,6 +40,8 @@
 %token WITH
 %token EOF
 
+%token APPLY OBSERVE GUARD
+
 %{
 open Ast
 
@@ -67,24 +70,26 @@ let atom :=
 | s=STRING; { String s }
 
 let body :=
-| SETGLOBAL; _=UIDENT; rest=sexp;
-  (* accept and ignore the "setglobal" call
+| (* accept and ignore the "setglobal" call
      present at the top of examples *)
+ SETGLOBAL; _=UIDENT;
+  exp=parens(
+    LET;
+    (_,module_item)=parens(let_binding);
+    parens(MAKEBLOCK; list(sexp));
+    {module_item});
   <>
-| MAKEBLOCK; tag=INT; args=list(sexp);
-  { ignore (tag, args); TBlackbox "makeblock" }
-| LBRACKET; tag=INT; COLON; args=list(sexp); RBRACKET;
-  { ignore (tag, args); TBlackbox "constant-block" }
 | RAISE; LPAREN;
     MAKEBLOCK; _=INT;
       LPAREN; GLOBAL; exn=UIDENT; RPAREN;
-      LBRACKET; _=INT; COLON; _=list(sexp); RBRACKET;
+      _=block(sexp);
   RPAREN;
   { if is_match_failure exn then (Match_failure : sexpr)
-    else TBlackbox "raise" }
+    else failwith "'raise' parse error" }
 | LET; ~=let_bindings; ~=sexp; <Let>
-| FUNCTION; x=variable; body=sexp; <Function>
+| FUNCTION; x=variable; option(COLON; typename); body=sexp; <Function>
 | IF; cond=bexp; then_=sexp; else_=sexp; <If>
+| IF; guard_args=apply(GUARD,value); then_=sexp; else_=sexp; <IfGuard>
 | EXIT; exit=INT; args=list(v=variable; { (Var v : sexpr) }); <Exit>
 | CATCH; scrutinee=sexp;
   WITH; LPAREN; exit=INT; vars=list(variable); RPAREN; exit_body=sexp;
@@ -92,6 +97,7 @@ let body :=
 | offset=OFFSET; v=variable; <Addition>
 | SWITCHSTAR; scrutinee=sexp; cases=switch_cases; { Switch(scrutinee, cases, None) }
 | bexp = bexp_body; { sexpr_of_bexpr bexp }
+| observe_args=apply(OBSERVE,value); <TBlackbox>
 
 let switch_cases == list(switch_case)
 let switch_case :=
@@ -116,6 +122,23 @@ let bop :=
 | GREATEREQUAL; { Ge }
 | EQUAL; { Eq }
 | BANGEQUAL; { Nq }
+
+let apply(Fun,Arg) :=
+  | Fun; v=Arg; { [v] }
+  | APPLY; first=parens(Fun; first=Arg; <>); rest=list(Arg); { first :: rest }
+
+let block(Arg) :=
+| LBRACKET; tag=INT; COLON; args=list(Arg); RBRACKET; <>
+| MAKEBLOCK; tag=INT; args=list(Arg); <>
+
+let value :=
+| n=INT; { VConstant n }
+| v=variable; { VVariable v }
+| (tag,args) = block(value); { VConstructor {tag; args} }
+
+let typename :=
+| INTSYMBOL; {}
+| variable; {}
 
 let let_bindings == parens(list(let_binding))
 let let_binding :=

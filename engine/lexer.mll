@@ -23,12 +23,15 @@ let new_line lexbuf =
 }
 
 let int = "-"? ['0'-'9'] ['0'-'9' '_']*
+let inta = int "a"
 let lowercase = ['a'-'z' '_']
 let uppercase = ['A'-'Z']
 let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
 
 let newline = ('\r'* '\n')
 let blank = [' ' '\t']+
+
+let annot = '[' ['a'-'z']+ ']'
 
 rule token = parse
   | newline
@@ -67,7 +70,12 @@ rule token = parse
   | "tag" { TAGSYMBOL }
   | "with" { WITH }
 
+  | "apply" { APPLY }
+  | "observe" { OBSERVE }
+  | "guard" { GUARD }
+
   | (int as n) { INT (int_of_string n) }
+  | (inta as n) { INT (int_of_string n) }
   | "false" { BOOL false }
   | "true" { BOOL true }
   | "\""
@@ -75,7 +83,7 @@ rule token = parse
 
   | (int as n) "+" { OFFSET (int_of_string n) }
 
-  | (lowercase identchar* '/' int) as ident { LIDENT ident }
+  | (lowercase identchar* '/' int) as ident annot? { LIDENT ident }
   | ('*' lowercase identchar* '*' '/' int) as ident { LIDENT ident }
   | (uppercase identchar* '!') as ident { UIDENT ident }
   | (uppercase identchar* '/' int '!') as ident { UIDENT ident }
