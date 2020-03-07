@@ -113,13 +113,13 @@ let print_result stree =
   bprint_tree 0 buf stree;
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
-type row = pattern list * source_rhs
-type matrix = accessor list * row list
+type matrix = accessor list * matrix_row list
+and matrix_row = pattern list row
 
 type group = {
   arity: int;
   accessors: accessor list;
-  rev_rows: row list ref;
+  rev_rows: pattern list row list ref;
 }
 
 let matrix_of_group { accessors; rev_rows; _ } : matrix =
@@ -136,13 +136,13 @@ let empty_group acs arity =
        rev_rows = ref [];
      }
 
-let group_add_children { arity; rev_rows; _ } children (rest, rhs) =
+let group_add_children { arity; rev_rows; _ } children row =
   assert (List.length children = arity);
-  rev_rows := (children @ rest, rhs) :: !rev_rows
+  rev_rows := { row with lhs = children @ row.lhs } :: !rev_rows
 
-let group_add_omegas { arity; rev_rows; _ } (rest, rhs) =
+let group_add_omegas { arity; rev_rows; _ } row =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
-  rev_rows := (List.rev_append wildcards rest, rhs) :: !rev_rows
+  rev_rows := { row with lhs = List.rev_append wildcards row.lhs } :: !rev_rows
 
 let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
@@ -161,14 +161,16 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
         end;
         collect_constructors ptl
   in
-  List.iter (fun (pats, _) -> collect_constructors pats) rows;
+  List.iter (fun row -> collect_constructors row.lhs) rows;
   let all_constructor_groups =
     group_tbl |> Hashtbl.to_seq_values |> List.of_seq
   in
-  let rec put_in_group : pattern list * source_rhs -> unit = function
-    | ([], _expr) -> assert false
-    | ((pattern::ptl), expr) ->
-      let row_rest = (ptl, expr) in
+  let rec put_in_group (row : matrix_row) =
+    match row.lhs with
+    | [] -> assert false
+    | pattern::ptl ->
+      let with_lhs pats = { row with lhs = pats } in
+      let row_rest = with_lhs ptl in
       match pattern with
       | Constructor (k, plist) ->
         let group = Hashtbl.find group_tbl k in
@@ -176,8 +178,8 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
       | Wildcard ->
         List.iter (fun group -> group_add_omegas group row_rest)
           (wildcard_group :: all_constructor_groups);
-      | As (pattern, _) -> put_in_group (pattern::ptl, expr)
-      | Or (p1, p2) -> put_in_group (p1::ptl, expr); put_in_group (p2::ptl, expr)
+      | As (pattern, _) -> put_in_group (with_lhs (pattern::ptl))
+      | Or (p1, p2) -> put_in_group (with_lhs (p1::ptl)); put_in_group (with_lhs (p2::ptl))
   in
   List.iter put_in_group rows;
   let constructor_matrices =
@@ -195,17 +197,17 @@ let sym_exec source =
     | VVar _ -> assert false
   in
   let type_env = Source_env.build_type_env source.type_decls in
-  let rec decompose matrix : constraint_tree =
+  let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
     | (_, []) -> assert false
-    | ([] as _no_acs, ([] as _no_columns, rhs)::_) ->
-       begin match (rhs : source_rhs) with
+    | ([] as _no_acs, ({ lhs = []; _ } as row)::_) ->
+       begin match (row.rhs : source_rhs) with
          | Unreachable -> Unreachable
          | Observe expr -> Leaf (List.map source_value_to_sym_value expr)
        end
-    | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
-    | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false
-    | (ac_head::_ as _acs, ((_::_) as _columns, _)::_) ->
+    | (_::_ as _accs, { lhs = []; _ }::_) -> assert false
+    | ([] as _no_accs, { lhs = _::_; _  }::_) -> assert false
+    | (ac_head::_ as _acs, { lhs = (_::_); _ }::_) ->
       let groups, fallback = group_constructors type_env matrix in
       let groups_evaluated =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
@@ -216,7 +218,7 @@ let sym_exec source =
       in
       Node (ac_head, groups_evaluated, fallback_evaluated)
     in
-    let row_of_clause {pat; guard = _; rhs} = ([pat], rhs) in
+    let row_of_clause clause = { clause with lhs = [clause.lhs] } in
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 let eval source_ast =
