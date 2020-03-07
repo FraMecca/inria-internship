@@ -1,6 +1,2 @@
-File "unusedmatch.ml", line 3, characters 4-5:
-3 |   | 2 -> 2
-        ^
-Warning 11: this match case is unused.
 (setglobal Unusedmatch!
-  (let (mm/80 = (function param/81[int] : int 0)) (makeblock 0 mm/80)))
+  (let (mm/81 = (function param/82[int] (observe 0))) (makeblock 0 mm/81)))

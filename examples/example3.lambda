@@ -1,16 +1,18 @@
 (setglobal Example3!
   (let
-    (a/1208 =
-       (function t/1209
-         (switch* t/1209
-          case int 0: "K3"
+    (a/85 =
+       (function t/86
+         (switch* t/86
+          case int 0: (observe 3)
           case tag 0:
-           (let (match/1213 =a (field 0 t/1209))
+           (let (*match*/90 =a (field 0 t/86))
              (catch
-               (if (!= match/1213 1) (if (!= match/1213 2) (exit 1) "K1:2")
-                 "K1:1")
-              with (1) "K1:_"))
+               (if (!= *match*/90 1)
+                 (if (!= *match*/90 2) (exit 1) (apply (observe 1) 2))
+                 (apply (observe 1) 1))
+              with (1) (apply (observe 1) 0a)))
           case tag 1:
-           (let (match/1214 =a (field 0 t/1209))
-             (if (!= match/1214 0) "K2:true" "K2:false")))))
-    (makeblock 0 a/1208)))
+           (let (*match*/91 =a (field 0 t/86))
+             (if (!= *match*/91 0) (apply (observe 2) 1a)
+               (apply (observe 2) 0a))))))
+    (makeblock 0 a/85)))

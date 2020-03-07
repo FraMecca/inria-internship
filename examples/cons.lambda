@@ -1,51 +1,54 @@
 (setglobal Cons!
   (let
-    (mm/80 =
-       (function param/81
+    (mm/81 =
+       (function param/82
          (catch
-           (if param/81
-             (let (*match*/83 =a (field 0 param/81))
-               (if (isout 2 *match*/83) (exit 1)
-                 (switch* *match*/83
+           (if param/82
+             (let (*match*/85 =a (field 0 param/82))
+               (if (isout 2 *match*/85) (exit 1)
+                 (switch* *match*/85
                   case int 0:
-                   (let (*match*/89 =a (field 1 param/81))
-                     (if *match*/89
-                       (let (*match*/90 =a (field 0 *match*/89))
-                         (if (!= *match*/90 0) (exit 1)
-                           (let (*match*/91 =a (field 1 *match*/89))
-                             (if *match*/91
-                               (let (*match*/92 =a (field 0 *match*/91))
-                                 (if (!= *match*/92 0) (exit 1)
-                                   (let (*match*/93 =a (field 1 *match*/91))
-                                     (if *match*/93 (exit 1) "0;0;0"))))
+                   (let (*match*/91 =a (field 1 param/82))
+                     (if *match*/91
+                       (let (*match*/92 =a (field 0 *match*/91))
+                         (if (!= *match*/92 0) (exit 1)
+                           (let (*match*/93 =a (field 1 *match*/91))
+                             (if *match*/93
+                               (let (*match*/94 =a (field 0 *match*/93))
+                                 (if (!= *match*/94 0) (exit 1)
+                                   (let (*match*/95 =a (field 1 *match*/93))
+                                     (if *match*/95 (exit 1)
+                                       (apply (observe 0) 0 0)))))
                                (exit 1)))))
                        (exit 1)))
                   case int 1:
-                   (let (*match*/84 =a (field 1 param/81))
-                     (if *match*/84
-                       (let (*match*/85 =a (field 0 *match*/84))
-                         (if (!= *match*/85 2) (exit 1)
-                           (let (*match*/86 =a (field 1 *match*/84))
-                             (if *match*/86
-                               (let (*match*/87 =a (field 0 *match*/86))
-                                 (if (!= *match*/87 3) (exit 1)
-                                   (let (*match*/88 =a (field 1 *match*/86))
-                                     (if *match*/88 (exit 1) "1;2;3"))))
+                   (let (*match*/86 =a (field 1 param/82))
+                     (if *match*/86
+                       (let (*match*/87 =a (field 0 *match*/86))
+                         (if (!= *match*/87 2) (exit 1)
+                           (let (*match*/88 =a (field 1 *match*/86))
+                             (if *match*/88
+                               (let (*match*/89 =a (field 0 *match*/88))
+                                 (if (!= *match*/89 3) (exit 1)
+                                   (let (*match*/90 =a (field 1 *match*/88))
+                                     (if *match*/90 (exit 1)
+                                       (apply (observe 1) 2 3)))))
                                (exit 1)))))
                        (exit 1)))
                   case int 2:
-                   (let (*match*/94 =a (field 1 param/81))
-                     (if *match*/94
-                       (let (*match*/95 =a (field 0 *match*/94))
-                         (if (!= *match*/95 2) (exit 1)
-                           (let (*match*/96 =a (field 1 *match*/94))
-                             (if *match*/96
-                               (let (*match*/97 =a (field 0 *match*/96))
-                                 (if (!= *match*/97 2) (exit 1)
-                                   (let (*match*/98 =a (field 1 *match*/96))
-                                     (if *match*/98 (exit 1) "2;2;2"))))
+                   (let (*match*/96 =a (field 1 param/82))
+                     (if *match*/96
+                       (let (*match*/97 =a (field 0 *match*/96))
+                         (if (!= *match*/97 2) (exit 1)
+                           (let (*match*/98 =a (field 1 *match*/96))
+                             (if *match*/98
+                               (let (*match*/99 =a (field 0 *match*/98))
+                                 (if (!= *match*/99 2) (exit 1)
+                                   (let (*match*/100 =a (field 1 *match*/98))
+                                     (if *match*/100 (exit 1)
+                                       (apply (observe 2) 2 2)))))
                                (exit 1)))))
                        (exit 1))))))
              (exit 1))
-          with (1) "_")))
-    (makeblock 0 mm/80)))
+          with (1) (observe 0a))))
+    (makeblock 0 mm/81)))

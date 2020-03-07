@@ -64,6 +64,7 @@ let print_tree tree =
   let _break ntabs buf =
     bprintf buf "\n%t" (indent ntabs)
   in
+  let comma buf = bprintf buf ", " in
   let rec bprint_accessor buf = function
     | AcRoot v -> bprintf buf "AcRoot %s" v
     | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
@@ -74,7 +75,7 @@ let print_tree tree =
     | VConstant i -> bprintf buf "VConstant:%d" i
     | VConstructor {tag=t; args=a} -> bprintf buf "VConstructor:{tag=%d; args=%a}"
                                         t
-                                        (bprint_list ~sep:ignore bprint_target_value) a
+                                        (bprint_list ~sep:comma bprint_target_value) a
   in
   let rec bprint_tree ntabs buf tree =
     match tree with
@@ -82,7 +83,7 @@ let print_tree tree =
       bprintf buf "%tFailure" (indent ntabs)
     | Leaf observe ->
       bprintf buf "%tLeaf=%a\n" (indent ntabs)
-        (bprint_list ~sep:ignore bprint_target_value) observe
+        (bprint_list ~sep:comma bprint_target_value) observe
     | Guard (tgt_values, ctrue, cfalse) ->
       let bprint_child prefix tree =
         bprintf buf
@@ -92,7 +93,7 @@ let print_tree tree =
           (bprint_tree (ntabs+1)) tree
       in
       bprintf buf "Guard (%a) ="
-        (bprint_list ~sep:ignore bprint_target_value) tgt_values;
+        (bprint_list ~sep:comma bprint_target_value) tgt_values;
       bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
     | Node (var, children, fallback) ->
       let bprint_child buf (domain, tree) =

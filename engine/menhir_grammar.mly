@@ -17,7 +17,7 @@
 %token GREATEREQUAL
 %token EQUAL
 %token BANGEQUAL
-%token COLON
+%token COLON COMMA STAR
 
 %token CASE
 %token CATCH
@@ -76,7 +76,7 @@ let body :=
   exp=parens(
     LET;
     (_,module_item)=parens(let_binding);
-    parens(MAKEBLOCK; list(sexp));
+    block(sexp);
     {module_item});
   <>
 | RAISE; LPAREN;
@@ -89,7 +89,7 @@ let body :=
 | LET; ~=let_bindings; ~=sexp; <Let>
 | FUNCTION; x=variable; option(COLON; typename); body=sexp; <Function>
 | IF; cond=bexp; then_=sexp; else_=sexp; <If>
-| IF; guard_args=apply(GUARD,value); then_=sexp; else_=sexp; <IfGuard>
+| IF; guard_args=parens(apply(GUARD,value)); then_=sexp; else_=sexp; <IfGuard>
 | EXIT; exit=INT; args=list(v=variable; { (Var v : sexpr) }); <Exit>
 | CATCH; scrutinee=sexp;
   WITH; LPAREN; exit=INT; vars=list(variable); RPAREN; exit_body=sexp;
@@ -129,7 +129,10 @@ let apply(Fun,Arg) :=
 
 let block(Arg) :=
 | LBRACKET; tag=INT; COLON; args=list(Arg); RBRACKET; <>
-| MAKEBLOCK; tag=INT; args=list(Arg); <>
+| parens(MAKEBLOCK; tag=INT; _=block_shape; args=list(Arg); <>)
+
+let block_shape == ioption(parens(separated_nonempty_list(COMMA, word_shape)))
+let word_shape := INTSYMBOL | STAR
 
 let value :=
 | n=INT; { VConstant n }

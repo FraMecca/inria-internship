@@ -23,7 +23,6 @@ let new_line lexbuf =
 }
 
 let int = "-"? ['0'-'9'] ['0'-'9' '_']*
-let inta = int "a"
 let lowercase = ['a'-'z' '_']
 let uppercase = ['A'-'Z']
 let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
@@ -52,13 +51,16 @@ rule token = parse
   | ">=" { GREATEREQUAL }
   | ":" { COLON }
 
+  | "," { COMMA }
+  | "int" { INTSYMBOL }
+  | "*" { STAR }
+
   | "case" { CASE }
   | "catch" { CATCH }
   | "exit" { EXIT }
   | "field" { FIELD }
   | "function" { FUNCTION }
   | "if" { IF }
-  | "int" { INTSYMBOL }
   | "isout" { ISOUT }
   | "let" { LET }
   | "makeblock" { MAKEBLOCK }
@@ -74,8 +76,7 @@ rule token = parse
   | "observe" { OBSERVE }
   | "guard" { GUARD }
 
-  | (int as n) { INT (int_of_string n) }
-  | (inta as n) { INT (int_of_string n) }
+  | (int as n) "a"? { INT (int_of_string n) }
   | "false" { BOOL false }
   | "true" { BOOL true }
   | "\""
