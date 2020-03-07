@@ -5,11 +5,17 @@ type source_program  = {
   clauses: clause list;
 }
 and
-  clause = pattern * source_rhs
+  clause = {
+    pat: pattern;
+    guard: guard option;
+    rhs: source_rhs;
+}
+and guard =
+  | Guard of source_value list
 and
   source_rhs =
   | Unreachable (* OCaml refutation clauses: | Foo -> . *)
-  | Expr of source_value list
+  | Observe of source_value list
 and
   pattern =
   | Wildcard

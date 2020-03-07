@@ -201,7 +201,7 @@ let sym_exec source =
     | ([] as _no_acs, ([] as _no_columns, rhs)::_) ->
        begin match (rhs : source_rhs) with
          | Unreachable -> Unreachable
-         | Expr expr -> Leaf (List.map source_value_to_sym_value expr)
+         | Observe expr -> Leaf (List.map source_value_to_sym_value expr)
        end
     | (_::_ as _accs, ([] as _no_columns, _)::_) -> assert false
     | ([] as _no_accs, (_::_ as _columns, _)::_) -> assert false
@@ -216,7 +216,7 @@ let sym_exec source =
       in
       Node (ac_head, groups_evaluated, fallback_evaluated)
     in
-    let row_of_clause (pat, rhs) = ([pat], rhs) in
+    let row_of_clause {pat; guard = _; rhs} = ([pat], rhs) in
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 let eval source_ast =

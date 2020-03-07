@@ -97,20 +97,21 @@ and cases_of_ocaml definition_body =
          "expected (function ...) or (fun x -> match x with ...)"
   in List.map clause_of_ocaml cases
 
-and clause_of_ocaml { pc_lhs = pattern; pc_guard = guard; pc_rhs = expr } : clause =
-  begin match guard with
-  | None -> ()
-  | Some guard ->
-     Location.alert ~kind:"Warning" guard.pexp_loc "Ignored pattern guard";
-  end;
-  let pattern = pattern_of_ocaml pattern in
-  let rhs = rhs_of_ocaml expr in
-  (pattern, rhs)
+and clause_of_ocaml { pc_lhs; pc_guard; pc_rhs; _ } : clause =
+  let pat = pattern_of_ocaml pc_lhs in
+  let guard = Option.map guard_of_ocaml pc_guard in
+  let rhs = rhs_of_ocaml pc_rhs in
+  { pat; guard; rhs }
+
+and guard_of_ocaml exp =
+  match simple_apply_of_ocaml exp with
+    | Some ("guard", args) -> Guard (List.map value_of_ocaml args)
+    | _ -> error_at exp.pexp_loc "a 'guard' application was expected"
 
 and rhs_of_ocaml expr : source_rhs =
   match expr.pexp_desc with
     | Pexp_unreachable -> Unreachable
-    | _ -> Expr (observe_of_ocaml expr)
+    | _ -> observe_of_ocaml expr
 
 and pattern_of_ocaml p : Ast.pattern =
   let error fmt = error_at p.ppat_loc fmt in
@@ -189,7 +190,7 @@ and simple_apply_of_ocaml exp =
 
 and observe_of_ocaml exp =
   match simple_apply_of_ocaml exp with
-    | Some ("observe", args) -> List.map value_of_ocaml args
+    | Some ("observe", args) -> Observe (List.map value_of_ocaml args)
     | _ -> error_at exp.pexp_loc "an 'observe' application was expected"
 
 and value_of_ocaml exp =
