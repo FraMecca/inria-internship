@@ -1,13 +1,13 @@
 (setglobal Foo!
   (let
-    (foo/80 =
-       (function param/83
-         (let (x/81 =a (field 0 param/83))
+    (foo/84 =
+       (function param/87
+         (let (x/85 =a (field 0 param/87))
            (catch
-             (if x/81 (exit 1)
-               (let (x/82 =a (field 1 param/83))
-                 (if x/82 (let (*match*/85 =a (field 0 x/82)) "bar") "foo")))
-            with (1) (let (*match*/86 =a (field 1 param/83)) "_")))))
-    (makeblock 0 foo/80)))
-
-
+             (if x/85 (exit 1)
+               (let (x/86 =a (field 1 param/87))
+                 (if x/86
+                   (let (*match*/91 =a (field 0 x/86)) (observe [0: 1a]))
+                   (observe [0: 0a]))))
+            with (1) (let (*match*/92 =a (field 1 param/87)) (observe 0a))))))
+    (makeblock 0 foo/84)))

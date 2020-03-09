@@ -1,13 +1,13 @@
 (setglobal Example0!
   (let
-    (mm/1204 =
-       (function param/1206
+    (mm/81 =
+       (function param/82[int] : int
          (catch
-           (let (switcher/1208 =a (-2+ param/1206))
-             (if (isout 2 switcher/1208) (exit 1)
-               (switch* switcher/1208
-                case int 0: "2"
-                case int 1: "3"
-                case int 2: "4")))
-          with (1) "_")))
-    (makeblock 0 mm/1204)))
+           (let (switcher/85 =a (-2+ param/82))
+             (if (isout 2 switcher/85) (exit 1)
+               (switch* switcher/85
+                case int 0: (observe 2)
+                case int 1: (observe 3)
+                case int 2: (observe 4))))
+          with (1) (observe 5))))
+    (makeblock 0 mm/81)))

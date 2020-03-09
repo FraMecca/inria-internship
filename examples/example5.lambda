@@ -1,21 +1,24 @@
 (setglobal Example5!
   (let
-    (a/1212 =
-       (function t/1213
-         (switch* t/1213
-          case int 0: "K4"
+    (a/89 =
+       (function t/90
+         (switch* t/90
+          case int 0: (observe 4)
           case tag 0:
-           (let (match/1220 =a (field 0 t/1213))
-             (catch (if (!= match/1220 2) (exit 1) "K1:2") with (1) "K1:_"))
+           (let (*match*/96 =a (field 0 t/90))
+             (catch (if (!= *match*/96 2) (exit 1) (apply (observe 1) 2))
+              with (1) (apply (observe 1) 0a)))
           case tag 1:
-           (let (b/1214 =a (field 0 t/1213))
-             (if (!= b/1214 0) "K2:true" "K2:false"))
-          case tag 2: (let (match/1221 =a (field 0 t/1213)) "K3:_")
+           (let (b/91 =a (field 0 t/90))
+             (if (!= b/91 0) (apply (observe 2) 1a) (apply (observe 2) 0a)))
+          case tag 2:
+           (let (*match*/97 =a (field 0 t/90)) (apply (observe 3) 0a))
           case tag 3:
-           (let (match/1222 =a (field 0 t/1213))
+           (let (*match*/98 =a (field 0 t/90))
              (catch
-               (let (match/1223 =a (field 0 match/1222))
-                 (if (!= match/1223 1)
-                   (if (!= match/1223 2) (exit 2) "K5:P0:2") "K5:P0:1"))
-              with (2) "K5:P0:_")))))
-    (makeblock 0 a/1212)))
+               (let (*match*/99 =a (field 0 *match*/98))
+                 (if (!= *match*/99 1)
+                   (if (!= *match*/99 2) (exit 2) (apply (observe 5) 0 2))
+                   (apply (observe 5) 0 1)))
+              with (2) (apply (observe 5) 0 0a))))))
+    (makeblock 0 a/89)))

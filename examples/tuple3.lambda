@@ -1,16 +1,18 @@
 (setglobal Tuple3!
   (let
-    (mm/80 =
-       (function param/81
+    (mm/81 =
+       (function param/82
          (let
-           (*match*/84 =a (field 1 param/81)
-            *match*/83 =a (field 0 param/81))
+           (*match*/86 =a (field 1 param/82)
+            *match*/85 =a (field 0 param/82))
            (catch
              (catch
-               (if (!= *match*/84 2) (exit 2)
-                 (let (*match*/85 =a (field 2 param/81)) "_2_"))
+               (if (!= *match*/86 2) (exit 2)
+                 (let (*match*/87 =a (field 2 param/82))
+                   (apply (observe 0) 2 0)))
               with (2)
-               (let (*match*/86 =a (field 2 param/81))
-                 (if (!= *match*/86 2) (exit 1) "__2")))
-            with (1) (let (*match*/87 =a (field 2 param/81)) "___")))))
-    (makeblock 0 mm/80)))
+               (let (*match*/88 =a (field 2 param/82))
+                 (if (!= *match*/88 2) (exit 1) (apply (observe 0) 0 2))))
+            with (1)
+             (let (*match*/89 =a (field 2 param/82)) (apply (observe 0) 0 0))))))
+    (makeblock 0 mm/81)))
