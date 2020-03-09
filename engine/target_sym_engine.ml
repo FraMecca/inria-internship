@@ -191,10 +191,10 @@ let eval target_ast =
       | Var v -> SMap.find v env.values
       | _ -> assert false
     in
-    let eval_let_binding env (sxp : sexpr) key =
+    let eval_let_binding env key (sxp : sexpr) =
       match sxp with
       | Var v ->
-        put_value v (AcRoot v)
+        put_value key (AcRoot v)
       | Field (i, v) ->
         let acc = SMap.find v env.values in
         put_value key (AcField (acc, i))
@@ -209,9 +209,11 @@ let eval target_ast =
     in
     match sexpr with
     | Let (blist, next_sexpr) ->
-      let env' = blist |>
-                 List.map (fun (var, sxp) -> eval_let_binding env sxp var) |>
-                 List.fold_left union env
+      let add_binding env' (var, sxp) =
+        union env' (eval_let_binding env' var sxp)
+      in
+      let env' =
+        List.fold_left add_binding env blist
       in
       sym_exec next_sexpr env'
     | If (bexpr, strue, sfalse) ->
