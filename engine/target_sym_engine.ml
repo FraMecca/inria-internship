@@ -92,9 +92,10 @@ let print_tree tree =
           prefix
           (bprint_tree (ntabs+1)) tree
       in
-      bprintf buf "Guard (%a) ="
+      bprintf buf "%tGuard (%a):\n" (indent ntabs)
         (bprint_list ~sep:comma bprint_target_value) tgt_values;
-      bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
+      bprint_child "guard(true)" ctrue;
+      bprint_child "guard(false)" cfalse
     | Node (var, children, fallback) ->
       let bprint_child buf (domain, tree) =
         bprintf buf

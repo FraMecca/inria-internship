@@ -87,9 +87,9 @@ let print_result stree =
     | Guard (sym_value_list, ctrue, cfalse) ->
       let bprint_child prefix tree =
         bprintf buf
-          "%s =\n%a"
-          prefix
-          (bprint_tree 0) tree
+          "%t%s =%t%a"
+          (break ntabs) prefix sep
+          (bprint_tree (ntabs+1)) tree
       in
       bprintf buf "Guard (%a) ="
         (bprint_list ~sep:ignore bprint_sym_value) sym_value_list;
