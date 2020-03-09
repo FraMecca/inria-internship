@@ -71,11 +71,14 @@ SMatrix mₛ := (aᵢ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ  # i ∈ I j ∈ Jᵢ # i c
 
 # base cases
 [| ∅, (∅ → bbᵢ)ⁱ |] := Leaf bbᵢ where i := min(I)
-[| (aⱼ)ʲ, ∅ |] := Unreachable 
+[| (aⱼ)ʲ, ∅ |] := Failure 
 #
 
 [| aⱼ, rⱼ |] := (cols(mₛ)>1) := let Groups((aⱼ)ᴵ,(rᵢ)ⁱ) be (Kₖ → mₖ), m_{wildcards)
-                  Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ, [|m_{wildcards}|])
+                  if (Kₖ)ᵏ is complete then
+                      Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ)
+                  else
+                      Node( aₘᵢₙ₍ⱼ₎, Kₖ → [| mₖ |]ᵏ, [|m_{wildcards}|])
 
 
 **** Sterms -> STrees
@@ -106,7 +109,7 @@ Correct(m) := ∀v, (vᵢ)ⁱ = v(aᵢ)ⁱ => m(vᵢ)ⁱ = [|m|](v)
 Groups(m) = (kᵣ → mᵣ)ᵏ, m_{wild}
 (vᵢ)ᴵ, v₀ = k(v'ₗ)ˡ  ## l ∈ Idx(k) ## v' child of the constructor
 if k = kₖ for some k then
-    m(vᵢ)ⁱ = mₖ((v'ₗ)ˡ ++ (vᵢ)ⁱ)  ## where last i:= i ≠ 0
+    m(vᵢ)ⁱ = mₖ((v'ₗ)ˡ +++ (vᵢ)ⁱ)  ## where last i:= i ≠ 0
 else
     m(vᵢ)ⁱ = m_{wild}(vᵢ)ⁱ ## where last i:= i ≠ 0
 
@@ -115,7 +118,7 @@ m(vᵢ)ⁱ = First(rⱼ(vᵢ)ⁱ)ʲ for m = ((aᵢ)ⁱ, (rⱼ)ʲ)
 (pᵢ)ⁱ (vᵢ)ⁱ  =  {
     if p₀ = k(qₗ)ˡ, v₀ = k'(v'ₖ)ᵏ, k=Idx(k') and l=Idx(k)
       if k ≠ k' then ⊥ 
-      if k = k' then ((qₗ)ˡ ++ (pᵢ)ⁱ) ((v'ₖ)ᵏ ++ (vᵢ)ⁱ) ## where i ≠ 0
+      if k = k' then ((qₗ)ˡ +++ (pᵢ)ⁱ) ((v'ₖ)ᵏ +++ (vᵢ)ⁱ) ## where i ≠ 0
     if p₀ = (q₁|q₂) then
       First(  (q₁pᵢⁱ) vᵢⁱ, (q₂pᵢⁱ) vᵢⁱ  ) ## where i ≠ 0
 }
@@ -123,13 +126,52 @@ m(vᵢ)ⁱ = First(rⱼ(vᵢ)ⁱ)ʲ for m = ((aᵢ)ⁱ, (rⱼ)ʲ)
 let Groups(m) where m = ((aᵢ)ⁱ ((pᵢⱼ)ⁱ → eⱼ)ⁱʲ) =
 let (kₖ)ᵏ = headconstructor(pᵢ₀)ⁱ in
 ( kₖ →
-    ((a₀.ₗ)ˡ ++ (aᵢ)ⁱ),   ## where l ∈ Idx(kₖ) and i ∈ I\{0}
+    ((a₀.ₗ)ˡ +++ (aᵢ)ⁱ),   ## where l ∈ Idx(kₖ) and i ∈ I\{0}
     (
      if pₒⱼ is k(qₗ) then
-        (qₗ)ˡ ++ (pᵢⱼ)ⁱ  → eⱼ  ## i ≠ 0
+        (qₗ)ˡ +++ (pᵢⱼ)ⁱ  → eⱼ  ## i ≠ 0
      if pₒⱼ is _ then
-        (_)ˡ ++ (pᵢⱼ)ⁱ   → eⱼ  ## i ≠ 0
+        (_)ˡ +++ (pᵢⱼ)ⁱ   → eⱼ  ## i ≠ 0
      else ⊥
     )ʲ
 ),(
   (aᵢ)ⁱ, ((pᵢⱼ)ⁱ  → eⱼ if p₀ⱼ is _ else ⊥)ʲ ## where i ≠ 0 and j ∈ J
+
+
+
+*** Draft of proof for equivalence checking
+
+equiv(S, Cₛ, Cₜ) → Yes | No(vₛ, vₜ)
+equiv(S, Cₛ, Cₜ) = Yes and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) = Cₜ(vₜ)
+equiv(S, Cₛ, Cₜ) = No and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) ≠ nCₜ(vₜ) 
+
+∀v∈a→π, C_{/a→π}(v) = C(v)
+Forall(Yes) = Yes
+Forall(Yes::l) = Forall(l)
+Forall(No(vₛ,vₜ)::_) = No(vₛ,vₜ)
+There exists and are injective:
+  int(k)∈ℕ (ar(k) = 0) 
+  tag(k)∈ℕ (ar(k) > 0) 
+  π(k) = {n|int(k) = n} x {n|tag{k} = n}
+
+1. equiv(∅, Cₛ, Cₜ) := Yes
+# below S ≠ ∅
+2. equiv(S, Failure, Failure) := Yes
+equiv(S, Leaf bbₛ, Leaf bbₜ) := if bbₛ = bbₜ then Yes else No(vₛ, [|vₛ|]) for vₛ ∈ S
+3. equiv(S, (Leaf bbₛ|Failure) as Cₛ, Node(a, (πᵢ → Cₜᵢ)ⁱ)) := 
+    Forall(equiv( S∪(a→π(kᵢ)), Cₛ, Cₜᵢ)ⁱ)
+
+4. equiv(S, Node(a, (πᵢ → Cₛᵢ)ⁱ, C_{sf}), Cₜ) := 
+    let π' = ⋃π(kᵢ) ∀i in
+    Forall(equiv( S∪(a→π(kᵢ)), Cₛ, C_{/a→π(kᵢ)})ⁱ +++ equiv(S∪(a→π(kᵢ)), Cₛ, C_{/a¬̸π'}))
+
+Proof:
+3. let Sᵢ := S∩(a→πᵢ)
+   either
+       equiv(Sᵢ, Cₛ, Cₜᵢ) = Yes ∀i
+   or
+       equiv(Sᵢ, Cₛ, Cₜᵢ) = No(vₛ, vₜ) for some minimal k∈I
+# valid because:
+            vₛ≊vₜ∈Sₖ ∧ cₛ(vₛ) ≠ Cₜₖ(vₜ)
+            then  vₛ≊vₜ∈S vₛ≊vₜ ∧ Cₛ(vₛ)≠Cₜ(vₜ) 
+                #because vₜ∈(a→πₖ) ⇒ Cₜ(vₜ) = Cₜₖ(vₜ)
