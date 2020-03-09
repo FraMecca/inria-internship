@@ -98,10 +98,10 @@ and cases_of_ocaml definition_body =
   in List.map clause_of_ocaml cases
 
 and clause_of_ocaml { pc_lhs; pc_guard; pc_rhs; _ } : clause =
-  let pat = pattern_of_ocaml pc_lhs in
+  let lhs = pattern_of_ocaml pc_lhs in
   let guard = Option.map guard_of_ocaml pc_guard in
   let rhs = rhs_of_ocaml pc_rhs in
-  { pat; guard; rhs }
+  { lhs; guard; rhs }
 
 and guard_of_ocaml exp =
   match simple_apply_of_ocaml exp with

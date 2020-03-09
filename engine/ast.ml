@@ -5,8 +5,9 @@ type source_program  = {
   clauses: clause list;
 }
 and
-  clause = {
-    pat: pattern;
+  clause = pattern row
+and 'a row = {
+    lhs: 'a;
     guard: guard option;
     rhs: source_rhs;
 }
