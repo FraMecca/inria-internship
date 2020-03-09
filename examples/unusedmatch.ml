@@ -1,3 +1,6 @@
+[@@@warning "-20"]
+external observe : 'a -> 'b = "observe"
+
 let mm = function
-  | _ -> 0
-  | 2 -> 2
+  | _ -> observe 0
+  | 2 -> observe 2

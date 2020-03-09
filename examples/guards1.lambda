@@ -1,7 +1,4 @@
 (setglobal Guards1!
   (let
-    (ff/80 =
-       (function param/106
-         (if (apply (field 9 (global Stdlib__random!)) 0a) "random.bool"
-           "wildcard")))
-    (makeblock 0 ff/80)))
+    (ff/82 = (function param/83 (if (guard 0a) (observe 1a) (observe 0a))))
+    (makeblock 0 ff/82)))

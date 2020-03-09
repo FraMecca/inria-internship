@@ -1,5 +1,10 @@
+[@@@warning "-20"]
+external observe : 'a -> 'b = "observe"
+
+type 'a option = None | Some of 'a
+
 let mm = function
-  | (Some 0, "whatever") -> "whatever"
-  | (None, "none") -> "none"
-  | _ -> "fallback"
+  | (Some 0, true) -> observe (Some true)
+  | (None, false) -> observe (Some false)
+  | _ -> observe None
 
