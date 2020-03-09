@@ -200,11 +200,17 @@ let sym_exec source =
   let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
     | (_, []) -> assert false
-    | ([] as _no_acs, ({ lhs = []; _ } as row)::_) ->
+    | ([] as _no_acs, ({ lhs = []; guard = None;_ } as row)::_) ->
        begin match (row.rhs : source_rhs) with
          | Unreachable -> Unreachable
          | Observe expr -> Leaf (List.map source_value_to_sym_value expr)
        end
+    | ([] as _no_acs,
+       ({ lhs = []; guard = Some (Guard guard); _ } as row) :: rest)
+      ->
+       Guard (List.map source_value_to_sym_value guard,
+              decompose ([], { row with guard = None } :: rest),
+              decompose ([], rest))
     | (_::_ as _accs, { lhs = []; _ }::_) -> assert false
     | ([] as _no_accs, { lhs = _::_; _  }::_) -> assert false
     | (ac_head::_ as _acs, { lhs = (_::_); _ }::_) ->
