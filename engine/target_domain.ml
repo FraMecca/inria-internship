@@ -92,6 +92,9 @@ let empty = {int = Set.empty; tag = Set.empty}
 let is_int_singleton dom = IntSet.cardinal dom.int = 1 && IntSet.is_empty dom.tag
 let get_int_singleton dom =
   assert (is_int_singleton dom); IntSet.fold_individual (fun x _ -> x) dom.int 0
+let is_tag_singleton dom = IntSet.cardinal dom.tag = 1 && IntSet.is_empty dom.tag
+let get_tag_singleton dom =
+  assert (is_tag_singleton dom); IntSet.fold_individual (fun x _ -> x) dom.tag 0
 
 let is_empty dom = Set.is_empty dom.int && Set.is_empty dom.tag
 

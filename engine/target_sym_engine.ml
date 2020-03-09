@@ -11,12 +11,12 @@ module Domain = Target_domain
 
 type constraint_tree =
   | Failure
-  | Leaf of target_value list
+  | Leaf of sym_value list
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
-  | Guard of target_value list * constraint_tree * constraint_tree
+  | Guard of sym_value list * constraint_tree * constraint_tree
 and
-  target_value =
-  | VConstructor of {tag:int; args:target_value list}
+  sym_value =
+  | VConstructor of {tag:int; args:sym_value list}
   | VAccessor of accessor
   | VConstant of int
 and
@@ -70,12 +70,12 @@ let print_tree tree =
     | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
     | AcAdd (a, i) -> bprintf buf "AcAdd %a.%d" bprint_accessor a i
   in
-  let rec bprint_target_value buf = function
+  let rec bprint_sym_value buf = function
     | VAccessor acc -> bprintf buf "VAccessor:%a" bprint_accessor acc
     | VConstant i -> bprintf buf "VConstant:%d" i
     | VConstructor {tag=t; args=a} -> bprintf buf "VConstructor:{tag=%d; args=%a}"
                                         t
-                                        (bprint_list ~sep:comma bprint_target_value) a
+                                        (bprint_list ~sep:comma bprint_sym_value) a
   in
   let rec bprint_tree ntabs buf tree =
     match tree with
@@ -83,7 +83,7 @@ let print_tree tree =
       bprintf buf "%tFailure" (indent ntabs)
     | Leaf observe ->
       bprintf buf "%tLeaf=%a\n" (indent ntabs)
-        (bprint_list ~sep:comma bprint_target_value) observe
+        (bprint_list ~sep:comma bprint_sym_value) observe
     | Guard (tgt_values, ctrue, cfalse) ->
       let bprint_child prefix tree =
         bprintf buf
@@ -93,7 +93,7 @@ let print_tree tree =
           (bprint_tree (ntabs+1)) tree
       in
       bprintf buf "%tGuard (%a):\n" (indent ntabs)
-        (bprint_list ~sep:comma bprint_target_value) tgt_values;
+        (bprint_list ~sep:comma bprint_sym_value) tgt_values;
       bprint_child "guard(true)" ctrue;
       bprint_child "guard(false)" cfalse
     | Node (var, children, fallback) ->
@@ -144,16 +144,15 @@ let eval target_ast =
   let empty_environment =
     { values=SMap.empty; functions=SMap.empty; exits=IMap.empty; }
   in
-  let rec eval_target_value env : Ast.target_value -> target_value = function
+  let rec eval_sym_value env : Ast.target_value -> sym_value = function
     | VConstant i ->
       VConstant i
     | VConstructor {tag=t; args} ->
-      let args' = List.map (eval_target_value env) args in
+      let args' = List.map (eval_sym_value env) args in
       VConstructor {tag=t; args=args'}
     | VVariable var ->
       let acc = SMap.find var env.values in
       VAccessor acc
-    (* TODO: rename target_value to sym_value *)
   in
   let rec sym_exec sexpr env : constraint_tree =
     let eval_bop (bop, i) = match bop with
@@ -259,14 +258,14 @@ let eval target_ast =
     | Int n ->
       Leaf [VConstant n]
     | TBlackbox bb ->
-      Leaf (List.map (eval_target_value env) bb)
+      Leaf (List.map (eval_sym_value env) bb)
     | Match_failure ->
       Failure
     | Function (v, sxp) ->
       let envf = put_value v (AcRoot v) in
       sym_exec sxp envf
     | IfGuard (bb, strue, sfalse) ->
-      Guard (List.map (eval_target_value env) bb, sym_exec strue env, sym_exec sfalse env)
+      Guard (List.map (eval_sym_value env) bb, sym_exec strue env, sym_exec sfalse env)
     | _ -> assert false
   in
   sym_exec target_ast empty_environment

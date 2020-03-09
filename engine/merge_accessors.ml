@@ -1,14 +1,13 @@
 open Ast
 
-
 type constraint_tree =
   | Failure
-  | Leaf of target_value list
-  | Guard of target_value list * constraint_tree * constraint_tree
+  | Leaf of sym_value list
+  | Guard of sym_value list * constraint_tree * constraint_tree
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
 and
-  target_value =
-  | VConstructor of {tag:int; args:target_value list}
+  sym_value =
+  | VConstructor of {tag:int; args:sym_value list}
   | VAccessor of accessor
   | VConstant of int
 and
@@ -24,7 +23,7 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
     | AcField (s, i) -> AcField(map_accessor s, i)
     | AcAdd (_, _) -> assert false
   in
-  let rec map_target_value : Target_sym_engine.target_value -> target_value = function
+  let rec map_target_value : Target_sym_engine.sym_value -> sym_value = function
     | VConstant i -> VConstant i
     | VConstructor {tag=t; args=args} -> VConstructor {tag=t; args=List.map map_target_value args}
     | VAccessor acc -> VAccessor (map_accessor acc)
