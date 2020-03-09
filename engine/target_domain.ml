@@ -26,23 +26,45 @@ module Set = struct
 
   let shift n set =
     let open IntSet in
-    let shift_interval n intev =
-      let open Interval in
-      make (x intev + n) (y intev + n) in
-    let on_interval intev acc =
-      add (shift_interval n intev) acc in
+    let on_interval interv acc =
+      (* We have to be careful of arithmetic overflows.
+
+         Our intervals are ranges of fixed-width numbers and may
+         typically have min_int as the lower bound, max_int as the
+         upper bound, or both (an interval for the full range). When
+         shifting by a constant integer, an overflow or underflow
+         will thus frequently occur.
+
+         If both bounds overflow, the result is correct. For
+         example, if the interval fragment is
+           [max_int - 3; max_int]
+         and we shift by 4, we get the interval
+           [min_int; min_int+3]
+         which is the right result. (Note: OCaml specifies
+         a wraparound/modulo semantics for overflows.)
+
+         We are in trouble if only one bound overflows; for example,
+         shifting
+           [max_int - 3; max_int]
+         by just 2 would give the interval
+           [max_int - 1; min_int + 1]
+         which is ill-formed -- the lower bound that is larger than
+         the upper bound. Instead we detect this case and split the
+         result in two intervals,
+           [max_int - 1; max_int]   [min_int; min_int + 1]
+      *)
+      let a, b = Interval.(x interv, y interv) in
+      let a', b' = a + n, b + n in
+      let return intervals = List.fold_right add intervals acc in
+      if a' <= b' then
+        (* the bounds are in the right order: no overflow, or two overflows *)
+        return [Interval.make a' b']
+      else
+        (* b' overflowed or a' underflowed *)
+        return [Interval.make min_int b';
+                Interval.make a' max_int]
+    in
     IntSet.fold on_interval set IntSet.empty
-  (* TODO: this definition is incorrect in the case of overflows;
-     for example
-       x+1 <= 2
-     gets translated to the set
-       x+2 ∈ [min_int; 2]
-     The version shifted by -1 should not be
-       x ∈ [min_int-2; 0]
-       (which is the nonsensical x ∈ [max_int; 1])
-     but rather
-       x ∈ [min_int; 0] ∪ [max_int-1; max_int]
-  *)
 
   let to_string set =
     let on_interval interv acc =
