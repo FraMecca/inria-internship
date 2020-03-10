@@ -139,7 +139,7 @@ let (kₖ)ᵏ = headconstructor(pᵢ₀)ⁱ in
 
 
 
-*** Draft of proof for equivalence checking
+*** Proof of equivalence checking
 
 equiv(S, Cₛ, Cₜ) → Yes | No(vₛ, vₜ)
 equiv(S, Cₛ, Cₜ) = Yes and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) = Cₜ(vₜ)
@@ -159,11 +159,11 @@ There exists and are injective:
 2. equiv(S, Failure, Failure) := Yes
 equiv(S, Leaf bbₛ, Leaf bbₜ) := if bbₛ = bbₜ then Yes else No(vₛ, [|vₛ|]) for vₛ ∈ S
 3. equiv(S, (Leaf bbₛ|Failure) as Cₛ, Node(a, (πᵢ → Cₜᵢ)ⁱ)) := 
-    Forall(equiv( S∪(a→π(kᵢ)), Cₛ, Cₜᵢ)ⁱ)
+    Forall(equiv( S∩a→π(kᵢ)), Cₛ, Cₜᵢ)ⁱ)
 
-4. equiv(S, Node(a, (πᵢ → Cₛᵢ)ⁱ, C_{sf}), Cₜ) := 
+4. equiv(S, Node(a, (kᵢ → Cₛᵢ)ⁱ, C_{sf}), Cₜ) := 
     let π' = ⋃π(kᵢ) ∀i in
-    Forall(equiv( S∪(a→π(kᵢ)), Cₛ, C_{/a→π(kᵢ)})ⁱ +++ equiv(S∪(a→π(kᵢ)), Cₛ, C_{/a¬̸π'}))
+    Forall(equiv( S∩(a→π(kᵢ)ⁱ), Cₛᵢ, C_{t/a→π(kᵢ)})ⁱ +++ equiv(S∩(a→π(kᵢ)), Cₛ, C_{/a¬̸π'}))
 
 Proof:
 3. let Sᵢ := S∩(a→πᵢ)
@@ -175,3 +175,50 @@ Proof:
             vₛ≊vₜ∈Sₖ ∧ cₛ(vₛ) ≠ Cₜₖ(vₜ)
             then  vₛ≊vₜ∈S vₛ≊vₜ ∧ Cₛ(vₛ)≠Cₜ(vₜ) 
                 #because vₜ∈(a→πₖ) ⇒ Cₜ(vₜ) = Cₜₖ(vₜ)
+
+4. Trimming lemma: 
+         ∀vₜ ∈ (a→π), Cₜ(vₜ) = C_{t/a→π(kᵢ)}(vₜ)
+         # Proof on induction on Cₜ:
+               a. Case where Cₜ = Leaf_{bb}:
+                   Leaf_{bb/a→π}(v) = Leaf_{bb}(v) ## trimming leaf is leaf itself
+               b. # Same for failure terminal
+               c. Case in which Cₜ is Node(b, (π→Cᵢ)ⁱ)_{/a→π}  then
+                   let πᵢ' =  πᵢ if a≠b else πᵢ∩π  in
+                   Node(b, (π→Cᵢ)ⁱ)_{/a→π} :=  Node(b, (π'ᵢ→C_{i/a→π})ⁱ)
+
+                   Goal: prove that Cₜ(vₜ) = Node(b, (πᵢ'→C_{i/a→π})ⁱ)(vₜ)
+                   # two cases:
+                   i.  vₜ∉(b→πᵢ)ⁱ => failure = failure
+                   ii. vₜ∈(b→πₖ) for some k =>
+                       C_{k/a→π}(vₜ) = Node(b, (πᵢ'→C_{i/a→π})ⁱ)(vₜ) #because
+                            #when a ≠ b then πₖ'=πₖ => vₜ∈πₖ'
+                            #when a = b  then πₖ'=(πₖ∩π) and
+                                                vₜ∈π #because_of_hypothesis and
+                                                vₜ∈πₖ #because_of_subcase_ii
+                                                => vₜ ∈ πₖ'
+                            #and
+                            Cₖ(vₜ) = C_{k/a→π}(vₜ) #by #induction #and
+                            Cₜ(vₜ) = Cₖ(vₜ) #because vₜ∈(b→πₖ)
+                        => Node(b, (πᵢ'→C_{i/a→π})ⁱ)(vₜ) = Cₜ(vₜ)
+                            
+   Covering lemma:
+         ∀a,π covers(Cₜ,S) => covers(C_{t/a→π}, (S∩a→π))
+             Uᵢπⁱ ≈ Uᵢπ'∩(a→π) ≈ (Uᵢπ')∩(a→π) # TODO swap π and π' 
+
+4. ∀S, Cₜ covers S → {
+   - equiv(S, Cₛ, Cₜ) = Yes => ∀vₛ≊vₜ∈S, Cₛ(vₛ) = Cₜ(vₜ)
+   - equiv(S, Cₛ, Cₜ) = No(vₛ, vₜ) => vₛ≊vₜ∈S ∧ Cₛ(vₛ) ≠ Cₜ(vₜ)
+     # Case analysis of Forall
+     a. Forall(...) = Yes
+       Consider vₛ(a) = K(v'ⱼ)
+       # Case analysis k∈(kᵢ)ⁱ or k∉(kᵢ)ⁱ
+       i. k=kₖ for some k then Cₛ(vₛ) = Cₛᵢ(vₛ)
+       # Ind. hyp.:
+          Cₛᵢ(vₛ) = C_{t/a→πᵢ}(vₜ)
+          # and we know that, for the trimming lemma
+          Cₜ(vₜ) = C_{t/a→πᵢ}(vₜ)
+
+     b. Forall(...) = No(vₛ, vₜ)
+        for a minimum k, equiv(Sₖ, Cₛₖ, C_{t/a→πₖ} = No(vₛ, vₜ)
+           then Cₛₖ(vₛ) ≠ C_{t/a→πₖ}(vₜ)  and C_{t/a→πₖ}(vₜ) = Cₜ(vt) 
+             => (Cₛₖ(vₛ) = Cₛ(vₛ)) ≠ Cₜ(vₜ) # Same for fallback?
