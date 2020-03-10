@@ -1,10 +1,9 @@
 (setglobal Example9bis!
   (let
-    (test/80 =
-       (function param/81
-         (if (!= param/81 0) 0
+    (test/81 =
+       (function param/82 : int
+         (catch (if (!= param/82 0) 0 (exit 1)) with (1)
            (raise
              (makeblock 0 (global Match_failure/18!)
-               [0: "examples/example9bis.ml" 1 11])))))
-    (makeblock 0 test/80)))
-
+               [0: "examples/example9bis.ml" 4 11])))))
+    (makeblock 0 test/81)))

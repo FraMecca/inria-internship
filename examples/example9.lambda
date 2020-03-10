@@ -1,7 +1,5 @@
 (setglobal Example9!
   (let
-    (test/80 =
-      (function param/81
-        (if (!= param/81 0) 0 1)))
-    (makeblock 0 test/80)))
-
+    (test/81 =
+       (function param/82 (if (!= param/82 0) (observe 0) (observe 1))))
+    (makeblock 0 test/81)))

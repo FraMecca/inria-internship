@@ -30,6 +30,8 @@ let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
 let newline = ('\r'* '\n')
 let blank = [' ' '\t']+
 
+let annot = '[' ['a'-'z']+ ']'
+
 rule token = parse
   | newline
     { new_line lexbuf;
@@ -49,13 +51,16 @@ rule token = parse
   | ">=" { GREATEREQUAL }
   | ":" { COLON }
 
+  | "," { COMMA }
+  | "int" { INTSYMBOL }
+  | "*" { STAR }
+
   | "case" { CASE }
   | "catch" { CATCH }
   | "exit" { EXIT }
   | "field" { FIELD }
   | "function" { FUNCTION }
   | "if" { IF }
-  | "int" { INTSYMBOL }
   | "isout" { ISOUT }
   | "let" { LET }
   | "makeblock" { MAKEBLOCK }
@@ -67,7 +72,11 @@ rule token = parse
   | "tag" { TAGSYMBOL }
   | "with" { WITH }
 
-  | (int as n) { INT (int_of_string n) }
+  | "apply" { APPLY }
+  | "observe" { OBSERVE }
+  | "guard" { GUARD }
+
+  | (int as n) "a"? { INT (int_of_string n) }
   | "false" { BOOL false }
   | "true" { BOOL true }
   | "\""
@@ -75,7 +84,7 @@ rule token = parse
 
   | (int as n) "+" { OFFSET (int_of_string n) }
 
-  | (lowercase identchar* '/' int) as ident { LIDENT ident }
+  | (lowercase identchar* '/' int) as ident annot? { LIDENT ident }
   | ('*' lowercase identchar* '*' '/' int) as ident { LIDENT ident }
   | (uppercase identchar* '!') as ident { UIDENT ident }
   | (uppercase identchar* '/' int '!') as ident { UIDENT ident }

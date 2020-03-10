@@ -9,17 +9,17 @@ let compare (left: Merge_accessors.constraint_tree) (right: Merge_accessors.cons
   let rec _compare (left: Merge_accessors.constraint_tree) (right: Merge_accessors.constraint_tree) : bool =
     let rec trim src_acc constraints =
       let specialize_same_acc  node_acc (dom, s_tree) =
-        if Domain.is_empty dom then
-          None
-        else if src_acc = node_acc then
-          Some (specialize constraints dom, trim src_acc constraints s_tree)
-        else
-          Some (dom, trim src_acc constraints s_tree)
+        let dom' =
+          if src_acc <> node_acc then dom
+          else specialize constraints dom in
+        if Domain.is_empty dom' then None
+        else Some (dom', trim src_acc constraints s_tree)
       in
       function
       | Node (_, [], None) -> assert false
       | Failure -> Failure
       | Leaf l -> Leaf l
+      | Guard (_, _, _) -> failwith "Not implemented"
       | Node (node_acc, children, fallback) ->
         let children' =
           children
@@ -43,5 +43,6 @@ let compare (left: Merge_accessors.constraint_tree) (right: Merge_accessors.cons
       tbox = tbox'
     | (Failure, Failure) -> true
     | (Failure, Leaf _) | (Leaf _, Failure) -> false
+    | Guard (_, _, _), _ | _, Guard (_, _, _)-> failwith "Not implemented"
   in
   _compare left right

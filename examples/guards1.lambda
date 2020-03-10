@@ -1,0 +1,4 @@
+(setglobal Guards1!
+  (let
+    (ff/82 = (function param/83 (if (guard 0a) (observe 1a) (observe 0a))))
+    (makeblock 0 ff/82)))

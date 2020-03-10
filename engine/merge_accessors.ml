@@ -2,8 +2,14 @@ open Ast
 
 type constraint_tree =
   | Failure
-  | Leaf of Ast.target_blackbox
+  | Leaf of sym_value list
+  | Guard of sym_value list * constraint_tree * constraint_tree
   | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
+and
+  sym_value =
+  | VConstructor of {tag:int; args:sym_value list}
+  | VAccessor of accessor
+  | VConstant of int
 and
   domain = Target_domain.t
 and
@@ -16,6 +22,11 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
     | AcRoot _ -> AcRoot
     | AcField (s, i) -> AcField(map_accessor s, i)
     | AcAdd (_, _) -> assert false
+  in
+  let rec map_target_value : Target_sym_engine.sym_value -> sym_value = function
+    | VConstant i -> VConstant i
+    | VConstructor {tag=t; args=args} -> VConstructor {tag=t; args=List.map map_target_value args}
+    | VAccessor acc -> VAccessor (map_accessor acc)
   in
   let rec split : Target_sym_engine.accessor -> accessor * int = function
     | AcAdd (s, i) ->
@@ -32,8 +43,14 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
       tag = domain.tag;
     } in
   function
-  | Target_sym_engine.Failure -> Failure
-  | Target_sym_engine.Leaf l -> Leaf l
+  | Target_sym_engine.Failure ->
+    Failure
+  | Target_sym_engine.Leaf tvl ->
+    let tvl' = List.map map_target_value tvl in
+    Leaf tvl'
+  | Target_sym_engine.Guard (tvl, ctrue, cfalse) ->
+    let tvl' = List.map map_target_value tvl in
+    Guard (tvl', merge ctrue, merge cfalse)
   | Target_sym_engine.Node (var, children, fallback) ->
     let (var, offset) = split var in
     let subst (dom, c_tree) = (shift_domain offset dom, merge c_tree) in

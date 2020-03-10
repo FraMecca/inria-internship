@@ -53,10 +53,19 @@ let rec ast_of_ocaml ~file (prog : ocaml_program) : source_program =
             error_at (Location.in_file file)
               "a single value declaration was expected"
          | None ->
-            (tydecls_rev, Some (value_of_ocaml binding.pvb_expr))
+            (tydecls_rev, Some (cases_of_ocaml binding.pvb_expr))
        end
     | Pstr_type (_rec_flag, type_decls) ->
        (List.map type_decl_of_ocaml type_decls @ tydecls_rev, clauses)
+
+    (* our examples use attributes
+         [@@@foo]
+       and external declarations
+         external observe : 'a -> 'b = "observe"
+       we just ignore them here *)
+    | Pstr_attribute _ | Pstr_primitive _ ->
+       (tydecls_rev, clauses)
+
     | _ -> error_at str_item.pstr_loc "Unsupported structure item"
   in
   let (tydecls_rev, clauses) = List.fold_left parse_item ([], None) prog in
@@ -69,7 +78,7 @@ let rec ast_of_ocaml ~file (prog : ocaml_program) : source_program =
   in
   { type_decls; clauses; }
 
-and value_of_ocaml definition_body =
+and cases_of_ocaml definition_body =
   let cases = match definition_body.pexp_desc with
     | Pexp_function cases ->
        cases
@@ -88,20 +97,21 @@ and value_of_ocaml definition_body =
          "expected (function ...) or (fun x -> match x with ...)"
   in List.map clause_of_ocaml cases
 
-and clause_of_ocaml { pc_lhs = pattern; pc_guard = guard; pc_rhs = expr } : clause =
-  begin match guard with
-  | None -> ()
-  | Some guard ->
-     Location.alert ~kind:"Warning" guard.pexp_loc "Ignored pattern guard";
-  end;
-  let pattern = pattern_of_ocaml pattern in
-  let rhs = rhs_of_ocaml expr in
-  (pattern, rhs)
+and clause_of_ocaml { pc_lhs; pc_guard; pc_rhs; _ } : clause =
+  let lhs = pattern_of_ocaml pc_lhs in
+  let guard = Option.map guard_of_ocaml pc_guard in
+  let rhs = rhs_of_ocaml pc_rhs in
+  { lhs; guard; rhs }
+
+and guard_of_ocaml exp =
+  match simple_apply_of_ocaml exp with
+    | Some ("guard", args) -> Guard (List.map value_of_ocaml args)
+    | _ -> error_at exp.pexp_loc "a 'guard' application was expected"
 
 and rhs_of_ocaml expr : source_rhs =
   match expr.pexp_desc with
     | Pexp_unreachable -> Unreachable
-    | _ -> Expr (blackbox_of_ocaml expr)
+    | _ -> observe_of_ocaml expr
 
 and pattern_of_ocaml p : Ast.pattern =
   let error fmt = error_at p.ppat_loc fmt in
@@ -170,10 +180,44 @@ and bound_var_of_ocaml arg =
     | Ppat_var name -> name.Location.txt
     | _ -> error "a single bound variable was expected"
 
-and blackbox_of_ocaml exp =
+and simple_apply_of_ocaml exp =
   match exp.pexp_desc with
-    | Pexp_constant (Pconst_string (str, _)) -> SBlackbox str
-    | _ -> SBlackbox "<expr>"
+    | Pexp_apply (
+        { pexp_desc = Pexp_ident { txt =  Longident.Lident id; _ }; _ },
+        labelled_args
+      ) -> Some (id, List.map snd labelled_args)
+    | _ -> None
+
+and observe_of_ocaml exp =
+  match simple_apply_of_ocaml exp with
+    | Some ("observe", args) -> Observe (List.map value_of_ocaml args)
+    | _ -> error_at exp.pexp_loc "an 'observe' application was expected"
+
+and value_of_ocaml exp =
+  match exp.pexp_desc with
+  | Pexp_ident { txt = Longident.Lident var; _ } -> VVar var
+  | Pexp_constant cst ->
+     let cstr: constructor =
+       match constant_of_ocaml (Location.mkloc cst exp.pexp_loc) with
+       | `Int n -> Int n
+       | `String s -> String s
+     in
+     VConstructor (cstr, [])
+  | Pexp_construct (cstr, params) ->
+     let cstr = constructor_of_ocaml cstr in
+     let args = match params with
+       | None ->
+          []
+       | Some { pexp_desc = Pexp_tuple args; _ } ->
+          List.map value_of_ocaml args
+       | Some p ->
+          [value_of_ocaml p]
+     in
+     VConstructor (cstr, args)
+  | Pexp_tuple args ->
+     let args = List.map value_of_ocaml args in
+     VConstructor (Tuple (List.length args), args)
+  | _ -> error_at exp.pexp_loc "a value was expected"
 
 and type_decl_of_ocaml decl =
   let name = decl.ptype_name.txt in

@@ -4,11 +4,7 @@ let () =
        Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
        exit 1
     | Ok ast ->
-      let body = match ast with
-        | Let ([(_, body)], _) -> body
-        | _ -> assert false
-      in
-      let tree = Target_sym_engine.eval body in
+      let tree = Target_sym_engine.eval ast in
       Target_sym_engine.print_tree tree;
       let _ = Merge_accessors.merge tree in ()
 

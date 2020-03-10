@@ -1,15 +1,11 @@
-File "simple_k.ml", line 7, characters 4-21:
-7 |   | (K1 1, K2 (2, 2)) -> "k1k2"
-        ^^^^^^^^^^^^^^^^^
-Warning 11: this match case is unused.
 (setglobal Simple_k!
   (let
-    (mm/84 =
-       (function param/85
-         (let (*match*/89 =a (field 0 param/85))
+    (mm/85 =
+       (function param/86
+         (let (*match*/91 =a (field 0 param/86))
            (catch
-             (let (*match*/90 =a (field 0 *match*/89))
-               (if (!= *match*/90 1) (exit 1)
-                 (let (*match*/91 =a (field 1 param/85)) "k1_")))
-            with (1) (let (*match*/92 =a (field 1 param/85)) "_")))))
-    (makeblock 0 mm/84)))
+             (let (*match*/92 =a (field 0 *match*/91))
+               (if (!= *match*/92 1) (exit 1)
+                 (let (*match*/93 =a (field 1 param/86)) (observe 1))))
+            with (1) (let (*match*/94 =a (field 1 param/86)) (observe 0))))))
+    (makeblock 0 mm/85)))

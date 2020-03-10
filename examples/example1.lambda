@@ -1,2 +1,2 @@
 (setglobal Example1!
-  (let (m/1204 = (function t/1205 "wildcard")) (makeblock 0 m/1204)))
+  (let (m/81 = (function t/82 (observe 0a))) (makeblock 0 m/81)))

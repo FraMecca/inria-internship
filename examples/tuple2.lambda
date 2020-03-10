@@ -1,21 +1,21 @@
-File "tuple2.ml", line 6, characters 4-20:
-6 |   | K1 (false, true) -> "ft"
-        ^^^^^^^^^^^^^^^^
-Warning 11: this match case is unused.
 (setglobal Tuple2!
   (let
-    (mm/83 =
-       (function param/84
-         (if param/84
-           (let (*match*/87 =a (field 0 param/84))
+    (mm/84 =
+       (function param/85
+         (if param/85
+           (let (*match*/89 =a (field 0 param/85))
              (catch
-               (if (!= *match*/87 0)
-                 (let (*match*/88 =a (field 1 param/84))
-                   (catch (if (!= *match*/88 0) (exit 2) "tf") with (2)
-                     (exit 1)))
-                 (let (*match*/89 =a (field 1 param/84))
-                   (catch (if (!= *match*/89 0) (exit 4) "ff") with (4)
-                     (exit 1))))
-              with (1) (let (*match*/90 =a (field 1 param/84)) "tt")))
-           "K2")))
-    (makeblock 0 mm/83)))
+               (if (!= *match*/89 0)
+                 (let (*match*/90 =a (field 1 param/85))
+                   (catch
+                     (if (!= *match*/90 0) (exit 2) (apply (observe 1a) 0a))
+                    with (2) (exit 1)))
+                 (let (*match*/91 =a (field 1 param/85))
+                   (catch
+                     (if (!= *match*/91 0) (exit 4) (apply (observe 0a) 0a))
+                    with (4) (exit 1))))
+              with (1)
+               (let (*match*/92 =a (field 1 param/85))
+                 (apply (observe 1a) 1a))))
+           (observe 0))))
+    (makeblock 0 mm/84)))
