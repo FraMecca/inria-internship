@@ -143,7 +143,7 @@ let (kₖ)ᵏ = headconstructor(pᵢ₀)ⁱ in
 
 equiv(S, Cₛ, Cₜ) → Yes | No(vₛ, vₜ)
 equiv(S, Cₛ, Cₜ) = Yes and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) = Cₜ(vₜ)
-equiv(S, Cₛ, Cₜ) = No and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) ≠ nCₜ(vₜ) 
+equiv(S, Cₛ, Cₜ) = No(vₛ,vₜ) and cover(Cₜ, S) → ∀ vₛ ≊ vₜ∈S ∧ Cₛ(vₛ) ≠ nCₜ(vₜ)
 
 ∀v∈a→π, C_{/a→π}(v) = C(v)
 Forall(Yes) = Yes
