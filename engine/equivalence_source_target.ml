@@ -46,13 +46,12 @@ let constrained_subtrees repr_env children fallback =
 
 let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
     let rec trim src_acc src_pi =
-      let specialize_same_acc  node_acc (pi, s_tree) =
-        if Domain.is_empty pi then
-          None
-        else if src_acc = node_acc then
-          Some (Domain.inter src_pi pi, trim src_acc src_pi s_tree)
-        else
-          Some (pi, trim src_acc src_pi s_tree)
+      let specialize_same_acc  node_acc (dom, s_tree) =
+        let dom' =
+          if src_acc <> node_acc then dom
+          else Domain.inter src_pi dom in
+        if Domain.is_empty dom' then None
+        else Some (dom', trim src_acc src_pi s_tree)
       in
       function
       | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
@@ -82,7 +81,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
     let rec compare_ (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
       let sym_values_eq = Sym_values.compare_sym_values
           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
-          (fun acc -> AcMap.find_opt acc input_space)
+          (fun acc -> AcMap.find acc input_space)
       in
       if dead_end input_space then
         true
