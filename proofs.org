@@ -9,7 +9,7 @@ Translation to constraint trees:
 
 Running a {program, constraint tree} against an input
 
-  result r ::= guard list * (Match bb | NoMatch)
+  result r ::= guard list * (Match bb | NoMatch | Absurd)
   guard := bb
   (same blackboxes 'bb' for source and target programs and constraint trees)
 
@@ -182,6 +182,7 @@ Proof:
                a. Case where Cₜ = Leaf_{bb}:
                    Leaf_{bb/a→π}(v) = Leaf_{bb}(v) ## trimming leaf is leaf itself
                b. # Same for failure terminal
+               e. # in case of unreachabe → ⊥
                c. Case in which Cₜ is Node(b, (π→Cᵢ)ⁱ)_{/a→π}  then
                    let πᵢ' =  πᵢ if a≠b else πᵢ∩π  in
                    Node(b, (π→Cᵢ)ⁱ)_{/a→π} :=  Node(b, (π'ᵢ→C_{i/a→π})ⁱ)
@@ -209,6 +210,7 @@ Proof:
    - equiv(S, Cₛ, Cₜ) = Yes => ∀vₛ≊vₜ∈S, Cₛ(vₛ) = Cₜ(vₜ)
    - equiv(S, Cₛ, Cₜ) = No(vₛ, vₜ) => vₛ≊vₜ∈S ∧ Cₛ(vₛ) ≠ Cₜ(vₜ)
      # Case analysis of Forall
+     e. in case of unreachable Cₛ(vₛ) = Absurd(Unreachable) ≠ Cₜ(vₜ) always # no unreachable in Cₜ
      a. Forall(...) = Yes
        Consider vₛ(a) = K(v'ⱼ)
        # Case analysis k∈(kᵢ)ⁱ or k∉(kᵢ)ⁱ

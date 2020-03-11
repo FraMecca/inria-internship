@@ -11,5 +11,3 @@ Also checking variables:
      Leaf (source_env, source_bb), Leaf (target_env, target_bb) ->
        source_env ⊆ target_env  and  source_bb = target_bb
        ∀(x ↦ a) ∈ source_env, target_env(x) = a
-
-Remove unreachable
