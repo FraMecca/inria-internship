@@ -7,7 +7,8 @@
 \usepackage{amsmath}
 
 \usepackage{mathpartir}
-
+\usepackage{stmaryrd}
+\newcommand{\sem}[1]{{\llbracket{#1}\rrbracket}}
 \usepackage{listings}
 \lstset{
   mathescape=true,
@@ -27,7 +28,6 @@
 \lstset{aboveskip=0.4ex,belowskip=0.4ex}
 
 \newcommand{\match}[2]{\mathtt{match}(#1,#2)}
-\newcommand{\matches}[2]{\mathtt{matches}(#1,#2)}
 
 \newcommand{\var}[1]{\mathtt{#1}}
 \newcommand{\pK}{\mathtt{K}}
@@ -116,6 +116,9 @@ source example program.
           Leaf              Leaf
    (1, Some(Root.0))   (2, Some(Root.1.0))
 \end{verbatim}
+\texttt{(Root.0)} is called an \emph{accessor}, that represents the
+access path to a value that can be reached by deconstructing the
+scrutinee. In this example \texttt{Root.0} is the first subvalue of the scrutinee.
 
 Target decision trees have a similar shape but the tests on the
 branches are related to the low level representation of values in
@@ -131,5 +134,62 @@ each child of $N$, which is a pair of a branch condition $\pi_i$ and a
 subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
 the branches that are incompatible with $\pi_i$ and check that the
 reduced tree is equivalent to $C_i$.
+
+We have choosen a simple subset of the OCaml language and implemented a
+prototype equivalence checker along with a formal statement of
+correctness and proof sketches.
+
+\section{From source programs to decision trees}
+Our source language supports integers, lists, tuples and all algebraic
+datatypes. Patterns support wildcards, constructors and literals, or
+patterns $(p_1|p_2)$ and pattern variables.
+We also support \texttt{when} guards.
+Decision trees are have nodes of the form:
+\begin{lstlisting}
+ type decision_tree =
+  | Unreachable
+  | Failure
+  | Leaf of source_expr
+  | Guard of source_expr * decision_tree * decision_tree
+  | Switch of accessor * (constructor * decision_tree) list * decision_tree
+\end{lstlisting}
+In the \texttt{Switch} node we have one subtree for every head constructor
+that appears in the pattern matching clauses and a fallback case for
+other values. The branch condition $\pi_i$ expresses that the value at the
+switch accessor starts with the given constructor.
+\texttt{Failure} nodes express match failures for values that are not
+matched by the source clauses.
+\texttt{Unreachable} is used when we statically know that no value
+can flow to that subtree.
+
+We write $\sem{t_S}_S$ for the decision tree of the source program
+$t_S$, computed by a matrix decomposition algorithm (each column
+decomposition step gives a \texttt{Switch} node).
+It satisfies the following correctness statement:
+\[
+\forall t_S, \forall v_S, \quad t_S(v_S) = \sem{t_S}_S(v_S)
+\]
+Running any source values $v_S$ against the source program gives the
+same result as running it against the decision tree.
+
+\section{From target programs to decision trees}
+The target programs include the following Lambda constructs:
+\texttt{let, if, switch, Match\_failure, catch, exit, field} and
+various comparation operations, guards. The symbolic execution engine
+traverses the target program and builds an environment that maps
+variables to accessors. It branches at every control flow statement
+and emits a Switch node. The branch condition $\pi_i$ is expressed as
+an interval set of possible values at that point.
+Guards result in branching. In comparison with the source decision
+trees, \texttt{Unreachable} nodes are never emitted.
+
+We write $\sem{t_T}_T$ for the decision tree of the target program
+$t_T$, satisfying the following correctness statement:
+\[
+\forall t_T, \forall v_T, \quad t_T(v_T) = \sem{t_T}_T(v_T)
+\]
+
+\section{Equivalence checking}
+
 
 \end{document}
