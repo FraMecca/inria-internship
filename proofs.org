@@ -38,17 +38,16 @@ Theorem: Correctness of translation to constraint trees:
   ∀vₛ, tₛ(vₛ) = [|tₛ|]ₛ(vₛ)
   ∀vₜ, tₜ(vₜ) = [|tₜ|]ₜ(vₜ)
 
+Definition: Equivalence of results modulo guard queue (r₁ ≃gs r₂):
+  (gs₁, mr₁) ≃gs (gs₂, mr₂)  ⇔  (gs₁, mr₁) = (gs₂ ++ gs, mr₂)
+
 Theorem: Correctness of the equivalence of constraint trees
 
-  (equiv Cₛ Cₜ = Yes)  ⇔  (Cₛ ≃ Cₜ)
+    (equiv S Cₛ Cₜ gs = Yes)      ∧ covers(Cₜ, S) ⇒ ∀vₛ≃vₜ ∈ S, Cₛ(vₛ) ≃gs Cₜ(vₜ)
+    (equiv S Cₛ Cₜ gs = No(vₛ,vₜ) ∧ covers(Cₜ, S) ⇒ vₛ≃vₜ ∈ S ∧ Cₛ(vₛ) ≠gs Cₜ(vₜ)
 
-  Auxiliary Lemmas:
-    (equiv Cₛ Cₜ = Yes)        ⇒   (Cₛ ≃ Cₜ)
-    (equiv Cₛ Cₜ = No(vₛ,vₜ)   ⇒   vₛ≃vₜ ∧ Cₛ(vₛ)≠Cₜ(vₜ)
-  
 Corollary (our main result):
-  (equiv [|tₛ|]ₛ [|tₜ|]ₜ = Yes)  ⇔  tₛ ≃ tₜ
-
+  (equiv FullInputSpace [|tₛ|]ₛ [|tₜ|]ₜ ∅ = Yes)  ⇔  tₛ ≃ tₜ
 
 *** Draft of proof for equivalence between constraint trees and source/target programs
 
