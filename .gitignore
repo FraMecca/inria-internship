@@ -426,3 +426,4 @@ TSWLatexianTemp*
 # glossaries
 *.glstex
 
+*.pdf
