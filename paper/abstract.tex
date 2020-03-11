@@ -1,4 +1,4 @@
-\documentclass[12pt,twocolumn]{article}
+\documentclass[12pt]{article}
 \usepackage{a4}
 \usepackage[margin=.5cm,bottom=1.5cm]{geometry}
 
@@ -52,4 +52,84 @@ Target programs, described in a subset of the Lambda intermediate
 representation of the OCaml compiler, are turned into decision trees
 by applying symbolic execution.
 \end{abstract}
+\section{Translation validation}
+A pattern matching compiler turns a series of pattern matching clauses
+into simple control flow structures such as \texttt{if, switch}, for example:
+\begin{lstlisting}
+  match x with
+  | [] -> (0, None)
+  | x::[] -> (1, Some x)
+  | _::y::_ -> (2, Some y)
+\end{lstlisting}
+\begin{lstlisting}
+(if scrutinee
+    (let (field_1 =a (field 1 scrutinee))
+        (if field_1
+            (let
+                (field_1_1 =a (field 1 field_1)
+                 x =a (field 0 field_1))
+                (makeblock 0 2 (makeblock 0 x)))
+            (let (y =a (field 0 scrutinee))
+                (makeblock 0 1 (makeblock 0 y)))))
+    [0: 0 0a])
+\end{lstlisting}
+%% TODO: side by side
+The code in the right is in the Lambda intermediate representation of
+the OCaml compiler. The Lambda representation of a program is shown by
+calling the \texttt{ocamlc} compiler with \texttt{-drawlambda} flag.
+
+The pattern matching compiler is a critical part of the compiler
+in terms of correctness because any bug would result in wrong code
+production rather than compilation failures.
+Such bugs also are hard to catch by testing because they arise in
+corner cases of complex patterns which are typically not in the
+compiler test suite.
+In the last five years there were (only) two bugs in the OCaml pattern
+matching compiler; they were found long after they were introduced.
+
+We have considered evolving the pattern matching compiler, either by
+using a new algorithm or by incremental refactorings.
+We want to verify the changed compiler to ensure that no bugs were
+introduced.
+
+One could either verify the compiler implementation or check each
+input output pair. We chose the latter technique, translation
+validation; it which gives a weaker result but is easier to adopt in
+the case of a production compiler. The compiler is treated as a
+blackbox and proof only depends on our equivalence algorithm between
+source and target programs.
+
+\section{Our approach}
+%% replace common TODO
+Our algorithm translates both source and target programs into a common
+representation, decision trees. Here is the decision tree for the
+source example program.
+\begin{verbatim}
+       Node(Root)
+       /        \
+     (= [])    (= ::)
+     /             \
+   Leaf         Node(Root.1)
+(0, None)       /         \
+             (= [])      (= ::)
+             /               \
+          Leaf              Leaf
+   (1, Some(Root.0))   (2, Some(Root.1.0))
+\end{verbatim}
+
+Target decision trees have a similar shape but the tests on the
+branches are related to the low level representation of values in
+Lambda code. For example, cons cells \texttt{x::xs} are blocks with
+tag 0.
+
+To check the equivalence of a source and a target decision tree,
+we proceed by case analysis.
+If we have two leaves, we check that the two right-hand-sides are
+equivalent.
+If we have a node $N$ and another tree $T$ we check equivalence for
+each child of $N$, which is a pair of a branch condition $\pi_i$ and a
+subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
+the branches that are incompatible with $\pi_i$ and check that the
+reduced tree is equivalent to $C_i$.
+
 \end{document}
