@@ -29,14 +29,14 @@ let constructor_to_domain repr_env : constructor -> domain = function
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
   | Variant v ->
-    let open Source_env in
-    match ConstructorMap.find v repr_env with
-    | Int i -> Domain.int (Domain.Set.point i)
-    | Tag t -> Domain.tag (Domain.Set.point t)
+     let open Source_env in
+     match ConstructorMap.find v repr_env with
+     | Int i -> Domain.int (Domain.Set.point i)
+     | Tag t -> Domain.tag (Domain.Set.point t)
 
 let constrained_subtrees repr_env children fallback =
   let children' = List.map (fun (kst, tree) ->
-      (constructor_to_domain repr_env kst, tree)) children in
+                      (constructor_to_domain repr_env kst, tree)) children in
   let fb_domain =
     children'
     |> List.map fst
@@ -45,73 +45,75 @@ let constrained_subtrees repr_env children fallback =
   ((fb_domain, fallback) :: children')
 
 let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
-    let rec trim src_acc src_pi =
-      let specialize_same_acc  node_acc (dom, s_tree) =
-        let dom' =
-          if src_acc <> node_acc then dom
-          else Domain.inter src_pi dom in
-        if Domain.is_empty dom' then None
-        else Some (dom', trim src_acc src_pi s_tree)
-      in
-      function
-      | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
-      | Failure -> Failure
-      | Leaf l -> Leaf l
-      | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
-      | Node (node_acc, children, fallback) ->
-        let children' =
-          children
-          |> List.filter_map (specialize_same_acc node_acc)
-        in
-        let fallback' =
-          Option.bind fallback (specialize_same_acc node_acc)
-        in
-        Node (node_acc, children', fallback')
+  let rec trim src_acc src_pi =
+    let specialize_same_acc  node_acc (dom, s_tree) =
+      let dom' =
+        if src_acc <> node_acc then dom
+        else Domain.inter src_pi dom in
+      if Domain.is_empty dom' then None
+      else Some (dom', trim src_acc src_pi s_tree)
     in
-    let specialize_input_space acc pi input_space =
-      let pi' = match AcMap.find_opt acc input_space with
-        | Some input_pi -> Domain.inter input_pi pi
-        | None -> pi
-      in
-      AcMap.add acc pi' input_space
+    function
+    | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
+    | Failure -> Failure
+    | Leaf l -> Leaf l
+    | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
+    | Node (node_acc, children, fallback) ->
+       let children' =
+         children
+         |> List.filter_map (specialize_same_acc node_acc)
+       in
+       let fallback' =
+         Option.bind fallback (specialize_same_acc node_acc)
+       in
+       Node (node_acc, children', fallback')
+  in
+  let specialize_input_space acc pi input_space =
+    let pi' = match AcMap.find_opt acc input_space with
+      | Some input_pi -> Domain.inter input_pi pi
+      | None -> pi
     in
-    let dead_end input_space =
-      AcMap.exists (fun _ value -> Domain.is_empty value) input_space
+    AcMap.add acc pi' input_space
+  in
+  let dead_end input_space =
+    AcMap.exists (fun _ value -> Domain.is_empty value) input_space
+  in
+  let rec compare_ (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
+    let sym_values_eq = Sym_values.compare_sym_values
+                          (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
+                          (fun acc -> AcMap.find acc input_space)
     in
-    let rec compare_ (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
-      let sym_values_eq = Sym_values.compare_sym_values
-          (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
-          (fun acc -> AcMap.find acc input_space)
-      in
-      if dead_end input_space then
-        true
-      else
-        match (left, right) with
-        | Node (acc, children, fallback), _ ->
-          let compare_branch (pi, branch) =
-            let input_space' = specialize_input_space acc pi input_space in
-            compare_ input_space' guards branch (trim acc pi right)
-          in
-          constrained_subtrees repr_env children fallback
-          |> List.for_all compare_branch
-        | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
-          Option.to_list fallback @ children
-          |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
-        | (Unreachable, _) ->
-          prerr_endline "Warning: unreachable branch";
-          true
-        | (Guard (svl, ctrue, cfalse), _) ->
-          let guards' = guards@[svl] in
-          compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
-        | (_, Guard (tvl, ctrue, cfalse)) ->
-          begin match guards with
-            | hd::grest when sym_values_eq hd tvl ->
-              compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
-            | _ -> false
-          end
-        | (Failure, Failure) -> guards = []
-        | (Leaf slf, Leaf rlf) -> guards = [] && sym_values_eq slf rlf
-        | (Failure, Leaf _) | (Leaf _, Failure) ->
-          false
-    in
-    compare_ AcMap.empty [] left right
+    if dead_end input_space then
+      true
+    else
+      match (left, right) with
+      | Node (acc, children, fallback), _ ->
+         let compare_branch (pi, branch) =
+           let input_space' = specialize_input_space acc pi input_space in
+           compare_ input_space' guards branch (trim acc pi right)
+         in
+         constrained_subtrees repr_env children fallback
+         |> List.for_all compare_branch
+      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
+         Option.to_list fallback @ children
+         |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
+      | (Unreachable, _) ->
+         prerr_endline "Warning: unreachable branch";
+         (* We reach this point only if the input space is not empty *)
+         (* We can get a counter example *)
+         false 
+      | (Guard (svl, ctrue, cfalse), _) ->
+         let guards' = guards@[svl] in
+         compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
+      | (_, Guard (tvl, ctrue, cfalse)) ->
+         begin match guards with
+         | hd::grest when sym_values_eq hd tvl ->
+            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
+         | _ -> false
+         end
+      | (Failure, Failure) -> guards = []
+      | (Leaf slf, Leaf rlf) -> guards = [] && sym_values_eq slf rlf
+      | (Failure, Leaf _) | (Leaf _, Failure) ->
+         false
+  in
+  compare_ AcMap.empty [] left right
