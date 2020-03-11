@@ -39,5 +39,17 @@
 \begin{document}
 \maketitle
 
+\begin{abstract}
+We propose an algorithm for the translation validation of a pattern
+matching compiler for a small subset of the OCaml pattern
+matching features. Given a source program and its compiled version the
+algorithm checks wheter the two are equivalent or produce a counter
+example in case of a mismatch.
 
+Our equivalence algorithm works with decision trees. Source patterns are
+converted into a decision tree using matrix decomposition.
+Target programs, described in a subset of the Lambda intermediate
+representation of the OCaml compiler, are turned into decision trees
+by applying symbolic execution.
+\end{abstract}
 \end{document}
