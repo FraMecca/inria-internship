@@ -61,12 +61,24 @@ Cₛ      ::= Leaf bb | Node(a, (Kᵢ → Cᵢ)ⁱ , C?) # i ∈ S
 a       ::= Here | n.a
 vₛ      ::= K(vᵢ)ⁱ | n ∈ ℕ   # i ∈ I
 
-SMatrix mₛ := (aᵢ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ  # i ∈ I j ∈ Jᵢ # i columns, j rows, order matters
-[|((pᵢ → bbᵢ)ⁱ|] := [| (Root), ((pᵢ → bbᵢ)ⁱ |] # i ∈ I
 
-∀(vᵢ)ⁱ, [|(aᵢ)ⁱ, (rᵢ)ⁱ|](vᵢ)ⁱ = ((aᵢ)ⁱ, (rᵢ)ⁱ)(vᵢ)ⁱ
-∀v (vᵢ)ⁱ = v(aᵢ)ⁱ → [|m|](v) = m(vᵢ)ⁱ for m = ((aᵢ)ⁱ, (rᵢ)ⁱ)
+SMatrix mₛ := (aᵢ)ʲ, ((pᵢⱼ)ʲ → bbᵢ)ⁱ  # i ∈ I j ∈ Jᵢ # i columns, j rows, order matters
 # what about size of the matrix? How to write it?
+
+We define the constraint tree of source programs
+  [|tₛ|]
+in terms of the constraint tree of pattern matrices
+  [|mₛ|]
+by the following:
+  [|((pᵢ → bbᵢ)ⁱ|] := [| (Root), ((pᵢ → bbᵢ)ⁱ |] # i ∈ I
+
+Naïve and incorrect correctness statement for the constraint tree of a matrix:
+  ∀(vᵢ)ⁱ, [|(aᵢ)ⁱ, (rᵢ)ⁱ|](vᵢ)ⁱ = ((aᵢ)ⁱ, (rᵢ)ⁱ)(vᵢ)ⁱ
+  (this doesn't make sense because a constraint tree takes a single value as input,
+   not a vector (vᵢ)ⁱ)
+
+Correctness statement for the constraint tree of a matrix:
+  ∀v (vᵢ)ⁱ = v(aᵢ)ⁱ → [|m|](v) = m(vᵢ)ⁱ for m = ((aᵢ)ⁱ, (rᵢ)ⁱ)
 
 # base cases
 [| ∅, (∅ → bbᵢ)ⁱ |] := Leaf bbᵢ where i := min(I)
