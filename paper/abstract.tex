@@ -190,6 +190,48 @@ $t_T$, satisfying the following correctness statement:
 \]
 
 \section{Equivalence checking}
+The equivalence checking algorithm takes as input a domain of
+possible values \emph{S} and a pair of source and target decision trees and
+in case the two trees are not equivalent it returns a counter example.
+The algorithm respects the following correctness statement:
+
+\[
+ equiv(S, C_S, C_T) = Yes \land C_T cover S \to \forall v_S \approx
+v_T \in S \land C_S(v_S) = C_T(v_T)
+\]
+\[
+equiv(S, C_S, C_T) = No(v_S,v_T) \land C_T cover S \to \forall v_S \approx
+v_T \in S \land C_S(v_S) \neq C_T(v_T)
+\]
+The algorithm proceeds by case analysis.
+If \emph{S} is empty the results is Yes.
+If the two decision trees are both terminal nodes the algorithm checks
+for content equality.
+If the source decision tree (left hand side) is a terminal while the
+target decistion tree (right hand side) isn't, the algorithm proceeds
+by \emph{explosion} of the right hand side. Explosion means that every
+child of the right hand side is tested for equality against the left
+hand side.
+When the left hand side is not a terminal, the algorithm explodes the
+left hand side while trimming every right hand side subtree. Trimming
+a left hand side tree on an interval set \emph{$dom_S$} computed from the right hand
+side tree constructor means mapping every branch condition \emph{$dom_T$} (interval set of
+possible values) on the left to the intersection of \emph{$dom_T$} and \emph{$dom_S$} when
+the accessors on both side are equal, and removing the branches that
+result in an empty intersection. If the accessors are different,
+\emph{$dom_T$} is left unchanged.
+
+The equivalence checking algorithm deals with guards by storing a
+queue. A guard blackbox is pushed to the queue whenever the algorithm
+encounters a Guard node on the right, while it pops a blackbox from
+the queue whenever a Guard node appears on the left hand side.
+The algorithm stops with failure if the popped blackbox and the and
+blackbox on the left hand Guard node are different, otherwise in
+continues by exploding to two subtrees, one in which the guard
+condition evaluates to true, the other when it evaluates to false.
+Termination of the algorithm is successful only when the guards queue
+is empty.
+
 
 
 \end{document}
