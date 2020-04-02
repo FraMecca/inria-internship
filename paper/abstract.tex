@@ -109,6 +109,10 @@ compiler. The compiler is treated as a blackbox and proof only depends
 on our equivalence algorithm between source and target programs.
 
 \section{Our approach}
+
+%% TODO: [Gabriel we use "Node" below and "Switch" above, we should
+%% stick to one or the other. (Or "Cond" ?)
+
 %% replace common TODO
 Our algorithm translates both source and target programs into a common
 representation, decision trees. Here are the decision tree for the
@@ -271,20 +275,30 @@ The algorithm respects the following correctness statement:
  v_S \approx v_T \in S \;\land\; C_S(v_S) \neq C_T(v_T)
 \end{align*}
 
+% TODO: [Gabriel] I think that the explanation below could be more
+% clearly presented as inference rules, I may try to make a proposal
+% later.
+
 The algorithm proceeds by case analysis.
-If \emph{S} is empty the results is Yes.
+If $S$ is empty the results is $\Yes$.
 If the two decision trees are both terminal nodes the algorithm checks
 for content equality.
 If the source decision tree (left hand side) is a terminal while the
-target decistion tree (right hand side) isn't, the algorithm proceeds
+target decistion tree (right hand side) is not, the algorithm proceeds
 by \emph{explosion} of the right hand side. Explosion means that every
 child of the right hand side is tested for equality against the left
 hand side.
+
+% TODO: [Gabriel] in practice the $dom_S$ are constructors and the
+% $dom_T$ are domains. Do we want to hide this fact, or be explicit
+% about it? (Maybe we should introduce explicitly/clearly the idea of
+% target domains at some point).
+
 When the left hand side is not a terminal, the algorithm explodes the
 left hand side while trimming every right hand side subtree. Trimming
-a left hand side tree on an interval set \emph{$dom_S$} computed from the right hand
-side tree constructor means mapping every branch condition \emph{$dom_T$} (interval set of
-possible values) on the left to the intersection of \emph{$dom_T$} and \emph{$dom_S$} when
+a left hand side tree on an interval set $dom_S$ computed from the right hand
+side tree constructor means mapping every branch condition $dom_T$ (interval set of
+possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
 the accessors on both side are equal, and removing the branches that
 result in an empty intersection. If the accessors are different,
 \emph{$dom_T$} is left unchanged.
@@ -299,7 +313,4 @@ continues by exploding to two subtrees, one in which the guard
 condition evaluates to true, the other when it evaluates to false.
 Termination of the algorithm is successful only when the guards queue
 is empty.
-
-
-
 \end{document}
