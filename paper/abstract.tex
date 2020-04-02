@@ -217,7 +217,7 @@ It satisfies the following correctness statement:
 \[
 \forall t_S, \forall v_S, \quad t_S(v_S) = \sem{t_S}_S(v_S)
 \]
-Running any source values $v_S$ against the source program gives the
+Running any source value $v_S$ against the source program gives the
 same result as running it against the decision tree.
 
 % TODO [Gabriel]: if there is space, it would make sense to mention
@@ -251,14 +251,26 @@ possible values \emph{S} and a pair of source and target decision trees and
 in case the two trees are not equivalent it returns a counter example.
 The algorithm respects the following correctness statement:
 
-\[
- equiv(S, C_S, C_T) = Yes \land C_T cover S \to \forall v_S \approx
-v_T \in S \land C_S(v_S) = C_T(v_T)
-\]
-\[
-equiv(S, C_S, C_T) = No(v_S,v_T) \land C_T cover S \to \forall v_S \approx
-v_T \in S \land C_S(v_S) \neq C_T(v_T)
-\]
+\newcommand{\Equiv}[3]{\mathsf{equiv}(#1, #2, #3)} % \equiv is already taken
+
+\newcommand{\covers}[2]{#1 \mathrel{\mathsf{covers}} #2}
+
+\newcommand{\Yes}{\mathsf{Yes}}
+\newcommand{\No}[2]{\mathsf{No}(#1, #2)}
+
+% TODO: we have to define what \covers mean for readers to understand the specifications
+% (or we use a simplifying lie by hiding \covers in the statements).
+
+\begin{align*}
+ \Equiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
+ & \implies
+ \forall v_S \approx v_T \in S,\; C_S(v_S) = C_T(v_T)
+\\
+ \Equiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
+ & \implies
+ v_S \approx v_T \in S \;\land\; C_S(v_S) \neq C_T(v_T)
+\end{align*}
+
 The algorithm proceeds by case analysis.
 If \emph{S} is empty the results is Yes.
 If the two decision trees are both terminal nodes the algorithm checks
