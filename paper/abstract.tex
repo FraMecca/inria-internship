@@ -155,10 +155,11 @@ a formal statement of correctness and proof sketches.
 
 \section{From source programs to decision trees}
 Our source language supports integers, lists, tuples and all algebraic
-datatypes. Patterns support wildcards, constructors and literals, or
-patterns $(p_1|p_2)$ and pattern variables.
-We also support \texttt{when} guards.
-Decision trees have nodes of the form:
+datatypes. Patterns support wildcards, constructors and literals,
+or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
+\texttt{when} guards, which are interesting as they introduce the
+evaluation of expressions during matching.  Decision trees have nodes
+of the form:
 \begin{lstlisting}
  type decision_tree =
   | Unreachable
@@ -194,13 +195,16 @@ same result as running it against the decision tree.
 \section{From target programs to decision trees}
 The target programs include the following Lambda constructs:
 \texttt{let, if, switch, Match\_failure, catch, exit, field} and
-various comparation operations, guards. The symbolic execution engine
+various comparison operations, guards. The symbolic execution engine
 traverses the target program and builds an environment that maps
 variables to accessors. It branches at every control flow statement
-and emits a Switch node. The branch condition $\pi_i$ is expressed as
+and emits a \texttt{Switch} node. The branch condition $\pi_i$ is expressed as
 an interval set of possible values at that point.
-Guards result in branching. In comparison with the source decision
-trees, \texttt{Unreachable} nodes are never emitted.
+%
+Guards result in branching on the boolean result.
+%
+In comparison with the source decision trees, \texttt{Unreachable}
+nodes are never emitted.
 
 We write $\sem{t_T}_T$ for the decision tree of the target program
 $t_T$, satisfying the following correctness statement:
