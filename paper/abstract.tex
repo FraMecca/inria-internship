@@ -111,8 +111,12 @@ on our equivalence algorithm between source and target programs.
 \section{Our approach}
 %% replace common TODO
 Our algorithm translates both source and target programs into a common
-representation, decision trees. Here is the decision tree for the
-source example program.
+representation, decision trees. Here are the decision tree for the
+source and target example programs.
+
+~
+
+\begin{minipage}{0.4\linewidth}
 \begin{verbatim}
        Node(Root)
        /        \
@@ -126,16 +130,46 @@ source example program.
    [x = Root.0]         [y = Root.1.0]
    (1, Some x)          (2, Some y)
 \end{verbatim}
+\end{minipage}
+\hfill
+\begin{minipage}{0.5\linewidth}
+\begin{verbatim}
+       Node(Root)
+       /        \
+     (= int 0)  (!= int 0)
+     /             \
+   Leaf         Node(Root.1)
+(makeblock 0     /       \
+  0 0a)         /         \
+             (= int 0)    (!= int 0)
+             /               \
+          Leaf              Leaf
+   [x = Root.0]         [y = Root.1.0]
+   (makeblock 0         (makeblock 0
+     1                    2
+     (makeblock 0 x))     (makeblock 0 y))
+\end{verbatim}
+\end{minipage}
+
+~
+
 \texttt{Root.0} is an \emph{accessor}, it represents the
 access path to a value that can be reached by deconstructing the
 scrutinee (\texttt{li} in our example), in this case the first
 subvalue of the scrutinee.
 
-Target decision trees have a similar shape but the tests on the
-branches are related to the low level representation of values in
+The nodes of condition trees branch on a condition on the accessor;
+source conditions test the head constructor of the accessor, whereas
+target conditions test the low-level representation of values in
 Lambda code. For example, cons cells \texttt{x::xs} or tuples
-\texttt{(x,y)} are blocks with tag 0.
+\texttt{(x,y)} are heap blocks (with tag 0), while the empty list
+\texttt{[]} is the immediate integer \texttt{0}.
 
+In this simple example, the two decision trees perform exactly the
+same checks in the same order, so the equivalence is obvious. However,
+this may not be the case in general, as the compiler may reorder
+checks or introduce redundant checks (to reduce code size).
+%
 To check the equivalence of a source and a target decision tree,
 we proceed by case analysis.
 %
