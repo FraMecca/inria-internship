@@ -79,7 +79,7 @@ into simple control flow structures such as \texttt{if, switch}, for example:
 \end{lstlisting}
 \end{minipage}
 
-The code in the right is in the Lambda intermediate representation of
+The code on the right is in the Lambda intermediate representation of
 the OCaml compiler. The Lambda representation of a program is shown by
 calling the \texttt{ocamlc} compiler with \texttt{-drawlambda} flag.
 (Some bindings in the generated code are unused or used exactly once;
@@ -87,25 +87,26 @@ they get substituted away in a simplification pass, whose result can
 be shown by the \texttt{-dlambda} flag.)
 
 The pattern matching compiler is a critical part of the compiler
-in terms of correctness because any bug would result in wrong code
+in terms of correctness because bugs typically result in wrong code
 production rather than compilation failures.
 Such bugs also are hard to catch by testing because they arise in
 corner cases of complex patterns which are typically not in the
-compiler test suite.
+compiler test suite or most user programs.
 In the last five years there were (only) two bugs in the OCaml pattern
-matching compiler; they were found long after they were introduced.
+matching compiler; they resulted in silent wrong-code production,
+and were found long after they were introduced.
 
-We have considered evolving the pattern matching compiler, either by
+We would like to keep evolving the pattern matching compiler, either by
 using a new algorithm or by incremental refactorings.
 We want to verify the changed compiler to ensure that no bugs were
 introduced.
 
-One could either verify the compiler implementation or check each
-input output pair. We chose the latter technique, translation
-validation; it which gives a weaker result but is easier to adopt in
-the case of a production compiler. The compiler is treated as a
-blackbox and proof only depends on our equivalence algorithm between
-source and target programs.
+One could either verify the compiler implementation
+(full verification) or check each input-output pair
+(translation validation). We chose translation validation; it gives
+a weaker result but is much easier to adopt in a production
+compiler. The compiler is treated as a blackbox and proof only depends
+on our equivalence algorithm between source and target programs.
 
 \section{Our approach}
 %% replace common TODO
