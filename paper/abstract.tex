@@ -55,28 +55,36 @@ by applying symbolic execution.
 \section{Translation validation}
 A pattern matching compiler turns a series of pattern matching clauses
 into simple control flow structures such as \texttt{if, switch}, for example:
+
+\begin{minipage}{0.3\linewidth}
 \begin{lstlisting}
-  match x with
+  match li with
   | [] -> (0, None)
   | x::[] -> (1, Some x)
   | _::y::_ -> (2, Some y)
 \end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}{0.7\linewidth}
 \begin{lstlisting}
-(if scrutinee
-    (let (field_1 =a (field 1 scrutinee))
-        (if field_1
-            (let
-                (field_1_1 =a (field 1 field_1)
-                 x =a (field 0 field_1))
+(if li
+    (let (tl =a (field 1 li))
+        (if tl
+            (let (tltl =a (field 1 tl)
+                  x =a (field 0 tl))
                 (makeblock 0 2 (makeblock 0 x)))
             (let (y =a (field 0 scrutinee))
                 (makeblock 0 1 (makeblock 0 y)))))
-    [0: 0 0a])
+    (makeblock 0 0 0a))
 \end{lstlisting}
-%% TODO: side by side
+\end{minipage}
+
 The code in the right is in the Lambda intermediate representation of
 the OCaml compiler. The Lambda representation of a program is shown by
 calling the \texttt{ocamlc} compiler with \texttt{-drawlambda} flag.
+(Some bindings in the generated code are unused or used exactly once;
+they get substituted away in a simplification pass, whose result can
+be shown by the \texttt{-dlambda} flag.)
 
 The pattern matching compiler is a critical part of the compiler
 in terms of correctness because any bug would result in wrong code
