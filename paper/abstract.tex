@@ -110,9 +110,6 @@ on our equivalence algorithm between source and target programs.
 
 \section{Our approach}
 
-%% TODO: [Gabriel we use "Node" below and "Switch" above, we should
-%% stick to one or the other. (Or "Cond" ?)
-
 %% replace common TODO
 Our algorithm translates both source and target programs into a common
 representation, decision trees. Here are the decision tree for the
@@ -122,11 +119,11 @@ source and target example programs.
 
 \begin{minipage}{0.4\linewidth}
 \begin{verbatim}
-       Node(Root)
+       Switch(Root)
        /        \
      (= [])    (= ::)
      /             \
-   Leaf         Node(Root.1)
+   Leaf         Switch(Root.1)
 (0, None)       /         \
              (= [])      (= ::)
              /               \
@@ -138,11 +135,11 @@ source and target example programs.
 \hfill
 \begin{minipage}{0.5\linewidth}
 \begin{verbatim}
-       Node(Root)
+       Switch(Root)
        /        \
      (= int 0)  (!= int 0)
      /             \
-   Leaf         Node(Root.1)
+   Leaf         Switch(Root.1)
 (makeblock 0     /       \
   0 0a)         /         \
              (= int 0)    (!= int 0)
@@ -313,4 +310,41 @@ continues by exploding to two subtrees, one in which the guard
 condition evaluates to true, the other when it evaluates to false.
 Termination of the algorithm is successful only when the guards queue
 is empty.
+
+\begin{comment}
+
+  ------------------------
+  equiv \emptyset Cs Ct gs
+
+  --------------------------
+  equiv S Failure Failure []
+
+  equiv_BB BBs BBt
+  -------------------------------
+  equiv S (Leaf BBs) (Leaf BBt) []
+
+  Cs \in (Leaf BBs, Failure)
+
+  (equiv S Cs Ci gs)^i
+  equiv S Cs Cf gs
+  -----------------------------------------
+  equiv S Cs (Node(a, (Domi,Ci)^i, Cf)) gs
+
+  equiv S Ci (trim Ct a=Ki) gs
+  equiv S Cf (trim Ct (a\notin(K_i)^i) gs
+  -------------------------------------
+  equiv S (Node(a, (Ki,Ci)^i, Cf) Ct gs
+
+  equiv S Ctrue Ct (gs++[condition])
+  equiv S Cfalse Ct (gs++[condition])
+  --------------------------------------------
+  equiv S (Guard condition Ctrue Cfalse) Ct gs
+
+  equiv S Cs Ctrue gs
+  equiv S Cs Cfalse gs
+  --------------------------------------------
+  equiv S Cs (Guard condition Ctrue Cfalse) ([condition]++gs)
+  
+\end{comment}
+
 \end{document}
