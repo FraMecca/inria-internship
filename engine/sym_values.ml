@@ -1,6 +1,8 @@
 open Ast
 open Merge_accessors
 
+let print str = BatIO.write_string BatIO.stdout ("\tSym_values: "^str^"\n")
+
 module Domain = Target_sym_engine.Domain
 
 type source_sym_values = Source_sym_engine.sym_value list
@@ -53,9 +55,9 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
         NonSingleton acc
   in
   let rec compare_canonical_form_ : source_canonical_form * target_canonical_form -> bool = function
-    | (NonSingleton s, NonSingleton t) -> s = t 
-    | (Int s, Int t) -> s = t
-    | (Block (s, rest), Block (t, rest')) -> s = t &&
+    | (NonSingleton s, NonSingleton t) -> print "NS-NS";  s = t 
+    | (Int s, Int t) -> print ("I-I: "^string_of_int s^":"^string_of_int t); s = t
+    | (Block (s, rest), Block (t, rest')) -> print "B-B"; s = t &&
                                              List.combine rest rest'
                                              |> List.for_all compare_canonical_form_
     | _ -> false

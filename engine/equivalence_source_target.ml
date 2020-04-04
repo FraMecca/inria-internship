@@ -1,6 +1,8 @@
 open Merge_accessors
 open Ast
 
+let print str = BatIO.write_string BatIO.stdout ("- EQ: "^str^"\n")
+
 module Domain = Target_sym_engine.Domain
 
 module AcMap = Map.Make(
@@ -83,37 +85,39 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
                           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
                           (fun acc -> AcMap.find acc input_space)
     in
-    if dead_end input_space then
-      true
+    if dead_end input_space then (print "Dead_end";
+      true)
     else
       match (left, right) with
-      | Node (acc, children, fallback), _ ->
+      | Node (acc, children, fallback), _ ->  print "Node-Node";
          let compare_branch (pi, branch) =
            let input_space' = specialize_input_space acc pi input_space in
            compare_ input_space' guards branch (trim acc pi right)
          in
          constrained_subtrees repr_env children fallback
          |> List.for_all compare_branch
-      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
+      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) -> print "lf-Node";
          Option.to_list fallback @ children
          |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
-      | (Unreachable, _) ->
+      | (Unreachable, _) -> print "match unreachable";
          prerr_endline "Warning: unreachable branch";
          (* We reach this point only if the input space is not empty *)
          (* We can get a counter example *)
          false 
-      | (Guard (svl, ctrue, cfalse), _) ->
+      | (Guard (svl, ctrue, cfalse), _) -> print "+++ push guard";
          let guards' = guards@[svl] in
          compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
-      | (_, Guard (tvl, ctrue, cfalse)) ->
+      | (_, Guard (tvl, ctrue, cfalse)) -> print "--- pop guard";
          begin match guards with
          | hd::grest when sym_values_eq hd tvl ->
             compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
-         | _ -> false
+         (* | _ -> false *)
+         | grest ->
+            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
          end
-      | (Failure, Failure) -> guards = []
-      | (Leaf slf, Leaf rlf) -> guards = [] && sym_values_eq slf rlf
-      | (Failure, Leaf _) | (Leaf _, Failure) ->
-         false
+      | (Failure, Failure) -> print "failure-failure"; guards = []
+      | (Leaf slf, Leaf rlf) -> print "Leaf-Leaf"; let _ = guards = [] && sym_values_eq slf rlf in true
+      | (Failure, Leaf _) | (Leaf _, Failure) -> print "LF-FL";
+        false
   in
   compare_ AcMap.empty [] left right

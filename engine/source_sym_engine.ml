@@ -229,4 +229,4 @@ let sym_exec source =
 
 let eval source_ast =
   let result = sym_exec source_ast in
-  print_result result
+  print_result result ; result
