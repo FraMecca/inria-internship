@@ -8,8 +8,7 @@
 
 \usepackage{comment}
 \usepackage{mathpartir}
-\usepackage{stmaryrd}
-\newcommand{\sem}[1]{{\llbracket{#1}\rrbracket}}
+\usepackage{stmaryrd} % llbracket, rrbracket
 \usepackage{listings}
 \lstset{
   mathescape=true,
@@ -28,11 +27,7 @@
 }
 \lstset{aboveskip=0.4ex,belowskip=0.4ex}
 
-\newcommand{\match}[2]{\mathtt{match}(#1,#2)}
-
-\newcommand{\var}[1]{\mathtt{#1}}
-\newcommand{\pK}{\mathtt{K}}
-\newcommand{\any}{\mathtt{\_}}
+\usepackage{notations}
 
 \title{Translation validation of a pattern-matching compiler}
 \author{Francesco Mecca, Gabriel Scherer}
@@ -253,22 +248,15 @@ possible values \emph{S} and a pair of source and target decision trees and
 in case the two trees are not equivalent it returns a counter example.
 The algorithm respects the following correctness statement:
 
-\newcommand{\Equiv}[3]{\mathsf{equiv}(#1, #2, #3)} % \equiv is already taken
-
-\newcommand{\covers}[2]{#1 \mathrel{\mathsf{covers}} #2}
-
-\newcommand{\Yes}{\mathsf{Yes}}
-\newcommand{\No}[2]{\mathsf{No}(#1, #2)}
-
 % TODO: we have to define what \covers mean for readers to understand the specifications
 % (or we use a simplifying lie by hiding \covers in the statements).
 
 \begin{align*}
- \Equiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
+ \Equiv S {C_S} {C_T} \emptyqueue = \Yes \;\land\; \covers {C_T} S
  & \implies
  \forall v_S \approx v_T \in S,\; C_S(v_S) = C_T(v_T)
 \\
- \Equiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
+ \Equiv S {C_S} {C_T} \emptyqueue = \No {v_S} {v_T} \;\land\; \covers {C_T} S
  & \implies
  v_S \approx v_T \in S \;\land\; C_S(v_S) \neq C_T(v_T)
 \end{align*}
@@ -325,7 +313,6 @@ is empty.
   equiv S (Leaf BBs) (Leaf BBt) []
 
   Cs \in (Leaf BBs, Failure)
-
   (equiv S Cs Ci gs)^i
   equiv S Cs Cf gs
   -----------------------------------------
@@ -347,5 +334,81 @@ is empty.
   equiv S Cs (Guard condition Ctrue Cfalse) ([condition]++gs)
   
 \end{comment}
+
+% TODO integrate the rules below to the text of this section
+
+Our equivalence-checking algorithm $\Equiv S {C_S} {C_T} G$ is
+a exactly decision procedure for the provability of the judgment
+$(\Equivrel S {C_S} {C_T} G)$, defined below.
+\begin{mathpar}
+  \begin{array}{l@{~}r@{~}l}
+    & & \text{\emph{constraint trees}} \\
+    C & \bnfeq & \Leaf t \\
+    & \bnfor & \Failure \\
+    & \bnfor & \Switch a {\Fam i {\pi_i, C_i}} \Cfb \\
+    & \bnfor & \Guard t {C_0} {C_1} \\
+  \end{array}
+
+  \begin{array}{l@{~}r@{~}l}
+    & & \text{\emph{boolean result}} \\
+    b & \in & \{ 0, 1 \} \\[0.5em]
+    & & \text{\emph{guard queues}} \\
+    G & \bnfeq & (t_1 = b_1), \dots, (t_n = b_n) \\
+  \end{array}
+
+  \begin{array}{l@{~}r@{~}l}
+    & & \text{\emph{input space}} \\
+    S & \subseteq & \{ (v_S, v_T) \mid \vrel {v_S} {v_T} \} \\
+  \end{array}
+  \\
+  \infer{ }
+  {\Equivrel \emptyset {C_S} {C_T} G}
+
+  \infer{ }
+  {\Equivrel S \Failure \Failure \emptyqueue}
+
+  \infer
+  {\trel {t_S} {t_T}}
+  {\Equivrel S {\Leaf {t_S}} {\Leaf {t_T}} \emptyqueue}
+
+  \infer
+  {\forall i,\;
+    \Equivrel
+      {(S \land a = K_i)}
+      {C_i} {\trim {C_T} {a = K_i}} G
+   \\
+   \Equivrel
+     {(S \land a \notin \Fam i {K_i})}
+     \Cfb {\trim {C_T} {a \notin \Fam i {K_i}}} G
+  }
+  {\Equivrel S
+    {\Switch a {\Fam i {K_i, C_i}} \Cfb} {C_T} G}
+
+  % TODO explain somewhere why the judgment is not symmetric:
+  % we avoid defining trimming on source trees, which would
+  % require more expressive conditions than just constructors
+  \infer
+  {C_S \in {\Leaf t, \Failure}
+   \\
+   \forall i,\; \Equivrel {(S \land a \in D_i)} {C_S} {C_i} G
+   \\
+   \Equivrel {(S \land a \notin \Fam i {D_i})} {C_S} \Cfb G}
+  {\Equivrel S
+    {C_S} {\Switch a {\Fam i {D_i} {C_i}} \Cfb} G}
+
+  \infer
+  {\Equivrel S {C_0} {C_T} {G, (t_S = 0)}
+   \\
+   \Equivrel S {C_1} {C_T} {G, (t_S = 1)}}
+  {\Equivrel S
+    {\Guard {t_S} {C_0} {C_1}} {C_T} G}
+
+  \infer
+  {\trel {t_S} {t_T}
+   \\
+   \Equivrel S {C_S} {C_b} G}
+  {\Equivrel S
+    {C_S} {\Guard {t_T} {C_0} {C_1}} {(t_S = b), G}}
+\end{mathpar}
 
 \end{document}

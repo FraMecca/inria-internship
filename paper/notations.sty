@@ -1,0 +1,36 @@
+\newcommand{\bnfeq}{\mathrel{::=}\;}
+\newcommand{\bnfor}{\mathrel{\vert}}
+
+\newcommand{\paramrel}[3]{#2 \mathrel{\approx_{#1}} #3}
+\newcommand{\vrel}[2]{\paramrel{\mathsf{val}}{#1}{#2}}
+\newcommand{\trel}[2]{\paramrel{\mathsf{term}}{#1}{#2}}
+
+\newcommand{\sem}[1]{{\llbracket{#1}\rrbracket}}
+
+\newcommand{\Fam}[2]{{(#2)}^{#1}}
+
+\newcommand{\match}[2]{\mathtt{match}(#1,#2)}
+
+\newcommand{\var}[1]{\mathtt{#1}}
+\newcommand{\pK}{\mathtt{K}}
+\newcommand{\any}{\mathtt{\_}}
+
+% \equiv is already taken
+\newcommand{\Equiv}[4]{\mathsf{equiv}(#1, #2, #3, #4)}
+\newcommand{\Equivrel}[4]{#1 \vdash_{#4} #2 \approx #3}
+
+\newcommand{\covers}[2]{#1 \mathrel{\mathsf{covers}} #2}
+
+\newcommand{\Yes}{\mathsf{Yes}}
+\newcommand{\No}[2]{\mathsf{No}(#1, #2)}
+
+\newcommand{\Leaf}[1]{\mathsf{Leaf}(#1)}
+\newcommand{\Failure}{\mathsf{Failure}}
+\newcommand{\Switch}[3]{\mathsf{Switch}(#1, #2, #3)}
+\newcommand{\Guard}[3]{\mathsf{Guard}(#1, #2, #3)}
+
+\newcommand{\emptyqueue}{\mathord{[]}}
+
+\newcommand{\Cfb}{C_{\mathsf{fb}}}
+
+\newcommand{\trim}[2]{\mathsf{trim}(#1, #2)}
