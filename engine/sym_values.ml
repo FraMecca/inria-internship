@@ -55,15 +55,87 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
         NonSingleton acc
   in
   let rec compare_canonical_form_ : source_canonical_form * target_canonical_form -> bool = function
-    | (NonSingleton s, NonSingleton t) -> print "NS-NS";  s = t 
-    | (Int s, Int t) -> print ("I-I: "^string_of_int s^":"^string_of_int t); s = t
-    | (Block (s, rest), Block (t, rest')) -> print "B-B"; s = t &&
+    | (NonSingleton s, NonSingleton t) -> print ("NS-NS = "^string_of_bool (s=t));  s = t 
+    | (Int s, Int t) -> print ("I-I: "^string_of_int s^":"^string_of_int t^" = "^string_of_bool (s=t)); s = t
+    | (Block (s, rest), Block (t, rest')) -> print ("B-B = "^string_of_bool (s=t)); s = t &&
                                              List.combine rest rest'
                                              |> List.for_all compare_canonical_form_
-    | _ -> false
+    | (s, t) ->
+       let source_st = match s with
+         | Int i -> "Int "^string_of_int i
+         | NonSingleton _a -> "NS "
+         | Block (i, _) -> "B"^string_of_int i in
+       let target_st = match t with
+         | Int i -> "Int "^string_of_int i
+         | NonSingleton _a -> "NS "
+         | Block (i, _) -> "B"^string_of_int i in
+       print ("Failing sym_eq with: "^source_st^" - "^target_st) ;
+       false
   in
   compare_canonical_form_ ((canonical_form_of_source_sym_value src), (canonical_form_of_target_sym_value tgt))
 
 let compare_sym_values find_constructor_of find_accessor_of sym_values target_values =
   List.combine sym_values target_values
   |> List.for_all (compare_sym_value find_constructor_of find_accessor_of)
+
+let string_of_tvl (sv: target_sym_values) = 
+  let bprintf = Printf.bprintf in
+  let comma buf = bprintf buf ", " in
+  let rec bprint_list ~sep bprint buf = function
+    | [] -> ()
+    | [x] -> bprint buf x
+    | x :: xs ->
+       bprintf buf "%a%t%a"
+         bprint x
+         sep
+         (bprint_list ~sep bprint) xs in
+  let rec bprint_accessor buf = function
+    | AcRoot -> bprintf buf "AcRoot" 
+    | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
+  in
+  let rec bprint_sym_value buf = function
+    | VAccessor acc -> bprintf buf "VAccessor:%a" bprint_accessor acc
+    | VConstant i -> bprintf buf "VConstant:%d" i
+    | VConstructor {tag=t; args=a} -> bprintf buf "VConstructor:{tag=%d; args=%a}"
+                                        t
+                                        (bprint_list ~sep:comma bprint_sym_value) a
+  in
+  let buf = Buffer.create 42 in
+  bprintf buf "%a" (bprint_list ~sep:comma bprint_sym_value) sv;
+  Buffer.contents buf
+
+let string_of_svl (sv: source_sym_values) =
+  let open Source_sym_engine in
+  let bprintf = Printf.bprintf in
+  let comma buf = bprintf buf ", " in
+  let rec bprint_list ~sep bprint buf = function
+    | [] -> ()
+    | [x] -> bprint buf x
+    | x :: xs ->
+       bprintf buf "%a%t%a"
+         bprint x
+         sep
+         (bprint_list ~sep bprint) xs in
+  let rec bprint_accessor buf = function
+    | AcRoot -> bprintf buf "AcRoot" 
+    | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
+  in
+  let bprint_constructor buf k = match k with
+    | Variant s -> bprintf buf "Variant %s" s
+    | Int i -> bprintf buf "Int %d" i
+    | Bool b -> bprintf buf "Bool %b" b
+    | String s -> bprintf buf "String \"%s\"" s
+    | Tuple narity -> bprintf buf "Tuple[%d]" narity
+    | Nil ->  bprintf buf "Nil"
+    | Cons -> bprintf buf "Cons"
+  in
+  let rec bprint_sym_value buf = function
+    | SAccessor acc -> bprintf buf "%a"
+                         bprint_accessor acc
+    | SCons (k, svl) -> bprintf buf "Cons{k=%a; args=%a}"
+                          bprint_constructor k
+                          (bprint_list ~sep:comma bprint_sym_value) svl
+  in
+  let buf = Buffer.create 42 in
+  bprintf buf "%a" (bprint_list ~sep:comma bprint_sym_value) sv;
+  Buffer.contents buf

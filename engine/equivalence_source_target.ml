@@ -80,11 +80,14 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
+  let rec compare_ (input_space: domain AcMap.t) (guards: (source_sym_values * bool) list) (left: source_tree) (right: target_tree) : bool =
     let sym_values_eq = Sym_values.compare_sym_values
                           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
                           (fun acc -> AcMap.find acc input_space)
     in
+    print ("================"^(List.length guards |> string_of_int)^"=====================");
+    Source_sym_engine.print_result left;
+    print "=======================================";
     if dead_end input_space then (print "Dead_end";
       true)
     else
@@ -104,16 +107,22 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
          (* We reach this point only if the input space is not empty *)
          (* We can get a counter example *)
          false 
-      | (Guard (svl, ctrue, cfalse), _) -> print "+++ push guard";
-         let guards' = guards@[svl] in
-         compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
-      | (_, Guard (tvl, ctrue, cfalse)) -> print "--- pop guard";
+      | (Guard (svl, ctrue, cfalse), _) -> print ("+++ push guard | "^ Sym_values.string_of_svl svl);
+         compare_ input_space (guards@[(svl, true)]) ctrue right &&
+         compare_ input_space (guards@[(svl, false)]) cfalse right
+      | (_, Guard (tvl, ctrue, cfalse)) -> print ("--- pop guard | "^ Sym_values.string_of_tvl tvl);
          begin match guards with
-         | hd::grest when sym_values_eq hd tvl ->
-            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
-         (* | _ -> false *)
-         | grest ->
-            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
+         | hd::grest when sym_values_eq (fst hd) tvl ->
+            if snd hd then
+              compare_ input_space grest left ctrue
+            else
+              compare_ input_space grest left cfalse
+         | h::_ -> print "false with guards.len > 0:";
+                   print ("@@@  Source: | "^ Sym_values.string_of_svl (fst h));
+                   print ("@@@  Target: | "^ Sym_values.string_of_tvl tvl);
+                   print (sym_values_eq (fst h) tvl |> string_of_bool);
+                   false
+         | _ -> false
          end
       | (Failure, Failure) -> print "failure-failure"; guards = []
       | (Leaf slf, Leaf rlf) -> print "Leaf-Leaf"; let _ = guards = [] && sym_values_eq slf rlf in true

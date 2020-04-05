@@ -1,6 +1,7 @@
 (setglobal Guards2!
   (let
       (ff/82 =
-             (function param/83
-                      (if (guard 0a) (observe 1) (if (guard 0a) (observe 2) (observe 3)))))
-                          (makeblock 0 ff/82)))
+             (function x/83
+                      (if (guard 0a) (observe 1)
+                                 (if (guard 1) (observe 2) (observe 3)))))
+                                     (makeblock 0 ff/82)))
