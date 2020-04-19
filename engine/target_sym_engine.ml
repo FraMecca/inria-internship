@@ -190,7 +190,22 @@ let eval target_ast =
     in
     let find_var env : sexpr -> accessor = function
       | Var v -> SMap.find v env.values
-      | _ -> assert false
+      | Int _ -> assert false
+      | Bool _ -> assert false
+      | String _ -> assert false
+      | Addition _ -> assert false
+      | Function _ -> assert false
+      | Let _ -> assert false
+      | Catch _ -> assert false
+      | Exit _ -> assert false
+      | IfGuard _ -> assert false
+      | If _ -> assert false
+      | Switch _ -> assert false
+      | Field (i, f) -> BatIO.write_line BatIO.stdout (f^" : "^(i |> string_of_int)); assert false
+      | Comparison _ -> assert false
+      | Isout _ -> assert false
+      | Match_failure -> assert false
+      | TBlackbox _ -> assert false
     in
     let eval_let_binding env key (sxp : sexpr) =
       match sxp with

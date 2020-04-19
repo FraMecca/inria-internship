@@ -229,5 +229,4 @@ let sym_exec source =
 
 (* alias of sym_exec, for consistency with Target_sym_engine *)
 let eval source_ast =
-  let result = sym_exec source_ast in
-  print_result result ; result
+  sym_exec source_ast

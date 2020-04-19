@@ -26,7 +26,7 @@ type source_constructor = Ast.constructor
 let constructor_to_domain repr_env : constructor -> domain = function
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
-  | Bool true -> Domain.int (Domain.Set.point 1)
+  | Bool true -> Domain.int (Domain.Set.point 0) |> Domain.negate
   | String _ -> failwith "not implemented"
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
@@ -53,7 +53,10 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
         if src_acc <> node_acc then dom
         else Domain.inter src_pi dom in
       if Domain.is_empty dom' then None
-      else Some (dom', trim src_acc src_pi s_tree)
+      else (
+        print ("Trimmed: "^Domain.to_string src_pi^" |⋂| "^Domain.to_string dom^" |TO| "^Domain.to_string dom');
+        Some (dom', trim src_acc src_pi s_tree)
+      )
     in
     function
     | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
@@ -80,13 +83,14 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ (input_space: domain AcMap.t) (guards: (source_sym_values * bool) list) (left: source_tree) (right: target_tree) : bool =
+  let rec compare_ cnt (input_space: domain AcMap.t) (guards: (source_sym_values * bool) list) (left: source_tree) (right: target_tree) : bool =
     let sym_values_eq = Sym_values.compare_sym_values
                           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
                           (fun acc -> AcMap.find acc input_space)
     in
-    print ("================"^(List.length guards |> string_of_int)^"=====================");
+    print ("================"^(string_of_int cnt)^"=====================");
     Source_sym_engine.print_result left;
+    Merge_accessors.print_tree right;
     print "=======================================";
     if dead_end input_space then (print "Dead_end";
       true)
@@ -95,28 +99,28 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | Node (acc, children, fallback), _ ->  print "Node-Node";
          let compare_branch (pi, branch) =
            let input_space' = specialize_input_space acc pi input_space in
-           compare_ input_space' guards branch (trim acc pi right)
+           compare_ (cnt+1) input_space' guards branch (trim acc pi right)
          in
          constrained_subtrees repr_env children fallback
          |> List.for_all compare_branch
       | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) -> print "lf-Node";
          Option.to_list fallback @ children
-         |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
+         |> List.for_all (fun (_, child) -> compare_ (cnt+1) input_space guards terminal child)
       | (Unreachable, _) -> print "match unreachable";
          prerr_endline "Warning: unreachable branch";
          (* We reach this point only if the input space is not empty *)
          (* We can get a counter example *)
          false 
       | (Guard (svl, ctrue, cfalse), _) -> print ("+++ push guard | "^ Sym_values.string_of_svl svl);
-         compare_ input_space (guards@[(svl, true)]) ctrue right &&
-         compare_ input_space (guards@[(svl, false)]) cfalse right
+         compare_ (cnt+1) input_space (guards@[(svl, true)]) ctrue right &&
+         compare_ (cnt+1) input_space (guards@[(svl, false)]) cfalse right
       | (_, Guard (tvl, ctrue, cfalse)) -> print ("--- pop guard | "^ Sym_values.string_of_tvl tvl);
          begin match guards with
          | hd::grest when sym_values_eq (fst hd) tvl ->
             if snd hd then
-              compare_ input_space grest left ctrue
+              compare_ (cnt+1) input_space grest left ctrue
             else
-              compare_ input_space grest left cfalse
+              compare_ (cnt+1) input_space grest left cfalse
          | h::_ -> print "false with guards.len > 0:";
                    print ("@@@  Source: | "^ Sym_values.string_of_svl (fst h));
                    print ("@@@  Target: | "^ Sym_values.string_of_tvl tvl);
@@ -129,4 +133,4 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | (Failure, Leaf _) | (Leaf _, Failure) -> print "LF-FL";
         false
   in
-  compare_ AcMap.empty [] left right
+  compare_ 0 AcMap.empty [] left right

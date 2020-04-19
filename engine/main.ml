@@ -51,7 +51,6 @@ let compare source_file target_file =
   let target = target_exec target_file in
   let repr_env =
     Source_env.build_type_repr_env source.type_decls in
-  let repr_env = Source_env.ConstructorMap.add "()" (Source_env.Int 0) repr_env in
   let comparison =
     Equivalence_source_target.compare repr_env
       source.source_tree

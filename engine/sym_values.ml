@@ -74,10 +74,6 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
   in
   compare_canonical_form_ ((canonical_form_of_source_sym_value src), (canonical_form_of_target_sym_value tgt))
 
-let compare_sym_values find_constructor_of find_accessor_of sym_values target_values =
-  List.combine sym_values target_values
-  |> List.for_all (compare_sym_value find_constructor_of find_accessor_of)
-
 let string_of_tvl (sv: target_sym_values) = 
   let bprintf = Printf.bprintf in
   let comma buf = bprintf buf ", " in
@@ -139,3 +135,14 @@ let string_of_svl (sv: source_sym_values) =
   let buf = Buffer.create 42 in
   bprintf buf "%a" (bprint_list ~sep:comma bprint_sym_value) sv;
   Buffer.contents buf
+
+let compare_sym_values find_constructor_of find_accessor_of sym_values target_values =
+  print "!!!!!!!!!!!!!!!";
+  print (string_of_tvl target_values ^ ": "^ (target_values |> List.length |> string_of_int));
+  print (string_of_svl sym_values ^ ": "^ (sym_values |> List.length |> string_of_int));
+  print "!!!!!!!!!!!!!!!";
+  if List.length target_values <> List.length sym_values then
+    (print "False for diff length"; false)
+  else 
+    List.combine sym_values target_values
+    |> List.for_all (compare_sym_value find_constructor_of find_accessor_of)
