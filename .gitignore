@@ -9,6 +9,7 @@
 *.cmxs
 *.cmxa
 .#*
+tests
 
 # ocamlbuild working directory
 _build/
