@@ -125,7 +125,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
          | _ -> false
          end
       | (Failure, Failure) -> print "failure-failure"; guards = []
-      | (Leaf slf, Leaf rlf) -> print "Leaf-Leaf"; let _ = guards = [] && sym_values_eq slf rlf in true
+      | (Leaf slf, Leaf rlf) -> print "Leaf-Leaf"; guards = [] && sym_values_eq slf rlf
       | (Failure, Leaf _) | (Leaf _, Failure) -> print "LF-FL";
         false
   in
