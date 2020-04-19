@@ -10,15 +10,21 @@ let source_exec file =
     | exn -> Ocaml_parser.handle_error exn in
   Source_sym_engine.eval ast
 
-let () =
-  match Menhir_parser.parse_file Sys.argv.(1) with
+let target_exec file =
+  let ast =
+    match Menhir_parser.parse_file file with
+    | Ok ast -> ast
     | Error (lexbuf, _exn) ->
-       Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
-       exit 1
-    | Ok ast ->
-      let tree = Target_sym_engine.eval ast in
-      Target_sym_engine.print_tree tree;
-      let _ = Merge_accessors.merge tree in ()
+      Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
+      exit 1
+  in
+  Target_sym_engine.eval ast
+
+let () =
+  let target_tree_with_accessors = target_exec Sys.argv.(1) in
+  Target_sym_engine.print_tree target_tree_with_accessors;
+  let target_tree = Merge_accessors.merge target_tree_with_accessors in
+  assert (Equivalence.compare target_tree target_tree)
 
 let () =
   if Array.length Sys.argv >= 3 then begin
@@ -26,12 +32,3 @@ let () =
     let result = source_exec file in
     Source_sym_engine.print_result result
   end
-
-let () =
-  match Menhir_parser.parse_file Sys.argv.(1) with
-    | Error (lexbuf, _exn) ->
-       Printf.eprintf "%s: Syntax error.\n%!" (Menhir_parser.location_message lexbuf);
-       exit 1
-    | Ok ast ->
-      let result = Target_sym_engine.eval ast |> Merge_accessors.merge in
-      assert (Equivalence.compare result result)
