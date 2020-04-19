@@ -4,6 +4,7 @@ import glob
 import os
 
 def main():
+    os.putenv('OCAMLRUNPARAM', 'b')
     if not os.path.exists('tests'): os.mkdir('tests')
     elif not os.path.exists('tests/old'):
         os.mkdir('tests/old')
