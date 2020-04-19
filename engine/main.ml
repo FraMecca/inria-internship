@@ -1,3 +1,15 @@
+let source_exec file =
+  let ocaml_ast =
+    match Ocaml_parser.ocaml_of_file file with
+    | Ok ocaml_ast -> ocaml_ast
+    | Error err ->
+      Ocaml_parser.handle_error err
+  in
+  let ast =
+    try Ocaml_parser.ast_of_ocaml ~file ocaml_ast with
+    | exn -> Ocaml_parser.handle_error exn in
+  Source_sym_engine.eval ast
+
 let () =
   match Menhir_parser.parse_file Sys.argv.(1) with
     | Error (lexbuf, _exn) ->
@@ -9,16 +21,11 @@ let () =
       let _ = Merge_accessors.merge tree in ()
 
 let () =
-  if Array.length Sys.argv >= 3 then
+  if Array.length Sys.argv >= 3 then begin
     let file = Sys.argv.(2) in
-    match Ocaml_parser.ocaml_of_file file with
-    | Error err -> Ocaml_parser.handle_error err
-    | Ok ocaml_ast ->
-      match Ocaml_parser.ast_of_ocaml ~file ocaml_ast with
-      | exception exn -> Ocaml_parser.handle_error exn
-      | ast ->
-        Format.printf "Source input:@.%a@." Ocaml_parser.pp_ocaml_program ocaml_ast;
-        Source_sym_engine.eval ast
+    let result = source_exec file in
+    Source_sym_engine.print_result result
+  end
 
 let () =
   match Menhir_parser.parse_file Sys.argv.(1) with

@@ -227,6 +227,6 @@ let sym_exec source =
     let row_of_clause clause = { clause with lhs = [clause.lhs] } in
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
+(* alias of sym_exec, for consistency with Target_sym_engine *)
 let eval source_ast =
-  let result = sym_exec source_ast in
-  print_result result
+  sym_exec source_ast
