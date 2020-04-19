@@ -63,14 +63,22 @@ let compare source_file target_file =
   }
 
 let () =
-  let target_file = Sys.argv.(1) in
-  if Array.length Sys.argv <= 2 then begin
+  if Array.length Sys.argv <= 1 then begin
+    let cmd = Sys.argv.(0) in
+    Printf.eprintf "Please provide command-line arguments using one of the following:\n\
+                    %s foo.lambda\n\
+                    %s foo.lambda bar.ml\n%!"
+      cmd cmd;
+    exit 2
+  end else if Array.length Sys.argv <= 2 then begin
     (* no source file provided *)
+    let target_file = Sys.argv.(1) in
     let result = target_exec target_file in
     print_endline "Target program constraint trees";
     Target_sym_engine.print_tree result.target_tree_with_accessors;
     print_newline ();
   end else begin
+    let target_file = Sys.argv.(1) in
     let source_file = Sys.argv.(2) in
     let result = compare source_file target_file in
     let () =
