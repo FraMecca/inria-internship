@@ -194,7 +194,7 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
 let sym_exec source =
   let rec source_value_to_sym_value : source_value -> sym_value = function
     | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
-    | VVar _ -> assert false
+    | VVar v -> BatIO.write_line BatIO.stdout ("$$$$$$$$$$$$ "^v); assert false
   in
   let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose (matrix : matrix) : constraint_tree =
