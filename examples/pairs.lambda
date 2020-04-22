@@ -1,0 +1,13 @@
+(setglobal Pairs!
+  (let
+    (f/81 =
+       (function param/82
+         (catch
+           (let (*match*/85 =a (field 0 param/82))
+             (if (!= *match*/85 1) (exit 1)
+               (let (*match*/86 =a (field 1 param/82))
+                 (if (!= *match*/86 2) (exit 1) (observe 2)))))
+          with (1)
+           (raise
+             (makeblock 0 (global Match_failure/18!) [0: "pairs.ml" 4 8])))))
+    (makeblock 0 f/81)))
