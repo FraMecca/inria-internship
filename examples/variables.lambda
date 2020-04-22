@@ -1,10 +1,6 @@
-(setglobal Handle_variables!
+(setglobal Variables!
   (let
     (f/82 =
-       (function x/83[int]
-         (if (guard x/83) (observe x/83)
-           (let (x/84 =a[int] x/83) (observe (~ x/84))))))
+       (function x/83
+         (if (guard x/83) (observe x/83) (let (x/84 =a x/83) (observe 0)))))
     (makeblock 0 f/82)))
-File "handle_variables.ml", line 1:
-Error: Error while linking handle_variables.cmo:
-       The external function `guard' is not available

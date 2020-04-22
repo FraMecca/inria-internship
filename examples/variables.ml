@@ -4,4 +4,4 @@ external guard : 'a -> 'b = "guard"
 
 let f = function
   | x when guard x -> observe x
-  | x -> observe (-x)
+  | x -> observe 0
