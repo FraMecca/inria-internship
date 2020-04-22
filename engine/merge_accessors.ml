@@ -132,3 +132,8 @@ let print_tree tree =
   let buf = Buffer.create 42 in
   bprint_tree 0 buf tree;
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
+
+
+let rec accessor_to_string = function
+  | AcRoot -> "AcRoot"
+  | AcField (a, i) -> "AcField "^accessor_to_string a^"."^string_of_int i

@@ -16,7 +16,7 @@ let constructor_arity type_env : constructor -> int = function
   | Tuple n -> n
   | Nil -> 0
   | Cons -> 2
-  | Variant name ->  BatIO.write_line BatIO.stdout ("NOT FOUND:"^name);
+  | Variant name -> 
      let constructor_decl = ConstructorMap.find name type_env |> snd in
      List.length constructor_decl.args
 

@@ -39,7 +39,14 @@ type constraint_tree =
 
   We trust this annotation, which is reasonable as the OCaml type-checker
   verifies that it indeed holds.
-*)
+ *)
+
+let print_type_env (tl, cl) =
+  let cts_str csts = List.map (fun c -> c.constructor_name) csts |> String.concat ", " in
+  let type_to_str ({name=name; constructors = csts}, cd) =
+    name^" ["^cts_str csts^"] {"^cd.constructor_name^"}"
+  in
+  BatIO.write_line BatIO.stdout ("\tTYPE_ENV: "^type_to_str (tl, cl))
 
 let print_result stree =
   let bprintf = Printf.bprintf

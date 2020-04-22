@@ -44,17 +44,27 @@ let constrained_subtrees repr_env children fallback =
     |> List.map fst
     |> List.fold_left Domain.union Domain.empty
     |> Domain.negate in
+  ( print "CONSTRAINED:";
+    (* List.map snd children' |> List.iter (fun t -> print "------>";Source_sym_engine.print_result t); *)
+    print ("DOMCH: "^(children'|> List.map fst|> List.fold_left Domain.union Domain.empty|>Domain.to_string));
+    print ("FALLBACK: "^Domain.to_string fb_domain);
+    Source_sym_engine.print_result fallback;
+    print "END CONSTRAINED";
   ((fb_domain, fallback) :: children')
+  )
 
 let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec trim src_acc src_pi =
-    let specialize_same_acc  node_acc (dom, s_tree) =
+    let specialize_same_acc node_acc (dom, s_tree) =
       let dom' =
         if src_acc <> node_acc then dom
         else Domain.inter src_pi dom in
       if Domain.is_empty dom' then None
       else (
-        print ("Trimmed: "^Domain.to_string src_pi^" |⋂| "^Domain.to_string dom^" |TO| "^Domain.to_string dom');
+        print ("Trimmed: SRC="^Merge_accessors.accessor_to_string src_acc^
+                 ":"^Domain.to_string src_pi^" |⋂| "^
+                   "TRG="^Merge_accessors.accessor_to_string node_acc^":"^Domain.to_string dom^
+                     " |TO| "^Domain.to_string dom');
         Some (dom', trim src_acc src_pi s_tree)
       )
     in
@@ -74,6 +84,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
        Node (node_acc, children', fallback')
   in
   let specialize_input_space acc pi input_space =
+    print ("Specialize_input_space: "^Merge_accessors.accessor_to_string acc^" -> "^Domain.to_string pi);
     let pi' = match AcMap.find_opt acc input_space with
       | Some input_pi -> Domain.inter input_pi pi
       | None -> pi
@@ -89,6 +100,8 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
                           (fun acc -> AcMap.find acc input_space)
     in
     print ("================"^(string_of_int cnt)^"=====================");
+    print "Input space";
+    AcMap.iter (fun a d -> print ("\t"^Merge_accessors.accessor_to_string a^": "^Domain.to_string d)) input_space;
     Source_sym_engine.print_result left;
     Merge_accessors.print_tree right;
     print "=======================================";
