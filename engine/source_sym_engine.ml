@@ -144,7 +144,15 @@ let group_add_omegas { arity; rev_rows; _ } row =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
   rev_rows := { row with lhs = List.rev_append wildcards row.lhs } :: !rev_rows
 
-let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix =
+let width type_env = function
+  | Nil | Cons -> 0
+  | Int _ | Bool _ | String _ -> 1
+  | Tuple arity -> arity
+  | Variant variant_name ->
+     let k =  Source_env.ConstructorMap.find variant_name type_env |> snd in
+     List.length k.args
+
+let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix option =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
   let wildcard_group = empty_group acs 0 in
   let rec collect_constructors : pattern list -> unit = function
@@ -188,8 +196,14 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
-  let wildcard_matrix = matrix_of_group wildcard_group in
-  (constructor_matrices, wildcard_matrix)
+  let exhausted_all_cases = BatHashtbl.to_list group_tbl
+                            |> List.for_all (fun (kst, group) -> width type_env kst = group.arity)
+  in
+  if not exhausted_all_cases then
+    let wildcard_matrix = matrix_of_group wildcard_group in
+    (constructor_matrices, Some wildcard_matrix)
+  else
+    (constructor_matrices, None)
 
 let sym_exec source =
   let rec source_value_to_sym_value : source_value -> sym_value = function
@@ -219,10 +233,12 @@ let sym_exec source =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in
       let fallback_evaluated = match fallback with
-        | (_, []) -> Failure
-        | nonempty_matrix -> decompose nonempty_matrix
+        | None -> Unreachable
+        | Some fallback -> match fallback with
+                           | (_, []) -> Failure
+                           | nonempty_matrix -> decompose nonempty_matrix
       in
-      Node (ac_head, groups_evaluated, fallback_evaluated)
+        Node (ac_head, groups_evaluated, fallback_evaluated)
     in
     let row_of_clause clause = { clause with lhs = [clause.lhs] } in
     decompose ([AcRoot], List.map row_of_clause source.clauses)

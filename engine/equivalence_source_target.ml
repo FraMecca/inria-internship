@@ -107,10 +107,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
          Option.to_list fallback @ children
          |> List.for_all (fun (_, child) -> compare_ (cnt+1) input_space guards terminal child)
       | (Unreachable, _) -> print "match unreachable";
-         prerr_endline "Warning: unreachable branch";
-         (* We reach this point only if the input space is not empty *)
-         (* We can get a counter example *)
-         false 
+         true 
       | (Guard (svl, ctrue, cfalse), _) -> print ("+++ push guard | "^ Sym_values.string_of_svl svl);
          compare_ (cnt+1) input_space (guards@[(svl, true)]) ctrue right &&
          compare_ (cnt+1) input_space (guards@[(svl, false)]) cfalse right
