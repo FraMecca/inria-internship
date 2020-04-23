@@ -97,11 +97,6 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
          Option.to_list fallback @ children
          |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
-      | (Unreachable, _) ->
-         prerr_endline "Warning: unreachable branch";
-         (* We reach this point only if the input space is not empty *)
-         (* We can get a counter example *)
-         false 
       | (Guard (svl, ctrue, cfalse), _) ->
          let guards' = guards@[svl] in
          compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
@@ -111,9 +106,9 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
             compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
          | _ -> false
          end
+      | (Unreachable, _) -> true
       | (Failure, Failure) -> guards = []
       | (Leaf slf, Leaf rlf) -> guards = [] && sym_values_eq slf rlf
-      | (Failure, Leaf _) | (Leaf _, Failure) ->
-         false
+      | (Failure, Leaf _) | (Leaf _, Failure) -> false
   in
   compare_ AcMap.empty [] left right
