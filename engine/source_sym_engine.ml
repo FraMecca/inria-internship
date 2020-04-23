@@ -213,7 +213,7 @@ let sym_exec source =
   let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
-    | (_, []) -> assert false
+    | (_, []) -> Failure
     | ([] as _no_acs, ({ lhs = []; guard = None;_ } as row)::_) ->
        begin match (row.rhs : source_rhs) with
          | Unreachable -> Unreachable
