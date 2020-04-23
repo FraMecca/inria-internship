@@ -18,7 +18,7 @@
                                  (if (!= *match*/94 0) (exit 1)
                                    (let (*match*/95 =a (field 1 *match*/93))
                                      (if *match*/95 (exit 1)
-                                       (apply (observe 0) 0 0)))))
+                                       (observe [0: 0 [0: 0 [0: 0 0a]]])))))
                                (exit 1)))))
                        (exit 1)))
                   case int 1:
@@ -32,7 +32,7 @@
                                  (if (!= *match*/89 3) (exit 1)
                                    (let (*match*/90 =a (field 1 *match*/88))
                                      (if *match*/90 (exit 1)
-                                       (apply (observe 1) 2 3)))))
+                                       (observe [0: 1 [0: 2 [0: 3 0a]]])))))
                                (exit 1)))))
                        (exit 1)))
                   case int 2:
@@ -46,7 +46,7 @@
                                  (if (!= *match*/99 2) (exit 1)
                                    (let (*match*/100 =a (field 1 *match*/98))
                                      (if *match*/100 (exit 1)
-                                       (apply (observe 2) 2 2)))))
+                                       (observe [0: 2 [0: 2 [0: 2 0a]]])))))
                                (exit 1)))))
                        (exit 1))))))
              (exit 1))
