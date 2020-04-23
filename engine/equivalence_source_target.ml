@@ -24,7 +24,7 @@ type source_constructor = Ast.constructor
 let constructor_to_domain repr_env : constructor -> domain = function
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
-  | Bool true -> Domain.int (Domain.Set.point 1)
+  | Bool true -> Domain.int (Domain.Set.point 0) |> Domain.negate
   | String _ -> failwith "not implemented"
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
