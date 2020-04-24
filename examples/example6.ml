@@ -8,4 +8,4 @@ let mm = function
   | [x]::[] -> observe [x]
   | [x]::[y]::[] -> observe [x, y]
   | [x, y]::z -> observe [(x, y), z]
-  | x -> observe [x]
+  | x -> observe x
