@@ -234,9 +234,7 @@ let sym_exec source =
       in
       let fallback_evaluated = match fallback with
       | None -> Unreachable
-      | Some fallback -> match fallback with
-                         | (_, []) -> Failure
-                         | nonempty_matrix -> decompose nonempty_matrix
+      | Some nonempty_matrix -> decompose nonempty_matrix
   in
   Node (ac_head, groups_evaluated, fallback_evaluated)
     in
