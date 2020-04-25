@@ -5,7 +5,7 @@
          (catch
            (if param/82
              (let (*match*/85 =a (field 0 param/82))
-               (if (isout 2 *match*/85) (exit 1)
+               (if (isout 3 *match*/85) (exit 1)
                  (switch* *match*/85
                   case int 0:
                    (let (*match*/91 =a (field 1 param/82))
@@ -47,6 +47,21 @@
                                    (let (*match*/100 =a (field 1 *match*/98))
                                      (if *match*/100 (exit 1)
                                        (observe [0: 2 [0: 2 [0: 2 0a]]])))))
+                               (exit 1)))))
+                       (exit 1)))
+                  case int 3:
+                   (let (*match*/101 =a (field 1 param/82))
+                     (if *match*/101
+                       (let (*match*/102 =a (field 0 *match*/101))
+                         (if (!= *match*/102 3) (exit 1)
+                           (let (*match*/103 =a (field 1 *match*/101))
+                             (if *match*/103
+                               (let (*match*/104 =a (field 0 *match*/103))
+                                 (if (!= *match*/104 3) (exit 1)
+                                   (let
+                                     (*match*/105 =a (field 1 *match*/103))
+                                     (if *match*/105 (exit 1)
+                                       (observe [0: 3 [0: 3 [0: 3 0a]]])))))
                                (exit 1)))))
                        (exit 1))))))
              (exit 1))
