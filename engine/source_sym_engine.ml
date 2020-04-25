@@ -136,13 +136,13 @@ let empty_group acs arity =
        rev_rows = ref [];
      }
 
-let width type_env = function
-  | Nil | Cons -> 0
-  | Int _ | Bool _ | String _ -> 1
-  | Tuple arity -> arity
-  | Variant variant_name ->
-     let k =  Source_env.ConstructorMap.find variant_name type_env |> snd in
-     List.length k.args
+let width _type_env = function
+  | Nil | Cons -> 2
+  | Bool _ -> 2
+  | Tuple _ -> 1
+  | Int _ | String _ -> max_int (* Just a way to indicate "many" *)
+  | Variant _ -> max_int (* TODO: DISCUSS *)
+
 
 let group_add_children { arity; rev_rows; _ } children row =
   assert (List.length children = arity);
@@ -196,8 +196,26 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
+  let width_of_column =
+    rows
+    |> List.map (fun p -> p.lhs)
+    |> List.map List.hd
+    |> List.filter_map (fun (p: pattern) -> match p with
+                                            | Constructor (k, _) -> Some k
+                                            | _ -> None)
+    |> List.map (fun (k: constructor) : string -> match k with
+                                                  | Variant vname -> vname
+                                                  | Int i -> string_of_int i
+                                                  | Bool b -> string_of_bool b
+                                                  | String s -> s
+                                                  | Tuple n -> "Tuple["^(string_of_int n)^"]"
+                                                  | Nil -> "Nil"
+                                                  | Cons -> "Cons")
+    |> BatSet.of_list
+    |> BatSet.cardinal
+  in
   let exhausted_all_cases = BatHashtbl.to_list group_tbl
-                            |> List.for_all (fun (kst, group) -> width type_env kst = group.arity)
+                            |> List.for_all (fun (kst, _) -> width type_env kst = width_of_column)
   in
   if not exhausted_all_cases then
     let wildcard_matrix = matrix_of_group wildcard_group in

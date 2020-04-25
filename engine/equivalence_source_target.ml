@@ -24,7 +24,7 @@ type source_constructor = Ast.constructor
 let constructor_to_domain repr_env : constructor -> domain = function
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
-  | Bool true -> Domain.int (Domain.Set.point 0) |> Domain.negate
+  | Bool true -> Domain.int (Domain.Set.point 1)
   | String _ -> failwith "not implemented"
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
@@ -35,13 +35,26 @@ let constructor_to_domain repr_env : constructor -> domain = function
      | Tag t -> Domain.tag (Domain.Set.point t)
 
 let constrained_subtrees repr_env children fallback =
+  let head_domain kst_list =
+    let _head_domain : constructor -> Domain.t = function
+      | String _ -> failwith "Not implemented"
+      (* | Variant _v -> assert false *)
+      | Nil -> Domain.empty
+      | Bool _ -> Domain.union (Domain.int (Domain.Set.point 0)) (Domain.int (Domain.Set.point 1))
+      | Int _ -> Domain.int (Domain.Set.full)
+      | Variant _ | Tuple _ | Cons -> Domain.union (Domain.int (Domain.Set.full)) (Domain.tag (Domain.Set.full))
+    in
+    List.map _head_domain kst_list |> List.fold_left Domain.union Domain.empty
+  in
   let children' = List.map (fun (kst, tree) ->
                       (constructor_to_domain repr_env kst, tree)) children in
   let fb_domain =
     children'
     |> List.map fst
     |> List.fold_left Domain.union Domain.empty
-    |> Domain.negate in
+    |> Domain.negate
+    |> Domain.inter (List.map fst children |> head_domain)
+  in
   ((fb_domain, fallback) :: children')
 
 let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
