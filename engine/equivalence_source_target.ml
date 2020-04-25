@@ -44,7 +44,8 @@ let constrained_subtrees repr_env children fallback =
       | Nil -> Domain.empty
       | Bool _ -> Domain.union (Domain.int (Domain.Set.point 0)) (Domain.int (Domain.Set.point 1))
       | Int _ -> Domain.int (Domain.Set.full)
-      | Variant _ | Tuple _ | Cons -> Domain.union (Domain.int (Domain.Set.full)) (Domain.tag (Domain.Set.full))
+      | Tuple _ | Cons -> Domain.union (Domain.int (Domain.Set.full)) (Domain.tag (Domain.Set.full))
+      | Variant _ -> Domain.union (Domain.int (Domain.Set.full)) (Domain.tag (Domain.Set.full)) (* TODO: DISCUSS *)
     in
     List.map _head_domain kst_list |> List.fold_left Domain.union Domain.empty
   in
@@ -117,7 +118,6 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
     AcMap.iter (fun a d -> print ("\t"^Merge_accessors.accessor_to_string a^": "^Domain.to_string d)) input_space;
     Source_sym_engine.print_result left;
     Merge_accessors.print_tree right;
-    print "=======================================";
     if dead_end input_space then (print "Dead_end";
       true)
     else

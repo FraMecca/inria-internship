@@ -1,5 +1,7 @@
 open Ast
 
+module SMap = Map.Make(String)
+
 type sym_value =
   | SAccessor of accessor
   | SCons of constructor * sym_value list
@@ -151,13 +153,12 @@ let group_add_omegas { arity; rev_rows; _ } row =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
   rev_rows := { row with lhs = List.rev_append wildcards row.lhs } :: !rev_rows
 
-let width type_env = function
-  | Nil | Cons -> 0
-  | Int _ | Bool _ | String _ -> 1
-  | Tuple arity -> arity
-  | Variant variant_name ->
-     let k =  Source_env.ConstructorMap.find variant_name type_env |> snd in
-     List.length k.args
+let width _type_env = function
+  | Nil | Cons -> 2
+  | Bool _ -> 2
+  | Tuple _ -> 1
+  | Int _ | String _ -> max_int (* Just a way to indicate "many" *)
+  | Variant _ -> max_int (* TODO: DISCUSS *)
 
 let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix option =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
@@ -203,16 +204,29 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
-  let width_of_column = rows
-                        |> List.map (fun p -> p.lhs)
-                        |> List.map List.hd
-                        |> List.filter (fun (p: pattern) -> match p with
-                                                            | Constructor (_, _) -> true
-                                                            | _ -> false)
-                        |> List.length
+  let width_of_column =
+    rows
+    |> List.map (fun p -> p.lhs)
+    |> List.map List.hd
+    |> List.filter_map (fun (p: pattern) -> match p with
+                                        | Constructor (k, _) -> Some k
+                                        | _ -> None)
+    |> List.map (fun (k: constructor) : string -> match k with
+                                                  | Variant vname -> vname
+                                                  | Int i -> string_of_int i
+                                                  | Bool b -> string_of_bool b
+                                                  | String s -> s
+                                                  | Tuple n -> "Tuple["^(string_of_int n)^"]"
+                                                  | Nil -> "Nil"
+                                                  | Cons -> "Cons")
+    |> BatSet.of_list
+    |> BatSet.cardinal
   in
   let _ = BatIO.write_line BatIO.stdout "%%%%%%%%%%" in
-  let _ = BatIO.write_line BatIO.stdout ("WIDTH: "^string_of_int width_of_column) in
+  let _ = BatHashtbl.to_list group_tbl
+          |> List.iter (fun (kst, _) ->
+                 BatIO.write_line BatIO.stdout
+                   ("WIDTH: "^string_of_int width_of_column^":"^(width type_env kst |>string_of_int))) in
   let _ = BatIO.write_line BatIO.stdout "%%%%%%%%%%" in
   let exhausted_all_cases = BatHashtbl.to_list group_tbl
                             |> List.for_all (fun (kst, _) -> width type_env kst = width_of_column)
