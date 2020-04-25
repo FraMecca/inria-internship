@@ -1,0 +1,5 @@
+(setglobal Booleans3!
+  (let
+    (f/81 =
+       (function param/82 (if (!= param/82 0) (observe 1a) (observe 0a))))
+    (makeblock 0 f/81)))

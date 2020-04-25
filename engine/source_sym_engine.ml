@@ -203,8 +203,19 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
+  let width_of_column = rows
+                        |> List.map (fun p -> p.lhs)
+                        |> List.map List.hd
+                        |> List.filter (fun (p: pattern) -> match p with
+                                                            | Constructor (_, _) -> true
+                                                            | _ -> false)
+                        |> List.length
+  in
+  let _ = BatIO.write_line BatIO.stdout "%%%%%%%%%%" in
+  let _ = BatIO.write_line BatIO.stdout ("WIDTH: "^string_of_int width_of_column) in
+  let _ = BatIO.write_line BatIO.stdout "%%%%%%%%%%" in
   let exhausted_all_cases = BatHashtbl.to_list group_tbl
-                            |> List.for_all (fun (kst, group) -> width type_env kst = group.arity)
+                            |> List.for_all (fun (kst, _) -> width type_env kst = width_of_column)
   in
   if not exhausted_all_cases then
     let wildcard_matrix = matrix_of_group wildcard_group in
