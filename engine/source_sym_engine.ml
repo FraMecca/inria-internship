@@ -136,13 +136,13 @@ let empty_group acs arity =
        rev_rows = ref [];
      }
 
-let width _type_env = function
+let width type_env = function
   | Nil | Cons -> 2
   | Bool _ -> 2
   | Tuple _ -> 1
   | Int _ | String _ -> max_int (* Just a way to indicate "many" *)
-  | Variant _ -> max_int (* TODO: DISCUSS *)
-
+  | Variant v -> let type_decl = Source_env.ConstructorMap.find v type_env |> fst in
+                 List.length type_decl.constructors
 
 let group_add_children { arity; rev_rows; _ } children row =
   assert (List.length children = arity);
@@ -196,26 +196,11 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
-  let width_of_column =
-    rows
-    |> List.map (fun p -> p.lhs)
-    |> List.map List.hd
-    |> List.filter_map (fun (p: pattern) -> match p with
-                                            | Constructor (k, _) -> Some k
-                                            | _ -> None)
-    |> List.map (fun (k: constructor) : string -> match k with
-                                                  | Variant vname -> vname
-                                                  | Int i -> string_of_int i
-                                                  | Bool b -> string_of_bool b
-                                                  | String s -> s
-                                                  | Tuple n -> "Tuple["^(string_of_int n)^"]"
-                                                  | Nil -> "Nil"
-                                                  | Cons -> "Cons")
-    |> BatSet.of_list
-    |> BatSet.cardinal
+  let width_of_column = List.length all_constructor_groups
   in
-  let exhausted_all_cases = BatHashtbl.to_list group_tbl
-                            |> List.for_all (fun (kst, _) -> width type_env kst = width_of_column)
+  let exhausted_all_cases = match BatHashtbl.to_list group_tbl with
+    | [] -> false
+    | (kst, _) :: _ -> width type_env kst = width_of_column
   in
   if not exhausted_all_cases then
     let wildcard_matrix = matrix_of_group wildcard_group in
@@ -223,12 +208,11 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
   else
     (constructor_matrices, None)
 
-let sym_exec source =
+let sym_exec type_env source =
   let rec source_value_to_sym_value : source_value -> sym_value = function
     | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
     | VVar _ -> assert false
   in
-  let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
     | (_, []) -> Failure
@@ -260,5 +244,5 @@ let sym_exec source =
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 (* alias of sym_exec, for consistency with Target_sym_engine *)
-let eval source_ast =
-  sym_exec source_ast
+let eval type_env source_ast =
+  sym_exec type_env source_ast

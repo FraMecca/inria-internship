@@ -21,6 +21,12 @@ type target_sym_values = Sym_values.target_sym_values
 
 type source_constructor = Ast.constructor
 
+let variant_name_to_domain repr_env v_name =
+  let open Source_env in
+  match ConstructorMap.find v_name repr_env with
+  | Int i -> Domain.int (Domain.Set.point i)
+  | Tag t -> Domain.tag (Domain.Set.point t)
+
 let constructor_to_domain repr_env : constructor -> domain = function
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
@@ -28,21 +34,22 @@ let constructor_to_domain repr_env : constructor -> domain = function
   | String _ -> failwith "not implemented"
   | Nil -> Domain.int (Domain.Set.point 0)
   | Cons | Tuple _ -> Domain.tag (Domain.Set.point 0)
-  | Variant v ->
-     let open Source_env in
-     match ConstructorMap.find v repr_env with
-     | Int i -> Domain.int (Domain.Set.point i)
-     | Tag t -> Domain.tag (Domain.Set.point t)
+  | Variant v -> variant_name_to_domain repr_env v
 
-let constrained_subtrees repr_env children fallback =
+let constrained_subtrees type_env repr_env children fallback =
   let head_domain kst_list =
     let _head_domain : constructor -> Domain.t = function
-      | String _ -> failwith "Not implemented"
-      (* | Variant _v -> assert false *)
-      | Nil -> Domain.empty
+      | String _ -> Domain.tag (Domain.Set.point Obj.string_tag)
       | Bool _ -> Domain.union (Domain.int (Domain.Set.point 0)) (Domain.int (Domain.Set.point 1))
       | Int _ -> Domain.int (Domain.Set.full)
-      | Variant _ | Tuple _ | Cons -> Domain.union (Domain.int (Domain.Set.full)) (Domain.tag (Domain.Set.full))
+      | Tuple _ -> Domain.tag (Domain.Set.point 0)
+      | Nil | Cons -> Domain.union (Domain.int (Domain.Set.point 0)) (Domain.tag (Domain.Set.point 0))
+      | Variant v ->
+         let open Source_env in
+         let type_decl = ConstructorMap.find v type_env |> fst in
+         let kst_list = type_decl.constructors in
+         List.map (fun k -> variant_name_to_domain repr_env k.constructor_name) kst_list
+         |> List.fold_left Domain.union Domain.empty
     in
     List.map _head_domain kst_list |> List.fold_left Domain.union Domain.empty
   in
@@ -57,7 +64,7 @@ let constrained_subtrees repr_env children fallback =
   in
   ((fb_domain, fallback) :: children')
 
-let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
+let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec trim src_acc src_pi =
     let specialize_same_acc  node_acc (dom, s_tree) =
       let dom' =
@@ -91,7 +98,7 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
+  let rec compare_ type_env (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
     let sym_values_eq = Sym_values.compare_sym_values
                           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
                           (fun acc -> AcMap.find acc input_space)
@@ -103,20 +110,20 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | Node (acc, children, fallback), _ ->
          let compare_branch (pi, branch) =
            let input_space' = specialize_input_space acc pi input_space in
-           compare_ input_space' guards branch (trim acc pi right)
+           compare_ type_env input_space' guards branch (trim acc pi right)
          in
-         constrained_subtrees repr_env children fallback
+         constrained_subtrees type_env repr_env children fallback
          |> List.for_all compare_branch
       | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
          Option.to_list fallback @ children
-         |> List.for_all (fun (_, child) -> compare_ input_space guards terminal child)
+         |> List.for_all (fun (_, child) -> compare_ type_env input_space guards terminal child)
       | (Guard (svl, ctrue, cfalse), _) ->
          let guards' = guards@[svl] in
-         compare_ input_space guards' ctrue right && compare_ input_space guards' cfalse right
+         compare_ type_env input_space guards' ctrue right && compare_ type_env input_space guards' cfalse right
       | (_, Guard (tvl, ctrue, cfalse)) ->
          begin match guards with
          | hd::grest when sym_values_eq hd tvl ->
-            compare_ input_space grest left ctrue && compare_ input_space grest left cfalse
+            compare_ type_env input_space grest left ctrue && compare_ type_env input_space grest left cfalse
          | _ -> false
          end
       | (Unreachable, _) -> true
@@ -124,4 +131,4 @@ let compare (repr_env: Source_env.type_repr_env) (left: source_tree) (right: tar
       | (Leaf slf, Leaf rlf) -> guards = [] && sym_values_eq slf rlf
       | (Failure, Leaf _) | (Leaf _, Failure) -> false
   in
-  compare_ AcMap.empty [] left right
+  compare_ type_env AcMap.empty [] left right

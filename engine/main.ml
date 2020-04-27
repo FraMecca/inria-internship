@@ -1,6 +1,7 @@
 type source_result = {
-  type_decls: Ast.type_decl list;
-  source_tree: Source_sym_engine.constraint_tree;
+    type_decls: Ast.type_decl list;
+    type_env: (Ast.type_decl * Ast.constructor_decl) Source_env.ConstructorMap.t;
+    source_tree: Source_sym_engine.constraint_tree;
 }
 
 let source_exec file =
@@ -14,9 +15,11 @@ let source_exec file =
     try Ocaml_parser.ast_of_ocaml ~file ocaml_ast with
     | exn -> Ocaml_parser.handle_error exn in
   let type_decls = ast.type_decls in
-  let source_tree = Source_sym_engine.eval ast in
+  let type_env = Source_env.build_type_env ast.type_decls in
+  let source_tree = Source_sym_engine.eval type_env ast in
   {
     type_decls;
+    type_env;
     source_tree;
   }
 
@@ -54,7 +57,7 @@ let compare source_file target_file =
   let repr_env =
     Source_env.ConstructorMap.add "()" (Source_env.Int 0) repr_env in
   let comparison =
-    Equivalence_source_target.compare repr_env
+    Equivalence_source_target.compare source.type_env repr_env
       source.source_tree
       target.target_tree
   in
