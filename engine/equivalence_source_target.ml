@@ -98,7 +98,7 @@ let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (r
   let dead_end input_space =
     AcMap.exists (fun _ value -> Domain.is_empty value) input_space
   in
-  let rec compare_ type_env (input_space: domain AcMap.t) (guards: source_sym_values list) (left: source_tree) (right: target_tree) : bool =
+  let rec compare_ type_env (input_space: domain AcMap.t) (guards: (source_sym_values * bool) list) (left: source_tree) (right: target_tree) : bool =
     let sym_values_eq = Sym_values.compare_sym_values
                           (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
                           (fun acc -> AcMap.find acc input_space)
@@ -118,12 +118,15 @@ let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (r
          Option.to_list fallback @ children
          |> List.for_all (fun (_, child) -> compare_ type_env input_space guards terminal child)
       | (Guard (svl, ctrue, cfalse), _) ->
-         let guards' = guards@[svl] in
-         compare_ type_env input_space guards' ctrue right && compare_ type_env input_space guards' cfalse right
+         compare_ type_env input_space (guards@[(svl, true)]) ctrue right &&
+         compare_ type_env input_space (guards@[(svl, false)]) cfalse right
       | (_, Guard (tvl, ctrue, cfalse)) ->
-         begin match guards with
-         | hd::grest when sym_values_eq hd tvl ->
-            compare_ type_env input_space grest left ctrue && compare_ type_env input_space grest left cfalse
+          begin match guards with
+         | hd::grest when sym_values_eq (fst hd) tvl ->
+            if snd hd then
+              compare_ type_env input_space grest left ctrue
+            else
+              compare_ type_env input_space grest left cfalse
          | _ -> false
          end
       | (Unreachable, _) -> true
