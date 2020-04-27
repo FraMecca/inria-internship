@@ -66,7 +66,7 @@ let constrained_subtrees type_env repr_env children fallback =
 
 let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec trim src_acc src_pi =
-    let specialize_same_acc  node_acc (dom, s_tree) =
+    let specialize_same_acc node_acc (dom, s_tree) =
       let dom' =
         if src_acc <> node_acc then dom
         else Domain.inter src_pi dom in
