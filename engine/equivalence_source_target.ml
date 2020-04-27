@@ -122,11 +122,9 @@ let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (r
          compare_ type_env input_space (guards@[(svl, false)]) cfalse right
       | (_, Guard (tvl, ctrue, cfalse)) ->
           begin match guards with
-         | hd::grest when sym_values_eq (fst hd) tvl ->
-            if snd hd then
-              compare_ type_env input_space grest left ctrue
-            else
-              compare_ type_env input_space grest left cfalse
+          | (svl, guard_result)::grest when sym_values_eq svl tvl ->
+             compare_ type_env input_space grest left (if guard_result then ctrue
+                                                       else cfalse)
          | _ -> false
          end
       | (Unreachable, _) -> true
