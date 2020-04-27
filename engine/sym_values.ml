@@ -31,7 +31,7 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
       | Bool false -> assert (rest' = []); Int 0
       | Bool true -> assert (rest' = []); Int 1
       | String _ -> failwith "not implemented"
-      | Nil -> assert (rest' = []); Block (0, rest')
+      | Nil -> assert (rest' = []); Int 0
       | Cons | Tuple _ -> Block (0, rest')
       | Variant v ->
         let open Source_env in
