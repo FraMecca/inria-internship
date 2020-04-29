@@ -62,6 +62,7 @@ let print_result stree =
     | Int i -> bprintf buf "Int %d" i
     | Bool b -> bprintf buf "Bool %b" b
     | String s -> bprintf buf "String \"%s\"" s
+    | Unit -> bprintf buf "Unit"
     | Tuple narity -> bprintf buf "Tuple[%d]" narity
     | Nil ->  bprintf buf "Nil"
     | Cons -> bprintf buf "Cons"
@@ -139,7 +140,7 @@ let empty_group acs arity =
 let width type_env = function
   | Nil | Cons -> 2
   | Bool _ -> 2
-  | Tuple _ -> 1
+  | Unit | Tuple _ -> 1
   | Int _ | String _ -> max_int (* Just a way to indicate "many" *)
   | Variant v -> let type_decl = Source_env.ConstructorMap.find v type_env |> fst in
                  List.length type_decl.constructors

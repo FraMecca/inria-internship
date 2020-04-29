@@ -28,6 +28,7 @@ let variant_name_to_domain repr_env v_name =
   | Tag t -> Domain.tag (Domain.Set.point t)
 
 let constructor_to_domain repr_env : constructor -> domain = function
+  | Unit -> Domain.int (Domain.Set.point 0)
   | Int i -> Domain.int (Domain.Set.point i)
   | Bool false -> Domain.int (Domain.Set.point 0)
   | Bool true -> Domain.int (Domain.Set.point 1)
@@ -39,6 +40,7 @@ let constructor_to_domain repr_env : constructor -> domain = function
 let constrained_subtrees type_env repr_env children fallback =
   let head_domain kst_list =
     let _head_domain : constructor -> Domain.t = function
+      | Unit -> Domain.int (Domain.Set.point 0)
       | String _ -> Domain.tag (Domain.Set.point Obj.string_tag)
       | Bool _ -> Domain.union (Domain.int (Domain.Set.point 0)) (Domain.int (Domain.Set.point 1))
       | Int _ -> Domain.int (Domain.Set.full)

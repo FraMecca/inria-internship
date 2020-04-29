@@ -33,6 +33,7 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
       | String _ -> failwith "not implemented"
       | Nil -> assert (rest' = []); Int 0
       | Cons | Tuple _ -> Block (0, rest')
+      | Unit -> Int 0
       | Variant v ->
         let open Source_env in
         match (fun v : Source_env.constructor_repr -> find_constructor_of v) v with
