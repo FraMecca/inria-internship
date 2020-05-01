@@ -12,10 +12,9 @@ let build_type_env type_decls =
   List.fold_left add_type_decl ConstructorMap.empty type_decls
 
 let constructor_arity type_env : constructor -> int = function
-  | Int _ | Bool _ | String _ -> 0
-  | Tuple n -> n
-  | Nil -> 0
+  | Nil | Unit | Int _ | Bool _ | String _ -> 0
   | Cons -> 2
+  | Tuple n -> n
   | Variant name ->
      let constructor_decl = ConstructorMap.find name type_env |> snd in
      List.length constructor_decl.args

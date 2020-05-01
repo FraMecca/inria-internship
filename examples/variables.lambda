@@ -1,0 +1,6 @@
+(setglobal Variables!
+  (let
+    (f/82 =
+       (function x/83
+         (if (guard x/83) (observe x/83) (let (x/84 =a x/83) (observe 0)))))
+    (makeblock 0 f/82)))

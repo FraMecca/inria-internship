@@ -1,0 +1,7 @@
+(setglobal Booleans1!
+  (let
+    (f/81 =
+       (function param/82
+         (catch (if (!= param/82 0) (observe 1a) (exit 1)) with (1)
+           (observe 0a))))
+    (makeblock 0 f/81)))

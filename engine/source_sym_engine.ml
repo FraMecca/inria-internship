@@ -62,6 +62,7 @@ let print_result stree =
     | Int i -> bprintf buf "Int %d" i
     | Bool b -> bprintf buf "Bool %b" b
     | String s -> bprintf buf "String \"%s\"" s
+    | Unit -> bprintf buf "Unit"
     | Tuple narity -> bprintf buf "Tuple[%d]" narity
     | Nil ->  bprintf buf "Nil"
     | Cons -> bprintf buf "Cons"
@@ -136,6 +137,14 @@ let empty_group acs arity =
        rev_rows = ref [];
      }
 
+let width type_env = function
+  | Nil | Cons -> 2
+  | Bool _ -> 2
+  | Unit | Tuple _ -> 1
+  | Int _ | String _ -> max_int (* Just a way to indicate "many" *)
+  | Variant v -> let type_decl = Source_env.ConstructorMap.find v type_env |> fst in
+                 List.length type_decl.constructors
+
 let group_add_children { arity; rev_rows; _ } children row =
   assert (List.length children = arity);
   rev_rows := { row with lhs = children @ row.lhs } :: !rev_rows
@@ -144,7 +153,7 @@ let group_add_omegas { arity; rev_rows; _ } row =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
   rev_rows := { row with lhs = List.rev_append wildcards row.lhs } :: !rev_rows
 
-let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix =
+let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix option =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
   let wildcard_group = empty_group acs 0 in
   let rec collect_constructors : pattern list -> unit = function
@@ -188,18 +197,26 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     |> Seq.map (fun (k, group) -> (k, matrix_of_group group))
     |> List.of_seq
   in
-  let wildcard_matrix = matrix_of_group wildcard_group in
-  (constructor_matrices, wildcard_matrix)
+  let width_of_column = List.length all_constructor_groups
+  in
+  let exhausted_all_cases = match BatHashtbl.to_list group_tbl with
+    | [] -> false
+    | (kst, _) :: _ -> width type_env kst = width_of_column
+  in
+  if not exhausted_all_cases then
+    let wildcard_matrix = matrix_of_group wildcard_group in
+    (constructor_matrices, Some wildcard_matrix)
+  else
+    (constructor_matrices, None)
 
-let sym_exec source =
+let sym_exec type_env source =
   let rec source_value_to_sym_value : source_value -> sym_value = function
     | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
     | VVar _ -> assert false
   in
-  let type_env = Source_env.build_type_env source.type_decls in
   let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
-    | (_, []) -> assert false
+    | (_, []) -> Failure
     | ([] as _no_acs, ({ lhs = []; guard = None;_ } as row)::_) ->
        begin match (row.rhs : source_rhs) with
          | Unreachable -> Unreachable
@@ -219,14 +236,14 @@ let sym_exec source =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in
       let fallback_evaluated = match fallback with
-        | (_, []) -> Failure
-        | nonempty_matrix -> decompose nonempty_matrix
-      in
-      Node (ac_head, groups_evaluated, fallback_evaluated)
+      | None -> Unreachable
+      | Some nonempty_matrix -> decompose nonempty_matrix
+  in
+  Node (ac_head, groups_evaluated, fallback_evaluated)
     in
     let row_of_clause clause = { clause with lhs = [clause.lhs] } in
     decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 (* alias of sym_exec, for consistency with Target_sym_engine *)
-let eval source_ast =
-  sym_exec source_ast
+let eval type_env source_ast =
+  sym_exec type_env source_ast

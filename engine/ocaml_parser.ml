@@ -159,6 +159,7 @@ and constructor_of_ocaml cstr =
   | "true" -> Bool true
   | "false" -> Bool false
   | "[]" -> Nil
+  | "()" -> Unit
   | "::" -> Cons
   | variant -> Variant variant
 

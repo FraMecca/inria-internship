@@ -32,6 +32,7 @@ and
   | Tuple of int
   | Nil
   | Cons
+  | Unit
 and
   variant_name = string
 and
