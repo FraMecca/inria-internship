@@ -1,0 +1,25 @@
+* TODO Prototype code [2/4]
+     - [X] small cleanup of the code of the implementation
+     - [X] bring the changes from the test branch and the fixes for
+       the bug in a new PR
+     - [ ] rename Node to Switch in the code so that it coherent with the
+       workshop submission
+     - [ ] finish the code for handling variables
+            in the symbolic execution function, keep the "current environment"
+            (already done in the target symexec, todo in the source symexec)
+* TODO Workshop [0/2]:
+     - [ ] write the part about equivalence checking in the workshop
+       submission
+     - [ ] explain why the judgment on equivalence is not symmetric
+* TODO Proof [1/6]:
+   - [ ] define covering of C_S
+   - [X] define running a value against source/target/trees
+   - [ ] be clearer about handling of guards
+   - [ ] be clearer about handling of or-patterns
+         this could be left at the end
+   - [ ] finish the case analysis on p₀ⱼ (matrix decomposition)
+   - [ ] revisit point case analysis of equivalence checking, point 4, YES
+     subcase:
+         in the forall we either forgot the fallback case
+         (that should be easy to generalize and move with the rest)
+         or I forgot something about k_i because it seems out of place
