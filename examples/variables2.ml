@@ -3,5 +3,5 @@ external observe : 'a -> 'b = "observe"
 external guard : 'a -> 'b = "guard"
 
 let f = function
-  | x when guard x -> observe 1
-  | x -> observe 0
+  | _, x when guard x -> observe x
+  | _, x -> observe 0

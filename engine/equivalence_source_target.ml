@@ -116,8 +116,12 @@ let compare (type_env) (repr_env: Source_env.type_repr_env) (left: source_tree) 
   in
   let rec compare_ cnt type_env (input_space: domain AcMap.t) (guards: (source_sym_values * bool) list) (left: source_tree) (right: target_tree) : bool =
     let sym_values_eq = Sym_values.compare_sym_values
-                          (fun variant_name -> Source_env.ConstructorMap.find variant_name repr_env)
-                          (fun acc -> AcMap.find acc input_space)
+                          (fun variant_name ->
+                            BatIO.write_line BatIO.stdout ("\tSym_values:DOMAINOF:"^variant_name);
+                            Source_env.ConstructorMap.find variant_name repr_env)
+                          (fun acc ->
+                            BatIO.write_line BatIO.stdout ("\tSym_values:DOMAINOF:"^(Merge_accessors.accessor_to_string acc));
+                            AcMap.find acc input_space)
     in
     print ("================"^(string_of_int cnt)^"=====================");
     print "Input space";

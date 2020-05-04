@@ -6,6 +6,8 @@ type sym_value =
   | SAccessor of accessor
   | SCons of constructor * sym_value list
 
+type environment = sym_value SMap.t
+
 type constraint_tree =
   | Unreachable
   | Failure
@@ -42,6 +44,15 @@ type constraint_tree =
   We trust this annotation, which is reasonable as the OCaml type-checker
   verifies that it indeed holds.
  *)
+
+let string_of_kst : constructor -> string = function
+  | Variant v -> "Variant "^v
+  | Int i -> "Int "^string_of_int i
+  | Bool b -> "Bool "^string_of_bool b
+  | String s -> "String "^s
+  | Tuple n -> "Tuple["^string_of_int n^"]"
+  | Nil -> "Nil"
+  | Cons -> "Cons"
 
 let print_type_env (tl, cl) =
   let cts_str csts = List.map (fun c -> c.constructor_name) csts |> String.concat ", " in
@@ -162,7 +173,7 @@ let width type_env = function
                  List.length type_decl.constructors
 
 
-let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix option =
+let group_constructors type_env (env:environment) (acs, rows) : environment * (constructor * matrix) list * matrix option =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
   let wildcard_group = empty_group acs 0 in
   let rec collect_constructors : pattern list -> unit = function
@@ -171,8 +182,8 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
       match pattern with
       | Wildcard -> ()
       | Or (p1, p2) -> collect_constructors (p1::p2::ptl)
-      | As (p, _) -> collect_constructors (p::ptl)
-      | Constructor (k, _plist) ->
+      | As (p, x) -> BatIO.write_line BatIO.stdout ("GGOT:"^x);collect_constructors (p::ptl)
+      | Constructor (k, _plist) -> BatIO.write_line BatIO.stdout ("Constructor: "^string_of_kst k);
         if not (Hashtbl.mem group_tbl k) then begin
           let arity = Source_env.constructor_arity type_env k in
           Hashtbl.add group_tbl k (empty_group acs arity)
@@ -218,48 +229,54 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     | [] -> false
     | (kst, _) :: _ -> width type_env kst = width_of_column
   in
+  let rec update_env (env:environment) : pattern list list -> environment= function
+    | []::_ -> assert false
+    | [] -> env
+    | (pattern::_)::ptl -> match pattern with
+                           | As (_, var) -> BatIO.write_line BatIO.stdout ("ENV: "^var);
+                              update_env (SMap.add var (SAccessor (BatList.last acs)) env) ptl
+                           | _ -> update_env env ptl
+  in
+  let new_env = rows |> List.map (fun row -> row.lhs) |> update_env env
+  in
   if not exhausted_all_cases then
     let wildcard_matrix = matrix_of_group wildcard_group in
-    (constructor_matrices, Some wildcard_matrix)
+    (new_env, constructor_matrices, Some wildcard_matrix)
   else
-    (constructor_matrices, None)
+    (new_env, constructor_matrices, None)
 
 let sym_exec type_env source =
-  let rec source_value_to_sym_value : source_value -> sym_value = function
-    | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
-    | VVar v -> BatIO.write_line BatIO.stdout ("$$$$$$$$$$$$ "^v); assert false
+  let rec source_value_to_sym_value (env: sym_value SMap.t) : source_value -> sym_value = function
+    | VConstructor (k, svl) -> SCons (k, List.map (source_value_to_sym_value env) svl)
+    | VVar v -> SMap.find v env
   in
-  let rec decompose (matrix : matrix) : constraint_tree =
+  let rec decompose (env: environment) (matrix : matrix) : constraint_tree =
     match matrix with
     | (_, []) -> Failure
     | ([] as _no_acs, ({ lhs = []; guard = None;_ } as row)::_) ->
        begin match (row.rhs : source_rhs) with
-         | Unreachable -> Unreachable
-         | Observe expr -> Leaf (List.map source_value_to_sym_value expr)
+       | Unreachable -> Unreachable
+       | Observe expr -> Leaf (List.map (source_value_to_sym_value env) expr)
        end
-    | ([] as _no_acs,
-       ({ lhs = []; guard = Some (Guard guard); _ } as row) :: rest)
-      ->
-       Guard (List.map source_value_to_sym_value guard,
-              decompose ([], { row with guard = None } :: rest),
-              decompose ([], rest))
+    | ([] as _no_acs, ({ lhs = []; guard = Some (Guard guard); _ } as row) :: rest) ->
+       Guard (List.map (source_value_to_sym_value env) guard,
+              decompose env ([], { row with guard = None } :: rest),
+              decompose env ([], rest))
     | (_::_ as _accs, { lhs = []; _ }::_) -> assert false
     | ([] as _no_accs, { lhs = _::_; _  }::_) -> assert false
     | (ac_head::_ as _acs, { lhs = (_::_); _ }::_) ->
-      let groups, fallback = group_constructors type_env matrix in
-      let groups_evaluated =
-        groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
-      in
-      let fallback_evaluated = match fallback with
-        | None -> Unreachable
-        | Some fallback -> match fallback with
-                           | (_, []) -> Failure
-                           | nonempty_matrix -> decompose nonempty_matrix
-      in
-        Node (ac_head, groups_evaluated, fallback_evaluated)
-    in
-    let row_of_clause clause = { clause with lhs = [clause.lhs] } in
-    decompose ([AcRoot], List.map row_of_clause source.clauses)
+       let env', groups, fallback = group_constructors type_env env matrix in
+       let groups_evaluated =
+         groups |> List.map (fun (k, submatrix) -> (k, decompose env' submatrix))
+       in
+       let fallback_evaluated = match fallback with
+         | None -> Unreachable
+         | Some nonempty_matrix -> decompose env' nonempty_matrix
+       in
+       Node (ac_head, groups_evaluated, fallback_evaluated)
+  in
+  let row_of_clause clause = { clause with lhs = [clause.lhs] } in
+  decompose SMap.empty ([AcRoot], List.map row_of_clause source.clauses)
 
 (* alias of sym_exec, for consistency with Target_sym_engine *)
 let eval type_env source_ast =
