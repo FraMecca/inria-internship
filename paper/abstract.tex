@@ -209,7 +209,9 @@ into an equivalence procedure for (pattern-matching) programs.
 The parametrized grammar $C(\pi, e)$ describes the common structure of
 source and decision trees. We use $\pi$ for the \emph{conditions} on
 each branch, and $e$ for the expressions in source and target
-programs.
+programs. Source conditions $\pi_S$ are just datatype constructors;
+target conditions $\pi_T$ are arbitrary sets of possible
+immediate-integer or block-tag values.
 
 %TODO [Gabriel] rename C (Constraint trees) into D (Decision trees).
 \begin{mathpar}
@@ -237,6 +239,10 @@ programs.
   \\[1em]
   \text{\emph{matching result}}\quad r ~\bnfeq~ \NoMatch \bnfor \Match \sigma e
   \end{array}
+
+  \erel {e_S} {e_T} \quad (\text{\emph{assumed}})
+
+  t_S(v_S), t_T(v_T), \vrel {v_S} {v_T} \quad (\text{\emph{omitted}})
 \end{mathpar}
 
 The tree $\Leaf \sigma e$ returns an expression $e$ in a captured
@@ -263,7 +269,7 @@ $\Int 0$. We can then define what it means to ``run'' a value against
 a program or a decision, written $t(v)$ and $C(v)$, which gives
 a \emph{matching result} $r$.
 
-\section{From source programs to decision trees}
+\section{From source programs to decision trees: matrix decomposition}
 
 We write $\sem{t_S}_S$ for the decision tree of the source program
 $t_S$, computed by a matrix decomposition algorithm (each column
@@ -280,14 +286,18 @@ same result as running it against the decision tree.
 % is less immediate than the one for whole programs and may be
 % appreciated by the reviewers.
 
-\section{From target programs to decision trees}
+% TODO [Gabriel]: given the amount of information in the (new)
+% previous section, it doesn't really make sense to keep this section
+% if we do not say a bit more about pattern matrices.
+
+\section{From target programs to decision trees: symbolic execution}
 The target programs include the following Lambda constructs:
 \texttt{let, if, switch, Match\_failure, catch, exit, field} and
-various comparison operations, guards. The symbolic execution engine
-traverses the target program and builds an environment that maps
+various comparison operations, guards. A simple symbolic execution
+engine traverses the target program, keeping an environment that maps
 variables to accessors. It branches at every control flow statement
-and emits a \texttt{Switch} node. The branch condition $\pi_i$ is expressed as
-an interval set of possible values at that point.
+and emits a \texttt{Switch} node. The branch condition $\pi_i$ is
+expressed as an interval set of possible values at that point.
 %
 Guards result in branching on the boolean result.
 %
