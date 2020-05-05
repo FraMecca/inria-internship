@@ -77,9 +77,6 @@ into simple control flow structures such as \texttt{if, switch}, for example:
 The code on the right is in the Lambda intermediate representation of
 the OCaml compiler. The Lambda representation of a program is shown by
 calling the \texttt{ocamlc} compiler with \texttt{-drawlambda} flag.
-(Some bindings in the generated code are unused or used exactly once;
-they get substituted away in a simplification pass, whose result can
-be shown by the \texttt{-dlambda} flag.)
 
 The pattern matching compiler is a critical part of the compiler
 in terms of correctness because bugs typically result in wrong code
@@ -87,7 +84,7 @@ production rather than compilation failures.
 Such bugs also are hard to catch by testing because they arise in
 corner cases of complex patterns which are typically not in the
 compiler test suite or most user programs.
-In the last five years there were (only) two bugs in the OCaml pattern
+In the last five years there were (only) two known bugs in the OCaml pattern
 matching compiler; they resulted in silent wrong-code production,
 and were found long after they were introduced.
 
@@ -163,7 +160,8 @@ Lambda code. For example, cons cells \texttt{x::xs} or tuples
 In this simple example, the two decision trees perform exactly the
 same checks in the same order, so the equivalence is obvious. However,
 this may not be the case in general, as the compiler may reorder
-checks or introduce redundant checks (to reduce code size).
+checks, simplify away redundant checks or sometimes add them to reduce
+code size.
 %
 To check the equivalence of a source and a target decision tree,
 we proceed by case analysis.
@@ -178,7 +176,7 @@ subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
 the branches that are incompatible with $\pi_i$ and check that the
 reduced tree is equivalent to $C_i$.
 
-\paragraph{Contributions} We have choosen a simple subset of the OCaml
+\paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
 a formal statement of correctness and proof sketches.
 
