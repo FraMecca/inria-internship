@@ -163,18 +163,21 @@ this may not be the case in general, as the compiler may reorder
 checks, simplify away redundant checks or sometimes add them to reduce
 code size.
 %
-To check the equivalence of a source and a target decision tree,
-we proceed by case analysis.
-%
-If we have two leaves, we check that the target right-hand-side is the
-compilation of the source right-hand-side, and that the captured
-environments are identical over their free variables.
-%
-If we have a node $N$ and another tree $T$ we check equivalence for
-each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
-subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
-the branches that are incompatible with $\pi_i$ and check that the
-reduced tree is equivalent to $C_i$.
+In the rest of this document we give an overview of our equivalence
+algorithm.
+
+% To check the equivalence of a source and a target decision tree,
+% we proceed by case analysis.
+% %
+% If we have two leaves, we check that the target right-hand-side is the
+% compilation of the source right-hand-side, and that the captured
+% environments are identical over their free variables.
+% %
+% If we have a node $N$ and another tree $T$ we check equivalence for
+% each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
+% subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
+% the branches that are incompatible with $\pi_i$ and check that the
+% reduced tree is equivalent to $C_i$.
 
 \paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
