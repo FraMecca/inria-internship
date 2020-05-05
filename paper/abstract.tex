@@ -66,11 +66,10 @@ into simple control flow structures such as \texttt{if, switch}, for example:
 (if li
     (let (tl =a (field 1 li))
         (if tl
-            (let (tltl =a (field 1 tl)
-                  x =a (field 0 tl))
-                (makeblock 0 2 (makeblock 0 x)))
-            (let (y =a (field 0 scrutinee))
-                (makeblock 0 1 (makeblock 0 y)))))
+            (let (y =a (field 0 tl))
+                (makeblock 0 2 (makeblock 0 y)))
+            (let (x =a (field 0 li))
+                (makeblock 0 1 (makeblock 0 x)))))
     (makeblock 0 0 0a))
 \end{lstlisting}
 \end{minipage}
