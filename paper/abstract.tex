@@ -4,6 +4,7 @@
 
 \usepackage[utf8]{inputenc}
 
+\usepackage{amsfonts}
 \usepackage{amsmath}
 
 \usepackage{comment}
@@ -104,7 +105,7 @@ on our equivalence algorithm between source and target programs.
 
 %% replace common TODO
 Our algorithm translates both source and target programs into a common
-representation, decision trees. Here are the decision tree for the
+representation, \emph{decision trees}. Here are the decision tree for the
 source and target example programs.
 
 ~
@@ -183,29 +184,86 @@ algorithm.
 language and implemented a prototype equivalence checker along with
 a formal statement of correctness and proof sketches.
 
-\section{From source programs to decision trees}
-Our source language supports integers, lists, tuples and all algebraic
+Our source language supports integers, lists, tuples and algebraic
 datatypes. Patterns support wildcards, constructors and literals,
 or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
-evaluation of expressions during matching.  Decision trees have nodes
-of the form:
-\begin{lstlisting}
- type decision_tree =
-  | Unreachable
-  | Failure
-  | Leaf of source_expr
-  | Guard of source_expr * decision_tree * decision_tree
-  | Switch of accessor * (constructor * decision_tree) list * decision_tree
-\end{lstlisting}
-In the \texttt{Switch} node we have one subtree for every head constructor
-that appears in the pattern matching clauses and a fallback case for
-other values. The branch condition $\pi_i$ expresses that the value at the
-switch accessor starts with the given constructor.
-\texttt{Failure} nodes express match failures for values that are not
-matched by the source clauses.
-\texttt{Unreachable} is used when we statically know that no value
-can flow to that subtree.
+evaluation of expressions during matching.
+
+\section{Decision trees, formally}
+
+We will use, but not define by lack of space, the notion of source and
+target \emph{programs} $t_S$ and $t_T$, and \emph{expressions} $e_S$
+and $e_T$. A source program $t_S$ is a list of pattern-matching clauses
+(with an optional \texttt{when}-guard) of the form
+\lstinline{| $p$ (when $e_S$)? -> $e_S$}, and a target program $t_T$ is a series
+of control-flow conditionals and variable bindings in Lambda code,
+with arbitrary Lambda-code expressions $e_T$ at the leaves.
+%
+We assume given an equivalence relation $\erel {e_S} {e_T}$ on leaf
+expressions. In our translation-validation setting, it suffices to
+relate each source expression to its compiled form -- the compiler
+gives/computes this relation. We have to lift this relation on leaves
+into an equivalence procedure for (pattern-matching) programs.
+
+The parametrized grammar $C(\pi, e)$ describes the common structure of
+source and decision trees. We use $\pi$ for the \emph{conditions} on
+each branch, and $e$ for the expressions in source and target
+programs.
+
+%TODO [Gabriel] rename C (Constraint trees) into D (Decision trees).
+\begin{mathpar}
+  \begin{array}{l@{~}r@{~}r@{~}l}
+    \text{\emph{decision trees}} & C(\pi, e)
+    & \bnfeq & \Leaf \sigma e \\
+    & & \bnfor & \Failure \\
+    & & \bnfor & \Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb \\
+    & & \bnfor & \Guard e {C_0} {C_1} \\
+    \text{\emph{accessors}} & a
+    & \bnfeq & \Root \;\bnfor\; a.n \quad (n \in \mathbb{N}) \\
+    \text{\emph{environment}} & \sigma
+    & \bnfeq & [x_1 \mapsto a_1, \dots, x_n \mapsto a_n]
+  \end{array}
+
+  \begin{array}{l}
+  C_S \bnfeq C(\pi_S, e_S)
+  \\
+  \pi_S : \text{datatype constructors}
+  \\[1em]
+  C_T \bnfeq C(\pi_T, e_T)
+  \\
+  \pi_T \subseteq        \{ \Int n \mid n \in \mathbb{Z} \}
+                  \uplus \{ \Tag n \mid n \in \mathbb{N} \}
+  \\[1em]
+  \text{\emph{matching result}}\quad r ~\bnfeq~ \NoMatch \bnfor \Match \sigma e
+  \end{array}
+\end{mathpar}
+
+The tree $\Leaf \sigma e$ returns an expression $e$ in a captured
+environment $\sigma$. (Environments map the free variables of the
+expression to accessors of the scrutinee.)
+%
+$\Failure$ expresses match failure, when no clause matches the input
+value.
+%
+$\Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb$ has one subtree $C_i$
+for every head constructor that appears in the pattern matching
+clauses, and a fallback case for the constructors.
+%
+$\Guard e {C_0} {C_1}$ represents a \texttt{when}-guard on an
+expression $e$, expected to be of boolean type, with sub-trees $C_0$
+for the \texttt{true} case and $C_1$ for the \texttt{false} case.
+
+(Not detailed for reasons of space:) We also have grammars $v_S$ and
+$v_T$ for source and target values, and define a relation
+$\vrel {v_S} {v_T}$ to relate a source to a target value; this
+relation captures our knowledge of the OCaml value representation, for
+example it relates the empty list constructor \texttt{[]} to
+$\Int 0$. We can then define what it means to ``run'' a value against
+a program or a decision, written $t(v)$ and $C(v)$, which gives
+a \emph{matching result} $r$.
+
+\section{From source programs to decision trees}
 
 We write $\sem{t_S}_S$ for the decision tree of the source program
 $t_S$, computed by a matrix decomposition algorithm (each column
@@ -342,14 +400,6 @@ a exactly decision procedure for the provability of the judgment
 $(\Equivrel S {C_S} {C_T} G)$, defined below.
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}l}
-    & & \text{\emph{constraint trees}} \\
-    C & \bnfeq & \Leaf t \\
-    & \bnfor & \Failure \\
-    & \bnfor & \Switch a {\Fam i {\pi_i, C_i}} \Cfb \\
-    & \bnfor & \Guard t {C_0} {C_1} \\
-  \end{array}
-
-  \begin{array}{l@{~}r@{~}l}
     & & \text{\emph{boolean result}} \\
     b & \in & \{ 0, 1 \} \\[0.5em]
     & & \text{\emph{guard queues}} \\
@@ -368,7 +418,7 @@ $(\Equivrel S {C_S} {C_T} G)$, defined below.
   {\Equivrel S \Failure \Failure \emptyqueue}
 
   \infer
-  {\trel {t_S} {t_T}}
+  {\erel {t_S} {t_T}}
   {\Equivrel S {\Leaf {t_S}} {\Leaf {t_T}} \emptyqueue}
 
   \infer
@@ -397,18 +447,18 @@ $(\Equivrel S {C_S} {C_T} G)$, defined below.
     {C_S} {\Switch a {\Fam i {D_i} {C_i}} \Cfb} G}
 
   \infer
-  {\Equivrel S {C_0} {C_T} {G, (t_S = 0)}
+  {\Equivrel S {C_0} {C_T} {G, (e_S = 0)}
    \\
-   \Equivrel S {C_1} {C_T} {G, (t_S = 1)}}
+   \Equivrel S {C_1} {C_T} {G, (e_S = 1)}}
   {\Equivrel S
-    {\Guard {t_S} {C_0} {C_1}} {C_T} G}
+    {\Guard {e_S} {C_0} {C_1}} {C_T} G}
 
   \infer
-  {\trel {t_S} {t_T}
+  {\erel {e_S} {e_T}
    \\
    \Equivrel S {C_S} {C_b} G}
   {\Equivrel S
-    {C_S} {\Guard {t_T} {C_0} {C_1}} {(t_S = b), G}}
+    {C_S} {\Guard {e_T} {C_0} {C_1}} {(e_S = b), G}}
 \end{mathpar}
 
 \end{document}
