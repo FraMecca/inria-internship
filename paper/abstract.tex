@@ -311,7 +311,7 @@ $t_S$, computed by a matrix decomposition algorithm (each column
 decomposition step gives a \texttt{Switch} node).
 It satisfies the following correctness statement:
 \[
-\forall t_S, \forall v_S, \quad t_S(v_S) = \sem{t_S}_S(v_S)
+\forall t_S, \forall v_S, \quad \runrel {t_S(v_S)} {\sem{t_S}_S(v_S)}
 \]
 Running any source value $v_S$ against the source program gives the
 same result as running it against the decision tree.
@@ -342,7 +342,7 @@ nodes are never emitted.
 We write $\sem{t_T}_T$ for the decision tree of the target program
 $t_T$, satisfying the following correctness statement:
 \[
-\forall t_T, \forall v_T, \quad t_T(v_T) = \sem{t_T}_T(v_T)
+\forall t_T, \forall v_T, \quad \runrel {t_T(v_T)} {\sem{t_T}_T(v_T)}
 \]
 
 \section{Equivalence checking}
@@ -357,11 +357,11 @@ The algorithm respects the following correctness statement:
 \begin{align*}
  \Equiv S {C_S} {C_T} \emptyqueue = \Yes \;\land\; \covers {C_T} S
  & \implies
- \forall v_S \approx v_T \in S,\; C_S(v_S) = C_T(v_T)
+ \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {C_S(v_S)} {C_T(v_T)}
 \\
  \Equiv S {C_S} {C_T} \emptyqueue = \No {v_S} {v_T} \;\land\; \covers {C_T} S
  & \implies
- v_S \approx v_T \in S \;\land\; C_S(v_S) \neq C_T(v_T)
+ \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {C_S(v_S)} {C_T(v_T)}}
 \end{align*}
 
 % TODO: [Gabriel] I think that the explanation below could be more
