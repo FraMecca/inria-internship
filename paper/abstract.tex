@@ -1,6 +1,6 @@
 \documentclass[12pt]{article}
 \usepackage{a4}
-\usepackage[margin=.5cm,bottom=1.5cm]{geometry}
+\usepackage[margin=2cm]{geometry}
 
 \usepackage[utf8]{inputenc}
 
@@ -53,7 +53,8 @@ by applying symbolic execution.
 A pattern matching compiler turns a series of pattern matching clauses
 into simple control flow structures such as \texttt{if, switch}, for example:
 
-\begin{minipage}{0.3\linewidth}
+\hspace{-3em}
+\begin{minipage}{0.4\linewidth}
 \begin{lstlisting}
   match li with
   | [] -> (0, None)
@@ -62,7 +63,7 @@ into simple control flow structures such as \texttt{if, switch}, for example:
 \end{lstlisting}
 \end{minipage}
 \hfill
-\begin{minipage}{0.7\linewidth}
+\begin{minipage}{0.6\linewidth}
 \begin{lstlisting}
 (if li
     (let (tl =a (field 1 li))
@@ -110,7 +111,8 @@ source and target example programs.
 
 ~
 
-\begin{minipage}{0.4\linewidth}
+\hspace{-2em}
+\begin{minipage}{0.5\linewidth}
 \begin{verbatim}
        Switch(Root)
        /        \
@@ -212,27 +214,26 @@ gives/computes this relation. We have to lift this relation on leaves
 into an equivalence procedure for (pattern-matching) programs.
 
 \begin{mathpar}
-  \erel {e_S} {e_T} \quad (\text{\emph{assumed}})
+  \erel {e_S} {e_T} \; (\text{\emph{assumed}})
 
-  t_S(v_S),\ t_T(v_T),\ \vrel {v_S} {v_T} \quad (\text{\emph{omitted}})
+  t_S(v_S),\ t_T(v_T),\ \vrel {v_S} {v_T} \; (\text{\emph{omitted}})
 
-  \resrel {r_S} {r_T}, \runrel {R_S} {R_T} \quad (\text{\emph{simple}})
+  \resrel {r_S} {r_T}, \runrel {R_S} {R_T} \; (\text{\emph{simple}})
 \\
-
   \begin{array}{l@{~}r@{~}r@{~}l}
     \text{\emph{environment}} & \sigma(v)
     & \bnfeq & [x_1 \mapsto v_1, \dots, v_n \mapsto v_n] \\
     \text{\emph{closed term}} & \cle(v)
     & \bnfeq & (\sigma(v), e) \\
   \end{array}
-
+\quad
   \begin{array}{l@{~}r@{~}r@{~}l}
     \text{\emph{matching result}} & r(v)
     & \bnfeq & \NoMatch \bnfor \Match {\cle(v)} \\
     \text{\emph{matching run}} & R(v)
     & \bnfeq & (\cle(v)_1, \dots, \cle(v)_n), r(v) \\
   \end{array}
-
+\\
   \infer
   {\forall x,\ \vrel {\sigma_S(x)} {\sigma_T(x)}}
   {\envrel {\sigma_S} {\sigma_T}}
