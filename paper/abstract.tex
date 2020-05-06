@@ -165,7 +165,7 @@ checks, simplify away redundant checks or sometimes add them to reduce
 code size.
 %
 We now give a simplified sketch of our equivalence
-algorithm. A complete overview is given in the rest of the document.
+algorithm. A complete overview is given in appendices.
 
 To check the equivalence of a source and a target decision tree,
 we proceed recusrively by case analysis.
@@ -189,6 +189,9 @@ datatypes. Patterns support wildcards, constructors and literals,
 or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
 evaluation of expressions during matching.
+
+\newpage
+\appendix
 
 \section{A formal setting}
 
@@ -350,10 +353,8 @@ The equivalence checking algorithm takes as input a domain of
 possible values \emph{S} and a pair of source and target decision trees and
 in case the two trees are not equivalent it returns a counter example.
 The algorithm respects the following correctness statement:
-
 % TODO: we have to define what \covers mean for readers to understand the specifications
 % (or we use a simplifying lie by hiding \covers in the statements).
-
 \begin{align*}
  \SimpleEquiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
  & \implies
