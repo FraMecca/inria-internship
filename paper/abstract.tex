@@ -164,21 +164,21 @@ this may not be the case in general, as the compiler may reorder
 checks, simplify away redundant checks or sometimes add them to reduce
 code size.
 %
-In the rest of this document we give an overview of our equivalence
-algorithm.
+We now give a simplified sketch of our equivalence
+algorithm. A complete overview is given in the rest of the document.
 
-% To check the equivalence of a source and a target decision tree,
-% we proceed by case analysis.
-% %
-% If we have two leaves, we check that the target right-hand-side is the
-% compilation of the source right-hand-side, and that the captured
-% environments are identical over their free variables.
-% %
-% If we have a node $N$ and another tree $T$ we check equivalence for
-% each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
-% subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
-% the branches that are incompatible with $\pi_i$ and check that the
-% reduced tree is equivalent to $C_i$.
+To check the equivalence of a source and a target decision tree,
+we proceed recusrively by case analysis.
+%
+If we have two leaves, we check that the target right-hand-side is the
+compilation of the source right-hand-side, and that the captured
+environments are identical over their free variables.
+%
+If we have a node $N$ and another tree $T$ we check equivalence for
+each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
+subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
+the branches that are incompatible with $\pi_i$ and check that the
+reduced tree is equivalent to $C_i$.
 
 \paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
@@ -190,64 +190,107 @@ or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
 evaluation of expressions during matching.
 
-\section{Decision trees, formally}
+\section{A formal setting}
 
 We will use, but not define by lack of space, the notion of source and
 target \emph{programs} $t_S$ and $t_T$, and \emph{expressions} $e_S$
-and $e_T$. A source program $t_S$ is a list of pattern-matching clauses
-(with an optional \texttt{when}-guard) of the form
-\lstinline{| $p$ (when $e_S$)? -> $e_S$}, and a target program $t_T$ is a series
-of control-flow conditionals and variable bindings in Lambda code,
-with arbitrary Lambda-code expressions $e_T$ at the leaves.
-%
+and $e_T$. A source program $t_S$ is a list of pattern-matching
+clauses (with an optional \texttt{when}-guard) of the form
+\lstinline{| $p$ (when $e_S$)? -> $e_S$}, and a target program $t_T$
+is a series of control-flow conditionals (\texttt{if, switch,
+  Match\_failure, catch, exit}), value access (\texttt{field}),
+variable bindings (\texttt{let}) and comparison operators in Lambda
+code, with arbitrary Lambda-code expressions $e_T$ at the leaves.
+
 We assume given an equivalence relation $\erel {e_S} {e_T}$ on leaf
 expressions. In our translation-validation setting, it suffices to
 relate each source expression to its compiled form -- the compiler
 gives/computes this relation. We have to lift this relation on leaves
 into an equivalence procedure for (pattern-matching) programs.
 
+\begin{mathpar}
+  \erel {e_S} {e_T} \quad (\text{\emph{assumed}})
+
+  t_S(v_S),\ t_T(v_T),\ \vrel {v_S} {v_T} \quad (\text{\emph{omitted}})
+
+  \resrel {r_S} {r_T}, \runrel {R_S} {R_T} \quad (\text{\emph{simple}})
+\\
+
+  \begin{array}{l@{~}r@{~}r@{~}l}
+    \text{\emph{environment}} & \sigma(v)
+    & \bnfeq & [x_1 \mapsto v_1, \dots, v_n \mapsto v_n] \\
+    \text{\emph{closed term}} & \cle(v)
+    & \bnfeq & (\sigma(v), e) \\
+  \end{array}
+
+  \begin{array}{l@{~}r@{~}r@{~}l}
+    \text{\emph{matching result}} & r(v)
+    & \bnfeq & \NoMatch \bnfor \Match {\cle(v)} \\
+    \text{\emph{matching run}} & R(v)
+    & \bnfeq & (\cle(v)_1, \dots, \cle(v)_n), r(v) \\
+  \end{array}
+
+  \infer
+  {\forall x,\ \vrel {\sigma_S(x)} {\sigma_T(x)}}
+  {\envrel {\sigma_S} {\sigma_T}}
+
+  \infer
+  {\envrel {\sigma_S} {\sigma_T} \\ \erel {e_S} {e_T}}
+  {\clerel {(\sigma_S, e_S)} {(\sigma_T, e_T)}}
+
+  \infer
+  {\forall {\vrel {v_S} {v_T}},\quad \runrel {t_S(v_S)} {t_T(v_T)}}
+  {\progrel t_S t_T}
+\end{mathpar}
+
+We use $v_S$ and $v_T$ for source and target values, and define
+a relation $\vrel {v_S} {v_T}$ to relate a source to a target value;
+this relation (omitted by lack of space) captures our knowledge of the
+OCaml value representation, for example it relates the empty list
+constructor \texttt{[]} to $\Int 0$. We can then define \emph{closed}
+expressions $\cle$, pairing a (source or target) expression with the
+environment $\sigma$ captured by a program, and what it means to
+``run'' a value against a program or a decision, written $t(v)$ and
+$C(v)$, which returns a trace $(\cle_1, \dots, \cle_n)$ of the
+executed guards and a \emph{matching result} $r$.
+
+Once formulated in this way, our equivalence algorithm must check the
+natural notion of input-output equivalence for matching programs,
+captured by the relation $\progrel {t_S} {t_T}$.
+
+\section{Decision trees}
+
 The parametrized grammar $C(\pi, e)$ describes the common structure of
 source and decision trees. We use $\pi$ for the \emph{conditions} on
-each branch, and $e$ for the expressions in source and target
-programs. Source conditions $\pi_S$ are just datatype constructors;
-target conditions $\pi_T$ are arbitrary sets of possible
-immediate-integer or block-tag values.
+each branch, and $a$ for our \emph{accessors}, which give a symbolic
+description of a sub-value of the scrutinee. Source conditions $\pi_S$
+are just datatype constructors; target conditions $\pi_T$ are
+arbitrary sets of possible immediate-integer or block-tag values.
 
 %TODO [Gabriel] rename C (Constraint trees) into D (Decision trees).
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}r@{~}l}
     \text{\emph{decision trees}} & C(\pi, e)
-    & \bnfeq & \Leaf \sigma e \\
+    & \bnfeq & \Leaf {\cle(a)} \\
     & & \bnfor & \Failure \\
     & & \bnfor & \Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb \\
-    & & \bnfor & \Guard e {C_0} {C_1} \\
+    & & \bnfor & \Guard {\cle(a)} {C_0} {C_1} \\
     \text{\emph{accessors}} & a
     & \bnfeq & \Root \;\bnfor\; a.n \quad (n \in \mathbb{N}) \\
-    \text{\emph{environment}} & \sigma
-    & \bnfeq & [x_1 \mapsto a_1, \dots, x_n \mapsto a_n]
   \end{array}
 
   \begin{array}{l}
-  C_S \bnfeq C(\pi_S, e_S)
-  \\
   \pi_S : \text{datatype constructors}
-  \\[1em]
-  C_T \bnfeq C(\pi_T, e_T)
   \\
   \pi_T \subseteq        \{ \Int n \mid n \in \mathbb{Z} \}
                   \uplus \{ \Tag n \mid n \in \mathbb{N} \}
   \\[1em]
-  \text{\emph{matching result}}\quad r ~\bnfeq~ \NoMatch \bnfor \Match \sigma e
+  C_S(v_S), C_T(v_T) \quad \text{\emph{omitted}}
   \end{array}
-
-  \erel {e_S} {e_T} \quad (\text{\emph{assumed}})
-
-  t_S(v_S), t_T(v_T), \vrel {v_S} {v_T} \quad (\text{\emph{omitted}})
 \end{mathpar}
 
-The tree $\Leaf \sigma e$ returns an expression $e$ in a captured
-environment $\sigma$. (Environments map the free variables of the
-expression to accessors of the scrutinee.)
+The tree $\Leaf \cle$ returns a leaf expression $e$ in a captured
+environment $\sigma$ mapping variables to accessors.
 %
 $\Failure$ expresses match failure, when no clause matches the input
 value.
@@ -256,18 +299,10 @@ $\Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb$ has one subtree $C_i$
 for every head constructor that appears in the pattern matching
 clauses, and a fallback case for the constructors.
 %
-$\Guard e {C_0} {C_1}$ represents a \texttt{when}-guard on an
-expression $e$, expected to be of boolean type, with sub-trees $C_0$
-for the \texttt{true} case and $C_1$ for the \texttt{false} case.
-
-(Not detailed for reasons of space:) We also have grammars $v_S$ and
-$v_T$ for source and target values, and define a relation
-$\vrel {v_S} {v_T}$ to relate a source to a target value; this
-relation captures our knowledge of the OCaml value representation, for
-example it relates the empty list constructor \texttt{[]} to
-$\Int 0$. We can then define what it means to ``run'' a value against
-a program or a decision, written $t(v)$ and $C(v)$, which gives
-a \emph{matching result} $r$.
+$\Guard \cle {C_0} {C_1}$ represents a \texttt{when}-guard on a closed
+expression $\cle$, expected to be of boolean type, with sub-trees
+$C_0$ for the \texttt{true} case and $C_1$ for the \texttt{false}
+case.
 
 \section{From source programs to decision trees: matrix decomposition}
 
