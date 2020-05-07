@@ -53,10 +53,17 @@
                                            (let
                                              (x/84 =a x/83
                                               y/85 =a (field 0 *match*/101))
-                                             (apply (observe x/84) y/85))))))
+                                             (observe
+                                               (makeblock 0
+                                                 (makeblock 0 x/84 y/85) 0a)))))))
                                    (exit 5)))
-                               (observe x/83))
-                            with (5) (apply (observe x/86) y/87 z/88)))))))
+                               (observe (makeblock 0 x/83 0a)))
+                            with (5)
+                             (observe
+                               (makeblock 0
+                                 (makeblock 0 (makeblock 0 (*,int) x/86 y/87)
+                                   z/88)
+                                 0a))))))))
                  (exit 1)))
              (exit 1))
           with (1) (observe x/89))))
