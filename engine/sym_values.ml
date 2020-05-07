@@ -1,6 +1,10 @@
 open Ast
 open Merge_accessors
 
+let rec accessor_to_string = function
+  | AcRoot -> "AcRoot"
+  | AcField (a, i) -> "AcField ("^string_of_int i^", "^accessor_to_string a^")"
+
 module Domain = Target_sym_engine.Domain
 
 type source_sym_values = Source_sym_engine.sym_value list
@@ -45,13 +49,17 @@ let compare_sym_value find_constructor_of find_domain_of (src, tgt): bool =
     | VConstructor {tag=t; args=rest} ->
       Block (t, List.map canonical_form_of_target_sym_value rest)
     | VAccessor acc ->
-      let pi = find_domain_of acc in
-      if Domain.is_int_singleton pi then
-        Int (Domain.get_int_singleton pi)
-      else
-        (* domain is ignored because the value at runtime
+       let pi = try find_domain_of acc
+                with
+                | _ as e -> BatIO.write_line BatIO.stdout ("Failed with: "^(accessor_to_string acc));
+                                        raise e
+       in
+       if Domain.is_int_singleton pi then
+         Int (Domain.get_int_singleton pi)
+       else
+         (* domain is ignored because the value at runtime
            can be instantiated with several different values *)
-        NonSingleton acc
+         NonSingleton acc
   in
   let rec compare_canonical_form_ : source_canonical_form * target_canonical_form -> bool = function
     | (NonSingleton s, NonSingleton t) -> s = t 
