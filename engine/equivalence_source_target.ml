@@ -116,9 +116,11 @@ let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (r
          in
          constrained_subtrees type_env repr_env children fallback
          |> List.for_all compare_branch
-      | ((Failure | Leaf _) as terminal, Node (_, children, fallback)) ->
+      | ((Failure | Leaf _) as terminal, Node (acc, children, fallback)) ->
          Option.to_list fallback @ children
-         |> List.for_all (fun (_, child) -> compare_ type_env input_space guards terminal child)
+         |> List.for_all (fun (pi, child) ->
+                let input_space' = specialize_input_space acc pi input_space in
+                compare_ type_env input_space' guards terminal child)
       | (Guard (svl, ctrue, cfalse), _) ->
          compare_ type_env input_space (guards@[(svl, true)]) ctrue right &&
          compare_ type_env input_space (guards@[(svl, false)]) cfalse right
