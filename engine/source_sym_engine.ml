@@ -183,16 +183,11 @@ let group_constructors type_env ((acs, rows) :matrix) : (constructor * matrix) l
     group_tbl |> Hashtbl.to_seq_values |> List.of_seq
   in
   let rec put_in_group (row : matrix_row) =
-    let patterns, env = row.lhs in
-    let env = match patterns with
-      | (As (_, var))::_ -> SMap.add var (SAccessor (List.hd acs)) env
-      | _ -> env
-    in
-    match patterns with
-    | [] -> assert false
-    | pattern::ptl ->
-      let with_lhs pats = { row with lhs = (pats, env) } in
-      let row_rest = with_lhs ptl in
+    match row.lhs with
+    | [], _ -> assert false
+    | pattern::ptl, env ->
+      let with_lhs (pats, env) = { row with lhs = (pats, env) } in
+      let row_rest = with_lhs (ptl, env) in
       match pattern with
       | Constructor (k, plist) ->
         let group = Hashtbl.find group_tbl k in
@@ -200,8 +195,11 @@ let group_constructors type_env ((acs, rows) :matrix) : (constructor * matrix) l
       | Wildcard ->
         List.iter (fun group -> group_add_omegas group row_rest)
           (wildcard_group :: all_constructor_groups);
-      | As (pattern, _) -> put_in_group (with_lhs (pattern::ptl))
-      | Or (p1, p2) -> put_in_group (with_lhs (p1::ptl)); put_in_group (with_lhs (p2::ptl))
+      | Or (p1, p2) ->
+         put_in_group (with_lhs ((p1::ptl), env)); put_in_group (with_lhs ((p2::ptl), env))
+      | As (pattern, var) ->
+         let env' = SMap.add var (SAccessor (List.hd acs)) env in
+         put_in_group (with_lhs ((pattern::ptl), env'))
   in
   List.iter put_in_group rows;
   let constructor_matrices =
