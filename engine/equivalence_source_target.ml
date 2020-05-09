@@ -14,8 +14,8 @@ module AcMap = Map.Make(
       | (AcField (a, _), AcField (a', _)) -> compare a a'
   end)
 
-type source_tree = Source_sym_engine.constraint_tree
-type target_tree = Merge_accessors.constraint_tree
+type source_tree = Source_sym_engine.decision_tree
+type target_tree = Merge_accessors.decision_tree
 type source_sym_values = Sym_values.source_sym_values
 type target_sym_values = Sym_values.target_sym_values
 
@@ -68,27 +68,27 @@ let constrained_subtrees type_env repr_env children fallback =
 
 let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (right: target_tree) : bool =
   let rec trim src_acc src_pi =
-    let specialize_same_acc node_acc (dom, s_tree) =
+    let specialize_same_acc switch_acc (dom, s_tree) =
       let dom' =
-        if src_acc <> node_acc then dom
+        if src_acc <> switch_acc then dom
         else Domain.inter src_pi dom in
       if Domain.is_empty dom' then None
       else Some (dom', trim src_acc src_pi s_tree)
     in
     function
-    | Node (_, [], None) -> failwith "Shouldn't happen: Node with no branches and no fallback case"
+    | (Switch (_, [], None): decision_tree) -> failwith "Shouldn't happen: Switch with no branches and no fallback"
     | Failure -> Failure
     | Leaf l -> Leaf l
     | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
-    | Node (node_acc, children, fallback) ->
+    | Switch (switch_acc, children, fallback) ->
        let children' =
          children
-         |> List.filter_map (specialize_same_acc node_acc)
+         |> List.filter_map (specialize_same_acc switch_acc)
        in
        let fallback' =
-         Option.bind fallback (specialize_same_acc node_acc)
+         Option.bind fallback (specialize_same_acc switch_acc)
        in
-       Node (node_acc, children', fallback')
+       Switch (switch_acc, children', fallback')
   in
   let specialize_input_space acc pi input_space =
     let pi' = match AcMap.find_opt acc input_space with
@@ -109,14 +109,14 @@ let compare type_env (repr_env: Source_env.type_repr_env) (left: source_tree) (r
       true
     else
       match (left, right) with
-      | Node (acc, children, fallback), _ ->
+      | Switch (acc, children, fallback), _ ->
          let compare_branch (pi, branch) =
            let input_space' = specialize_input_space acc pi input_space in
            compare_ type_env input_space' guards branch (trim acc pi right)
          in
          constrained_subtrees type_env repr_env children fallback
          |> List.for_all compare_branch
-      | ((Failure | Leaf _) as terminal, Node (acc, children, fallback)) ->
+      | ((Failure | Leaf _) as terminal, Switch (acc, children, fallback)) ->
          Option.to_list fallback @ children
          |> List.for_all (fun (pi, child) ->
                 let input_space' = specialize_input_space acc pi input_space in

@@ -6,12 +6,12 @@ type sym_value =
   | SAccessor of accessor
   | SCons of constructor * sym_value list
 
-type constraint_tree =
+type decision_tree =
   | Unreachable
   | Failure
   | Leaf of sym_value list
-  | Guard of sym_value list * constraint_tree * constraint_tree
-  | Node of accessor * (constructor * constraint_tree) list * constraint_tree
+  | Guard of sym_value list * decision_tree * decision_tree
+  | Switch of accessor * (constructor * decision_tree) list * decision_tree
 (* We distinguish
    - Unreachable: we statically know that no value can go there
    - Failure: a value matching this part results in an error
@@ -24,7 +24,7 @@ type constraint_tree =
 
   returns in, morally
 
-    Node ([(true, Leaf 1)], Failure)
+    Switch ([(true, Leaf 1)], Failure)
 
   while
 
@@ -32,7 +32,7 @@ type constraint_tree =
 
   will (somday) give
 
-    Node ([(true, Leaf 1); (false, Leaf 2)], Unreachable)
+    Switch ([(true, Leaf 1); (false, Leaf 2)], Unreachable)
 
   In the meantime, it is possible to produce Unreachable examples by using
   OCaml refutation clauses (a "dot" in the right-hand-side)
@@ -97,8 +97,8 @@ let print_result stree =
       bprintf buf "Guard (%a) ="
         (bprint_list ~sep:ignore bprint_sym_value) sym_value_list;
       bprint_child "guard(true)" ctrue ; bprint_child "guard(false)" cfalse
-    | Node (ac, k_cst_list, fallback_cst) ->
-      bprintf buf "Node %a:{\
+    | Switch (ac, k_cst_list, fallback_cst) ->
+      bprintf buf "Switch %a:{\
                    %a \
                    %t} Fallback: %a"
         bprint_accessor ac
@@ -225,7 +225,7 @@ let sym_exec type_env source =
     | VConstructor (k, svl) -> SCons (k, List.map (source_value_to_sym_value env) svl)
     | VVar v -> SMap.find v env
   in
-  let rec decompose (matrix : matrix) : constraint_tree =
+  let rec decompose (matrix : matrix) : decision_tree =
     match matrix with
     | (_, []) -> Failure
     | ([] as _no_acs, ({ lhs = ([], env); guard = None;_ } as row)::_) ->
@@ -250,7 +250,7 @@ let sym_exec type_env source =
         | None -> Unreachable
         | Some nonempty_matrix -> decompose nonempty_matrix
       in
-      Node (ac_head, groups_evaluated, fallback_evaluated)
+      Switch (ac_head, groups_evaluated, fallback_evaluated)
   in
   let row_of_clause clause = { clause with lhs = ([clause.lhs], empty_env) } in
   decompose ([AcRoot], List.map row_of_clause source.clauses)

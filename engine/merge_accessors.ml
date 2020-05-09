@@ -1,10 +1,10 @@
 open Ast
 
-type constraint_tree =
+type decision_tree =
   | Failure
   | Leaf of sym_value list
-  | Guard of sym_value list * constraint_tree * constraint_tree
-  | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
+  | Guard of sym_value list * decision_tree * decision_tree
+  | Switch of accessor * (domain * decision_tree) list * (domain * decision_tree) option
 and
   sym_value =
   | VConstructor of {tag:int; args:sym_value list}
@@ -13,11 +13,11 @@ and
 and
   domain = Target_domain.t
 and
-  sym_function = variable * constraint_tree
+  sym_function = variable * decision_tree
 and
-  sym_catch = exitpoint * variable list * constraint_tree
+  sym_catch = exitpoint * variable list * decision_tree
 
-let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
+let rec merge : Target_sym_engine.decision_tree -> decision_tree =
   let rec map_accessor : Target_sym_engine.accessor -> accessor = function
     | AcRoot _ -> AcRoot
     | AcField (s, i) -> AcField(map_accessor s, i)
@@ -51,7 +51,7 @@ let rec merge : Target_sym_engine.constraint_tree -> constraint_tree =
   | Target_sym_engine.Guard (tvl, ctrue, cfalse) ->
     let tvl' = List.map map_target_value tvl in
     Guard (tvl', merge ctrue, merge cfalse)
-  | Target_sym_engine.Node (var, children, fallback) ->
+  | Target_sym_engine.Switch (var, children, fallback) ->
     let (var, offset) = split var in
     let subst (dom, c_tree) = (shift_domain offset dom, merge c_tree) in
-    Node (var, List.map subst children, Option.map subst fallback)
+    Switch (var, List.map subst children, Option.map subst fallback)

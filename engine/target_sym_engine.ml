@@ -11,11 +11,11 @@ module SMap = Map.Make(String)
 module IMap = Map.Make(struct type t = int let compare = compare end)
 module Domain = Target_domain
 
-type constraint_tree =
+type decision_tree =
   | Failure
   | Leaf of sym_value list
-  | Node of accessor * (domain * constraint_tree) list * (domain * constraint_tree) option
-  | Guard of sym_value list * constraint_tree * constraint_tree
+  | Switch of accessor * (domain * decision_tree) list * (domain * decision_tree) option
+  | Guard of sym_value list * decision_tree * decision_tree
 and
   sym_value =
   | VConstructor of {tag:int; args:sym_value list}
@@ -24,9 +24,9 @@ and
 and
   pi = { var: accessor; domain: domain } (* record of a variable and a constraint on that variable *)
 and
-  sym_function = variable * constraint_tree
+  sym_function = variable * decision_tree
 and
-  sym_catch = exitpoint * variable list * constraint_tree
+  sym_catch = exitpoint * variable list * decision_tree
 and
   environment = {
   values: accessor SMap.t;
@@ -98,10 +98,10 @@ let print_tree tree =
         (bprint_list ~sep:comma bprint_sym_value) tgt_values;
       bprint_child "guard(true)" ctrue;
       bprint_child "guard(false)" cfalse
-    | Node (var, children, fallback) ->
+    | Switch (var, children, fallback) ->
       let bprint_child buf (domain, tree) =
         bprintf buf
-          "%tNode (%a) =\n%a"
+          "%tSwitch (%a) =\n%a"
           (indent ntabs)
           bprint_pi { var; domain }
           (bprint_tree (ntabs+1)) tree
@@ -109,7 +109,7 @@ let print_tree tree =
       bprint_list ~sep:ignore bprint_child buf children;
       match fallback with
       | Some (domain, tree) ->
-        bprintf buf "%tFallback=Node (%a) =\n%a"
+        bprintf buf "%tFallback=Switch (%a) =\n%a"
           (indent ntabs)
           bprint_pi {var; domain}
           (bprint_tree (ntabs+1)) tree
@@ -133,11 +133,11 @@ let rec subst_tree bindings = function
   | Failure -> Failure
   | Leaf result -> Leaf result
   | Guard (bb, ctrue, cfalse) -> Guard (bb, ctrue, cfalse)
-  | Node (var, children, fallback) ->
+  | Switch (var, children, fallback) ->
      let subst (dom, tree) =
        (dom, subst_tree bindings tree)
      in
-     Node (subst_svalue bindings var,
+     Switch (subst_svalue bindings var,
            List.map subst children,
            Option.map subst fallback)
 
@@ -156,7 +156,7 @@ let eval target_ast =
       let acc = SMap.find var env.values in
       VAccessor acc
   in
-  let rec sym_exec sexpr env : constraint_tree =
+  let rec sym_exec sexpr env : decision_tree =
     let eval_bop (bop, i) = match bop with
       | Ge -> Domain.(int (Set.ge i))
       | Gt -> Domain.(int (Set.gt i))
@@ -226,7 +226,7 @@ let eval target_ast =
         | _ -> assert false
       in
       let var = find_var env sxp in
-      Node (var, [
+      Switch (var, [
           (test, sym_exec strue env);
           (Domain.negate test, sym_exec sfalse env);
         ], None)
@@ -245,7 +245,7 @@ let eval target_ast =
         | Some tree -> Some (not_any_case, sym_exec tree env)
         | None -> None
       in
-      Node (var, children, fallback)
+      Switch (var, children, fallback)
     | Catch (sxp, extpt, varlist, exit_sxp) ->
       let c_tree = sym_exec exit_sxp env in
       let env' = put_exit extpt (extpt, varlist, c_tree) in
