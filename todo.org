@@ -1,10 +1,10 @@
-* TODO Prototype code [2/4]
+* TODO Prototype code [3/4]
      - [X] small cleanup of the code of the implementation
      - [X] bring the changes from the test branch and the fixes for
        the bug in a new PR
      - [ ] rename Node to Switch in the code so that it coherent with the
        workshop submission
-     - [ ] finish the code for handling variables
+     - [X] finish the code for handling variables
             in the symbolic execution function, keep the "current environment"
             (already done in the target symexec, todo in the source symexec)
 * TODO Workshop [0/2]:
