@@ -416,6 +416,17 @@ and in the target tree.
   {\Equivrel S
     {\Switch a {\Fam i {K_i, C_i}} \Cfb} {C_T} G}
 
+\begin{comment}
+When the left hand side is not a terminal, the algorithm explodes the
+left hand side while trimming every right hand side subtree. Trimming
+a left hand side tree on an interval set $dom_S$ computed from the right hand
+side tree constructor means mapping every branch condition $dom_T$ (interval set of
+possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
+the accessors on both side are equal, and removing the branches that
+result in an empty intersection. If the accessors are different,
+\emph{$dom_T$} is left unchanged.
+\end{comment}
+
   % TODO explain somewhere why the judgment is not symmetric:
   % we avoid defining trimming on source trees, which would
   % require more expressive conditions than just constructors
@@ -427,6 +438,14 @@ and in the target tree.
    \Equivrel {(S \land a \notin \Fam i {D_i})} {C_S} \Cfb G}
   {\Equivrel S
     {C_S} {\Switch a {\Fam i {D_i} {C_i}} \Cfb} G}
+
+\begin{comment}
+If the source decision tree (left hand side) is a terminal while the
+target decisiorn tree (right hand side) is not, the algorithm proceeds
+by \emph{explosion} of the right hand side. Explosion means that every
+child of the right hand side is tested for equality against the left
+hand side.
+\end{comment}
 
   \infer
   {\Equivrel S {C_0} {C_T} {G, (e_S = 0)}
