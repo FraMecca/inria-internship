@@ -1,7 +1,7 @@
 type source_result = {
     type_decls: Ast.type_decl list;
     type_env: (Ast.type_decl * Ast.constructor_decl) Source_env.ConstructorMap.t;
-    source_tree: Source_sym_engine.constraint_tree;
+    source_tree: Source_sym_engine.decision_tree;
 }
 
 let source_exec file =
@@ -24,8 +24,8 @@ let source_exec file =
   }
 
 type target_result = {
-  target_tree_with_accessors: Target_sym_engine.constraint_tree;
-  target_tree: Merge_accessors.constraint_tree;
+  target_tree_with_accessors: Target_sym_engine.decision_tree;
+  target_tree: Merge_accessors.decision_tree;
 }
 
 let target_exec file =
