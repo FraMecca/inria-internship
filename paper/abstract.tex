@@ -102,12 +102,18 @@ a weaker result but is much easier to adopt in a production
 compiler. The compiler is treated as a blackbox and proof only depends
 on our equivalence algorithm between source and target programs.
 
-\section{Our approach}
+\section{Decision Trees}
 
-%% replace common TODO
-Our algorithm translates both source and target programs into a common
-representation, \emph{decision trees}. Here are the decision tree for the
-source and target example programs.
+%% replace common TODO Our algorithm translates both source and target
+programs into a common representation, \emph{decision trees}. For
+source programs we store in the nodes a value derived from the 
+first column of the matrix and for each variant we recur on a subtree.
+We emit a terminal node whenever the matrix decomposition algorithm
+stops with an empty matrix. For target programs we recur into a
+subtree at every control flow statement. Symbolic execution is used to
+express an interval set of possible values that the variable at the
+branch condition can take Here are the decision tree for the source
+and target example programs.
 
 ~
 
@@ -153,7 +159,6 @@ access path to a value that can be reached by deconstructing the
 scrutinee (\texttt{li} in our example), in this case the first
 subvalue of the scrutinee.
 
-The nodes of condition trees branch on a condition on the accessor;
 source conditions test the head constructor of the accessor, whereas
 target conditions test the low-level representation of values in
 Lambda code. For example, cons cells \texttt{x::xs} or tuples
