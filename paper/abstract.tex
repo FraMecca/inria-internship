@@ -1,6 +1,6 @@
 \documentclass[12pt]{article}
 \usepackage{a4}
-\usepackage[margin=.5cm,bottom=1.5cm]{geometry}
+\usepackage[margin=2cm]{geometry}
 
 \usepackage[utf8]{inputenc}
 
@@ -53,7 +53,8 @@ by applying symbolic execution.
 A pattern matching compiler turns a series of pattern matching clauses
 into simple control flow structures such as \texttt{if, switch}, for example:
 
-\begin{minipage}{0.3\linewidth}
+\hspace{-3em}
+\begin{minipage}{0.4\linewidth}
 \begin{lstlisting}
   match li with
   | [] -> (0, None)
@@ -62,7 +63,7 @@ into simple control flow structures such as \texttt{if, switch}, for example:
 \end{lstlisting}
 \end{minipage}
 \hfill
-\begin{minipage}{0.7\linewidth}
+\begin{minipage}{0.6\linewidth}
 \begin{lstlisting}
 (if li
     (let (tl =a (field 1 li))
@@ -110,7 +111,8 @@ source and target example programs.
 
 ~
 
-\begin{minipage}{0.4\linewidth}
+\hspace{-2em}
+\begin{minipage}{0.5\linewidth}
 \begin{verbatim}
        Switch(Root)
        /        \
@@ -164,21 +166,21 @@ this may not be the case in general, as the compiler may reorder
 checks, simplify away redundant checks or sometimes add them to reduce
 code size.
 %
-In the rest of this document we give an overview of our equivalence
-algorithm.
+We now give a simplified sketch of our equivalence
+algorithm. A complete overview is given in appendices.
 
-% To check the equivalence of a source and a target decision tree,
-% we proceed by case analysis.
-% %
-% If we have two leaves, we check that the target right-hand-side is the
-% compilation of the source right-hand-side, and that the captured
-% environments are identical over their free variables.
-% %
-% If we have a node $N$ and another tree $T$ we check equivalence for
-% each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
-% subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
-% the branches that are incompatible with $\pi_i$ and check that the
-% reduced tree is equivalent to $C_i$.
+To check the equivalence of a source and a target decision tree,
+we proceed recusrively by case analysis.
+%
+If we have two leaves, we check that the target right-hand-side is the
+compilation of the source right-hand-side, and that the captured
+environments are identical over their free variables.
+%
+If we have a node $N$ and another tree $T$ we check equivalence for
+each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
+subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
+the branches that are incompatible with $\pi_i$ and check that the
+reduced tree is equivalent to $C_i$.
 
 \paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
@@ -190,64 +192,109 @@ or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
 evaluation of expressions during matching.
 
-\section{Decision trees, formally}
+\newpage
+\appendix
+
+\section{A formal setting}
 
 We will use, but not define by lack of space, the notion of source and
 target \emph{programs} $t_S$ and $t_T$, and \emph{expressions} $e_S$
-and $e_T$. A source program $t_S$ is a list of pattern-matching clauses
-(with an optional \texttt{when}-guard) of the form
-\lstinline{| $p$ (when $e_S$)? -> $e_S$}, and a target program $t_T$ is a series
-of control-flow conditionals and variable bindings in Lambda code,
-with arbitrary Lambda-code expressions $e_T$ at the leaves.
-%
+and $e_T$. A source program $t_S$ is a list of pattern-matching
+clauses (with an optional \texttt{when}-guard) of the form
+\lstinline{| $p$ (when $e_S$)? -> $e_S$}, and a target program $t_T$
+is a series of control-flow conditionals (\texttt{if, switch,
+  Match\_failure, catch, exit}), value access (\texttt{field}),
+variable bindings (\texttt{let}) and comparison operators in Lambda
+code, with arbitrary Lambda-code expressions $e_T$ at the leaves.
+
 We assume given an equivalence relation $\erel {e_S} {e_T}$ on leaf
 expressions. In our translation-validation setting, it suffices to
 relate each source expression to its compiled form -- the compiler
 gives/computes this relation. We have to lift this relation on leaves
 into an equivalence procedure for (pattern-matching) programs.
 
+\begin{mathpar}
+  \erel {e_S} {e_T} \; (\text{\emph{assumed}})
+
+  t_S(v_S),\ t_T(v_T),\ \vrel {v_S} {v_T} \; (\text{\emph{omitted}})
+
+  \resrel {r_S} {r_T}, \runrel {R_S} {R_T} \; (\text{\emph{simple}})
+\\
+  \begin{array}{l@{~}r@{~}r@{~}l}
+    \text{\emph{environment}} & \sigma(v)
+    & \bnfeq & [x_1 \mapsto v_1, \dots, v_n \mapsto v_n] \\
+    \text{\emph{closed term}} & \cle(v)
+    & \bnfeq & (\sigma(v), e) \\
+  \end{array}
+\quad
+  \begin{array}{l@{~}r@{~}r@{~}l}
+    \text{\emph{matching result}} & r(v)
+    & \bnfeq & \NoMatch \bnfor \Match {\cle(v)} \\
+    \text{\emph{matching run}} & R(v)
+    & \bnfeq & (\cle(v)_1, \dots, \cle(v)_n), r(v) \\
+  \end{array}
+\\
+  \infer
+  {\forall x,\ \vrel {\sigma_S(x)} {\sigma_T(x)}}
+  {\envrel {\sigma_S} {\sigma_T}}
+
+  \infer
+  {\envrel {\sigma_S} {\sigma_T} \\ \erel {e_S} {e_T}}
+  {\clerel {(\sigma_S, e_S)} {(\sigma_T, e_T)}}
+
+  \infer
+  {\forall {\vrel {v_S} {v_T}},\quad \runrel {t_S(v_S)} {t_T(v_T)}}
+  {\progrel t_S t_T}
+\end{mathpar}
+
+We use $v_S$ and $v_T$ for source and target values, and define
+a relation $\vrel {v_S} {v_T}$ to relate a source to a target value;
+this relation (omitted by lack of space) captures our knowledge of the
+OCaml value representation, for example it relates the empty list
+constructor \texttt{[]} to $\Int 0$. We can then define \emph{closed}
+expressions $\cle$, pairing a (source or target) expression with the
+environment $\sigma$ captured by a program, and what it means to
+``run'' a value against a program or a decision, written $t(v)$ and
+$C(v)$, which returns a trace $(\cle_1, \dots, \cle_n)$ of the
+executed guards and a \emph{matching result} $r$.
+
+Once formulated in this way, our equivalence algorithm must check the
+natural notion of input-output equivalence for matching programs,
+captured by the relation $\progrel {t_S} {t_T}$.
+
+\section{Decision trees}
+
 The parametrized grammar $C(\pi, e)$ describes the common structure of
 source and decision trees. We use $\pi$ for the \emph{conditions} on
-each branch, and $e$ for the expressions in source and target
-programs. Source conditions $\pi_S$ are just datatype constructors;
-target conditions $\pi_T$ are arbitrary sets of possible
-immediate-integer or block-tag values.
+each branch, and $a$ for our \emph{accessors}, which give a symbolic
+description of a sub-value of the scrutinee. Source conditions $\pi_S$
+are just datatype constructors; target conditions $\pi_T$ are
+arbitrary sets of possible immediate-integer or block-tag values.
 
 %TODO [Gabriel] rename C (Constraint trees) into D (Decision trees).
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}r@{~}l}
     \text{\emph{decision trees}} & C(\pi, e)
-    & \bnfeq & \Leaf \sigma e \\
+    & \bnfeq & \Leaf {\cle(a)} \\
     & & \bnfor & \Failure \\
     & & \bnfor & \Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb \\
-    & & \bnfor & \Guard e {C_0} {C_1} \\
+    & & \bnfor & \Guard {\cle(a)} {C_0} {C_1} \\
     \text{\emph{accessors}} & a
     & \bnfeq & \Root \;\bnfor\; a.n \quad (n \in \mathbb{N}) \\
-    \text{\emph{environment}} & \sigma
-    & \bnfeq & [x_1 \mapsto a_1, \dots, x_n \mapsto a_n]
   \end{array}
 
   \begin{array}{l}
-  C_S \bnfeq C(\pi_S, e_S)
-  \\
   \pi_S : \text{datatype constructors}
-  \\[1em]
-  C_T \bnfeq C(\pi_T, e_T)
   \\
   \pi_T \subseteq        \{ \Int n \mid n \in \mathbb{Z} \}
                   \uplus \{ \Tag n \mid n \in \mathbb{N} \}
   \\[1em]
-  \text{\emph{matching result}}\quad r ~\bnfeq~ \NoMatch \bnfor \Match \sigma e
+  C_S(v_S), C_T(v_T) \quad \text{\emph{omitted}}
   \end{array}
-
-  \erel {e_S} {e_T} \quad (\text{\emph{assumed}})
-
-  t_S(v_S), t_T(v_T), \vrel {v_S} {v_T} \quad (\text{\emph{omitted}})
 \end{mathpar}
 
-The tree $\Leaf \sigma e$ returns an expression $e$ in a captured
-environment $\sigma$. (Environments map the free variables of the
-expression to accessors of the scrutinee.)
+The tree $\Leaf \cle$ returns a leaf expression $e$ in a captured
+environment $\sigma$ mapping variables to accessors.
 %
 $\Failure$ expresses match failure, when no clause matches the input
 value.
@@ -256,18 +303,10 @@ $\Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb$ has one subtree $C_i$
 for every head constructor that appears in the pattern matching
 clauses, and a fallback case for the constructors.
 %
-$\Guard e {C_0} {C_1}$ represents a \texttt{when}-guard on an
-expression $e$, expected to be of boolean type, with sub-trees $C_0$
-for the \texttt{true} case and $C_1$ for the \texttt{false} case.
-
-(Not detailed for reasons of space:) We also have grammars $v_S$ and
-$v_T$ for source and target values, and define a relation
-$\vrel {v_S} {v_T}$ to relate a source to a target value; this
-relation captures our knowledge of the OCaml value representation, for
-example it relates the empty list constructor \texttt{[]} to
-$\Int 0$. We can then define what it means to ``run'' a value against
-a program or a decision, written $t(v)$ and $C(v)$, which gives
-a \emph{matching result} $r$.
+$\Guard \cle {C_0} {C_1}$ represents a \texttt{when}-guard on a closed
+expression $\cle$, expected to be of boolean type, with sub-trees
+$C_0$ for the \texttt{true} case and $C_1$ for the \texttt{false}
+case.
 
 \section{From source programs to decision trees: matrix decomposition}
 
@@ -276,7 +315,7 @@ $t_S$, computed by a matrix decomposition algorithm (each column
 decomposition step gives a \texttt{Switch} node).
 It satisfies the following correctness statement:
 \[
-\forall t_S, \forall v_S, \quad t_S(v_S) = \sem{t_S}_S(v_S)
+\forall t_S, \forall v_S, \quad \runrel {t_S(v_S)} {\sem{t_S}_S(v_S)}
 \]
 Running any source value $v_S$ against the source program gives the
 same result as running it against the decision tree.
@@ -307,7 +346,7 @@ nodes are never emitted.
 We write $\sem{t_T}_T$ for the decision tree of the target program
 $t_T$, satisfying the following correctness statement:
 \[
-\forall t_T, \forall v_T, \quad t_T(v_T) = \sem{t_T}_T(v_T)
+\forall t_T, \forall v_T, \quad \runrel {t_T(v_T)} {\sem{t_T}_T(v_T)}
 \]
 
 \section{Equivalence checking}
@@ -315,110 +354,38 @@ The equivalence checking algorithm takes as input a domain of
 possible values \emph{S} and a pair of source and target decision trees and
 in case the two trees are not equivalent it returns a counter example.
 The algorithm respects the following correctness statement:
-
 % TODO: we have to define what \covers mean for readers to understand the specifications
 % (or we use a simplifying lie by hiding \covers in the statements).
-
 \begin{align*}
- \Equiv S {C_S} {C_T} \emptyqueue = \Yes \;\land\; \covers {C_T} S
+ \SimpleEquiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
  & \implies
- \forall v_S \approx v_T \in S,\; C_S(v_S) = C_T(v_T)
+ \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {C_S(v_S)} {C_T(v_T)}
 \\
- \Equiv S {C_S} {C_T} \emptyqueue = \No {v_S} {v_T} \;\land\; \covers {C_T} S
+ \SimpleEquiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
  & \implies
- v_S \approx v_T \in S \;\land\; C_S(v_S) \neq C_T(v_T)
+ \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {C_S(v_S)} {C_T(v_T)}}
 \end{align*}
 
-% TODO: [Gabriel] I think that the explanation below could be more
-% clearly presented as inference rules, I may try to make a proposal
-% later.
-
-The algorithm proceeds by case analysis.
-If $S$ is empty the results is $\Yes$.
-If the two decision trees are both terminal nodes the algorithm checks
-for content equality.
-If the source decision tree (left hand side) is a terminal while the
-target decistion tree (right hand side) is not, the algorithm proceeds
-by \emph{explosion} of the right hand side. Explosion means that every
-child of the right hand side is tested for equality against the left
-hand side.
-
-% TODO: [Gabriel] in practice the $dom_S$ are constructors and the
-% $dom_T$ are domains. Do we want to hide this fact, or be explicit
-% about it? (Maybe we should introduce explicitly/clearly the idea of
-% target domains at some point).
-
-When the left hand side is not a terminal, the algorithm explodes the
-left hand side while trimming every right hand side subtree. Trimming
-a left hand side tree on an interval set $dom_S$ computed from the right hand
-side tree constructor means mapping every branch condition $dom_T$ (interval set of
-possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
-the accessors on both side are equal, and removing the branches that
-result in an empty intersection. If the accessors are different,
-\emph{$dom_T$} is left unchanged.
-
-The equivalence checking algorithm deals with guards by storing a
-queue. A guard blackbox is pushed to the queue whenever the algorithm
-encounters a Guard node on the right, while it pops a blackbox from
-the queue whenever a Guard node appears on the left hand side.
-The algorithm stops with failure if the popped blackbox and the and
-blackbox on the left hand Guard node are different, otherwise in
-continues by exploding to two subtrees, one in which the guard
-condition evaluates to true, the other when it evaluates to false.
-Termination of the algorithm is successful only when the guards queue
-is empty.
-
-\begin{comment}
-
-  ------------------------
-  equiv \emptyset Cs Ct gs
-
-  --------------------------
-  equiv S Failure Failure []
-
-  equiv_BB BBs BBt
-  -------------------------------
-  equiv S (Leaf BBs) (Leaf BBt) []
-
-  Cs \in (Leaf BBs, Failure)
-  (equiv S Cs Ci gs)^i
-  equiv S Cs Cf gs
-  -----------------------------------------
-  equiv S Cs (Node(a, (Domi,Ci)^i, Cf)) gs
-
-  equiv S Ci (trim Ct a=Ki) gs
-  equiv S Cf (trim Ct (a\notin(K_i)^i) gs
-  -------------------------------------
-  equiv S (Node(a, (Ki,Ci)^i, Cf) Ct gs
-
-  equiv S Ctrue Ct (gs++[condition])
-  equiv S Cfalse Ct (gs++[condition])
-  --------------------------------------------
-  equiv S (Guard condition Ctrue Cfalse) Ct gs
-
-  equiv S Cs Ctrue gs
-  equiv S Cs Cfalse gs
-  --------------------------------------------
-  equiv S Cs (Guard condition Ctrue Cfalse) ([condition]++gs)
-  
-\end{comment}
-
-% TODO integrate the rules below to the text of this section
-
-Our equivalence-checking algorithm $\Equiv S {C_S} {C_T} G$ is
-a exactly decision procedure for the provability of the judgment
-$(\Equivrel S {C_S} {C_T} G)$, defined below.
+This algorithm $\SimpleEquiv S {C_S} {C_T}$ is in fact exactly
+a decision procedure for the provability of the judgment
+$(\Equivrel S {C_S} {C_T} \emptyqueue)$, defined below in the general
+form $(\Equivrel S {C_S} {C_T} G)$ where $G$ is a \emph{guard queue},
+indicating an imbalance between the guards observed in the source tree
+and in the target tree.
 \begin{mathpar}
-  \begin{array}{l@{~}r@{~}l}
-    & & \text{\emph{boolean result}} \\
-    b & \in & \{ 0, 1 \} \\[0.5em]
-    & & \text{\emph{guard queues}} \\
-    G & \bnfeq & (t_1 = b_1), \dots, (t_n = b_n) \\
-  \end{array}
-
   \begin{array}{l@{~}r@{~}l}
     & & \text{\emph{input space}} \\
     S & \subseteq & \{ (v_S, v_T) \mid \vrel {v_S} {v_T} \} \\
+  \end{array}
+
+  \begin{array}{l@{~}r@{~}l}
+    & & \text{\emph{boolean result}} \\
+    b & \in & \{ 0, 1 \} \\
+  \end{array}
+
+  \begin{array}{l@{~}r@{~}l}
+    & & \text{\emph{guard queues}} \\
+    G & \bnfeq & (t_1 = b_1), \dots, (t_n = b_n) \\
   \end{array}
   \\
   \infer{ }
@@ -470,5 +437,42 @@ $(\Equivrel S {C_S} {C_T} G)$, defined below.
   {\Equivrel S
     {C_S} {\Guard {e_T} {C_0} {C_1}} {(e_S = b), G}}
 \end{mathpar}
+
+\begin{comment}
+The algorithm proceeds by case analysis.
+If $S$ is empty the results is $\Yes$.
+If the two decision trees are both terminal nodes the algorithm checks
+for content equality.
+If the source decision tree (left hand side) is a terminal while the
+target decistion tree (right hand side) is not, the algorithm proceeds
+by \emph{explosion} of the right hand side. Explosion means that every
+child of the right hand side is tested for equality against the left
+hand side.
+
+% TODO: [Gabriel] in practice the $dom_S$ are constructors and the
+% $dom_T$ are domains. Do we want to hide this fact, or be explicit
+% about it? (Maybe we should introduce explicitly/clearly the idea of
+% target domains at some point).
+
+When the left hand side is not a terminal, the algorithm explodes the
+left hand side while trimming every right hand side subtree. Trimming
+a left hand side tree on an interval set $dom_S$ computed from the right hand
+side tree constructor means mapping every branch condition $dom_T$ (interval set of
+possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
+the accessors on both side are equal, and removing the branches that
+result in an empty intersection. If the accessors are different,
+\emph{$dom_T$} is left unchanged.
+
+The equivalence checking algorithm deals with guards by storing a
+queue. A guard blackbox is pushed to the queue whenever the algorithm
+encounters a Guard node on the right, while it pops a blackbox from
+the queue whenever a Guard node appears on the left hand side.
+The algorithm stops with failure if the popped blackbox and the and
+blackbox on the left hand Guard node are different, otherwise in
+continues by exploding to two subtrees, one in which the guard
+condition evaluates to true, the other when it evaluates to false.
+Termination of the algorithm is successful only when the guards queue
+is empty.
+\end{comment}
 
 \end{document}

@@ -69,7 +69,7 @@ let print_tree tree =
   let comma buf = bprintf buf ", " in
   let rec bprint_accessor buf = function
     | AcRoot v -> bprintf buf "AcRoot %s" v
-    | AcField (a, i) -> bprintf buf "AcFiled %a.%d" bprint_accessor a i
+    | AcField (a, i) -> bprintf buf "AcField %a.%d" bprint_accessor a i
     | AcAdd (a, i) -> bprintf buf "AcAdd %a.%d" bprint_accessor a i
   in
   let rec bprint_sym_value buf = function

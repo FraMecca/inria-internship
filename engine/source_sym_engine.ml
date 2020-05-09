@@ -1,5 +1,7 @@
 open Ast
 
+module SMap = Map.Make(String)
+
 type sym_value =
   | SAccessor of accessor
   | SCons of constructor * sym_value list
@@ -115,13 +117,17 @@ let print_result stree =
   BatIO.write_line BatIO.stdout (Buffer.contents buf)
 
 type matrix = accessor list * matrix_row list
-and matrix_row = pattern list row
+and matrix_row = (pattern list * environment) row
+and environment = sym_value SMap.t
 
 type group = {
   arity: int;
   accessors: accessor list;
-  rev_rows: pattern list row list ref;
-}
+  rev_rows: matrix_row list ref;
+  (* rev_rows: pattern list row list ref; *)
+  }
+
+let empty_env = SMap.empty
 
 let matrix_of_group { accessors; rev_rows; _ } : matrix =
   (accessors, List.rev !rev_rows)
@@ -145,15 +151,17 @@ let width type_env = function
   | Variant v -> let type_decl = Source_env.ConstructorMap.find v type_env |> fst in
                  List.length type_decl.constructors
 
-let group_add_children { arity; rev_rows; _ } children row =
+let group_add_children { arity; rev_rows; _ } children (row: matrix_row) =
+  let lhs, env = row.lhs in
   assert (List.length children = arity);
-  rev_rows := { row with lhs = children @ row.lhs } :: !rev_rows
+  rev_rows := { row with lhs = ((children @ lhs), env) } :: !rev_rows
 
-let group_add_omegas { arity; rev_rows; _ } row =
+let group_add_omegas { arity; rev_rows; _ } (row: matrix_row) =
   let wildcards = List.init arity (fun _ -> (Wildcard : pattern)) in
-  rev_rows := { row with lhs = List.rev_append wildcards row.lhs } :: !rev_rows
+  let (patterns, env) = row.lhs in
+  rev_rows := { row with lhs = List.rev_append wildcards patterns, env } :: !rev_rows
 
-let group_constructors type_env (acs, rows) : (constructor * matrix) list * matrix option =
+let group_constructors type_env ((acs, rows) :matrix) : (constructor * matrix) list * matrix option =
   let group_tbl : (constructor, group) Hashtbl.t = Hashtbl.create 42 in
   let wildcard_group = empty_group acs 0 in
   let rec collect_constructors : pattern list -> unit = function
@@ -170,16 +178,16 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
         end;
         collect_constructors ptl
   in
-  List.iter (fun row -> collect_constructors row.lhs) rows;
+  List.iter (fun row -> collect_constructors (fst row.lhs)) rows;
   let all_constructor_groups =
     group_tbl |> Hashtbl.to_seq_values |> List.of_seq
   in
   let rec put_in_group (row : matrix_row) =
     match row.lhs with
-    | [] -> assert false
-    | pattern::ptl ->
-      let with_lhs pats = { row with lhs = pats } in
-      let row_rest = with_lhs ptl in
+    | [], _ -> assert false
+    | pattern::ptl, env ->
+      let with_lhs pats env = { row with lhs = (pats, env) } in
+      let row_rest = with_lhs ptl env in
       match pattern with
       | Constructor (k, plist) ->
         let group = Hashtbl.find group_tbl k in
@@ -187,8 +195,11 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
       | Wildcard ->
         List.iter (fun group -> group_add_omegas group row_rest)
           (wildcard_group :: all_constructor_groups);
-      | As (pattern, _) -> put_in_group (with_lhs (pattern::ptl))
-      | Or (p1, p2) -> put_in_group (with_lhs (p1::ptl)); put_in_group (with_lhs (p2::ptl))
+      | Or (p1, p2) ->
+         put_in_group (with_lhs (p1::ptl) env); put_in_group (with_lhs (p2::ptl) env)
+      | As (pattern, var) ->
+         let env' = SMap.add var (SAccessor (List.hd acs)) env in
+         put_in_group (with_lhs (pattern::ptl) env')
   in
   List.iter put_in_group rows;
   let constructor_matrices =
@@ -210,39 +221,39 @@ let group_constructors type_env (acs, rows) : (constructor * matrix) list * matr
     (constructor_matrices, None)
 
 let sym_exec type_env source =
-  let rec source_value_to_sym_value : source_value -> sym_value = function
-    | VConstructor (k, svl) -> SCons (k, List.map source_value_to_sym_value svl)
-    | VVar _ -> assert false
+  let rec source_value_to_sym_value env : source_value -> sym_value = function
+    | VConstructor (k, svl) -> SCons (k, List.map (source_value_to_sym_value env) svl)
+    | VVar v -> SMap.find v env
   in
   let rec decompose (matrix : matrix) : constraint_tree =
     match matrix with
     | (_, []) -> Failure
-    | ([] as _no_acs, ({ lhs = []; guard = None;_ } as row)::_) ->
+    | ([] as _no_acs, ({ lhs = ([], env); guard = None;_ } as row)::_) ->
        begin match (row.rhs : source_rhs) with
          | Unreachable -> Unreachable
-         | Observe expr -> Leaf (List.map source_value_to_sym_value expr)
+         | Observe expr -> Leaf (List.map (source_value_to_sym_value env)expr)
        end
     | ([] as _no_acs,
-       ({ lhs = []; guard = Some (Guard guard); _ } as row) :: rest)
+       ({ lhs = ([], env); guard = Some (Guard guard); _ } as row) :: rest)
       ->
-       Guard (List.map source_value_to_sym_value guard,
+       Guard (List.map (source_value_to_sym_value env) guard,
               decompose ([], { row with guard = None } :: rest),
               decompose ([], rest))
-    | (_::_ as _accs, { lhs = []; _ }::_) -> assert false
-    | ([] as _no_accs, { lhs = _::_; _  }::_) -> assert false
-    | (ac_head::_ as _acs, { lhs = (_::_); _ }::_) ->
+    | (_::_ as _accs, { lhs = ([], _); _ }::_) -> assert false
+    | ([] as _no_accs, { lhs = (_::_, _); _  }::_) -> assert false
+    | (ac_head::_ as _acs, { lhs = (_::_, _); _ }::_) ->
       let groups, fallback = group_constructors type_env matrix in
       let groups_evaluated =
         groups |> List.map (fun (k, submatrix) -> (k, decompose submatrix))
       in
       let fallback_evaluated = match fallback with
-      | None -> Unreachable
-      | Some nonempty_matrix -> decompose nonempty_matrix
+        | None -> Unreachable
+        | Some nonempty_matrix -> decompose nonempty_matrix
+      in
+      Node (ac_head, groups_evaluated, fallback_evaluated)
   in
-  Node (ac_head, groups_evaluated, fallback_evaluated)
-    in
-    let row_of_clause clause = { clause with lhs = [clause.lhs] } in
-    decompose ([AcRoot], List.map row_of_clause source.clauses)
+  let row_of_clause clause = { clause with lhs = ([clause.lhs], empty_env) } in
+  decompose ([AcRoot], List.map row_of_clause source.clauses)
 
 (* alias of sym_exec, for consistency with Target_sym_engine *)
 let eval type_env source_ast =

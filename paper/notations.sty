@@ -2,8 +2,14 @@
 \newcommand{\bnfor}{\mathrel{\vert}}
 
 \newcommand{\paramrel}[3]{#2 \mathrel{\approx_{#1}} #3}
+\newcommand{\nparamrel}[3]{#2 \mathrel{{\not\approx}_{#1}} #3}
 \newcommand{\vrel}[2]{\paramrel{\mathsf{val}}{#1}{#2}}
 \newcommand{\erel}[2]{\paramrel{\mathsf{expr}}{#1}{#2}}
+\newcommand{\clerel}[2]{\paramrel{\mathsf{cl-expr}}{#1}{#2}}
+\newcommand{\envrel}[2]{\paramrel{\mathsf{env}}{#1}{#2}}
+\newcommand{\resrel}[2]{\paramrel{\mathsf{res}}{#1}{#2}}
+\newcommand{\runrel}[2]{\paramrel{\mathsf{run}}{#1}{#2}}
+\newcommand{\progrel}[2]{\paramrel{\mathsf{prog}}{#1}{#2}}
 
 \newcommand{\sem}[1]{{\llbracket{#1}\rrbracket}}
 
@@ -16,6 +22,7 @@
 \newcommand{\any}{\mathtt{\_}}
 
 % \equiv is already taken
+\newcommand{\SimpleEquiv}[3]{\mathsf{equiv}(#1, #2, #3)}
 \newcommand{\Equiv}[4]{\mathsf{equiv}(#1, #2, #3, #4)}
 \newcommand{\Equivrel}[4]{#1 \vdash_{#4} #2 \approx #3}
 
@@ -26,10 +33,11 @@
 
 \newcommand{\Root}{\mathsf{Root}}
 
+\newcommand{\cle}{\underline{e}}
 \newcommand{\NoMatch}{\mathsf{NoMatch}}
-\newcommand{\Match}[2]{\mathsf{Match}(#1,#2)}
+\newcommand{\Match}[1]{\mathsf{Match}(#1)}
 
-\newcommand{\Leaf}[2]{\mathsf{Leaf}(#1,#2)}
+\newcommand{\Leaf}[1]{\mathsf{Leaf}(#1)}
 \newcommand{\Failure}{\mathsf{Failure}}
 \newcommand{\Switch}[3]{\mathsf{Switch}(#1, #2, #3)}
 \newcommand{\Guard}[3]{\mathsf{Guard}(#1, #2, #3)}
@@ -40,5 +48,6 @@
 \newcommand{\emptyqueue}{\mathord{[]}}
 
 \newcommand{\Cfb}{C_{\mathsf{fb}}}
+
 
 \newcommand{\trim}[2]{\mathsf{trim}(#1, #2)}
