@@ -186,8 +186,8 @@ let group_constructors type_env ((acs, rows) :matrix) : (constructor * matrix) l
     match row.lhs with
     | [], _ -> assert false
     | pattern::ptl, env ->
-      let with_lhs (pats, env) = { row with lhs = (pats, env) } in
-      let row_rest = with_lhs (ptl, env) in
+      let with_lhs pats env = { row with lhs = (pats, env) } in
+      let row_rest = with_lhs ptl env in
       match pattern with
       | Constructor (k, plist) ->
         let group = Hashtbl.find group_tbl k in
@@ -196,10 +196,10 @@ let group_constructors type_env ((acs, rows) :matrix) : (constructor * matrix) l
         List.iter (fun group -> group_add_omegas group row_rest)
           (wildcard_group :: all_constructor_groups);
       | Or (p1, p2) ->
-         put_in_group (with_lhs ((p1::ptl), env)); put_in_group (with_lhs ((p2::ptl), env))
+         put_in_group (with_lhs (p1::ptl) env); put_in_group (with_lhs (p2::ptl) env)
       | As (pattern, var) ->
          let env' = SMap.add var (SAccessor (List.hd acs)) env in
-         put_in_group (with_lhs ((pattern::ptl), env'))
+         put_in_group (with_lhs (pattern::ptl) env')
   in
   List.iter put_in_group rows;
   let constructor_matrices =
