@@ -166,41 +166,74 @@ code size.
 
 \paragraph{Computing a source decision tree}
 
-To compute the decision tree of a source program we use the standard approach of \emph{matrix decomposition}. A pattern matrix is an intermediate datastructure that represents matching on several values in parallel. Each column of the matrix matches on a sub-value of the original scrutinee, denoted by an accessor $a_i$. For example, the matrix on the left corresponds roughly to the tuple pattern on the right :
+To compute the decision tree of a source program we use the standard
+approach of \emph{matrix decomposition}. A pattern matrix is an
+intermediate datastructure that represents matching on several values
+in parallel. Each column of the matrix matches on a sub-value of the
+original scrutinee, denoted by an accessor $a_i$. For example, the
+matrix on the left corresponds roughly to the tuple pattern on the
+right:
 
-%% TODO [Gabriel]: LaTeX
+\begin{minipage}{0.4\linewidth}
+\begin{mathpar}
+\begin{array}{lllll}
+\phantom{(}a_1 & a_2 & a_3 & & \\
+(p_{1,1} & p_{1,2} & p_{1,3} & \to & e_1) \\
+(p_{2,1} & p_{2,2} & p_{2,3} & \to & e_2) \\
+\end{array}
+\end{mathpar}
+\end{minipage}
+\hfill
+\begin{minipage}{0.6\linewidth}
+\begin{lstlisting}
+match ($a_1$, $a_2$, $a_3$) with
+| ($p_{1,1}$, $p_{1,2}$, $p_{1,3}$) -> $e_1$
+| ($p_{2,1}$, $p_{2,2}$, $p_{2,3}$) -> $e_2$
+\end{lstlisting}
+\end{minipage}
 
-   a1 a2 a3                      match (a1, a2, a3) with
-  (p1 q1 r1 -> e1)               | (p1, q1, r1) -> e1
-  (p2 q2 r2 -> e2)               | (p2, q2, r2) -> e2
+~
 
-The central operation is to \emph{decompose} a given matrix
-by looking at the variant constructors that occur in the first column ($p_1$, $p_2$ in our example); for each constructor we compute a smaller \emph{submatrix} containing the rows that match this constructor.
+The central operation is to \emph{decompose} a given matrix by looking
+at the variant constructors that occur in the first column, $(p_1$,
+$p_2)$ in our example). For each constructor we compute a smaller
+\emph{submatrix} containing the rows that match this constructor.
 
 
-For example, the decomposition of the matrix on the left gives the two submatrices on the right,
-one for the \texttt{Some} constructor and one for \texttt{None}.
+For example, the decomposition of the matrix on the left gives the two
+submatrices on the right, one for the \texttt{Some} constructor and
+one for \texttt{None}.
 
-(*column 1*)
-   a1       a2 a3
-  (Some(p1) q1 r1 -> e1)
-  (_        q2 r2 -> e2)
-  (None     q3 r3 -> e3)
+\begin{mathpar}
+\begin{array}{lllll}
+\phantom{(}a_1 & a_2 & a_3 & & \\
+(\mathtt{Some}(q) & p_{1,2} & p_{1,3} & \to & e_1) \\
+(\any & p_{2,2} & p_{2,3} & \to & e_2) \\
+(\mathtt{None} & p_{3,2} & p_{3,3} & \to & e_3) \\
+\end{array}
 
-(*column 2*)
-   a1.1 a2 a3
-  (p1   q1 r1 -> e1)
-  (_    q2 r2 -> e2)
+\begin{array}{l}
+{\begin{array}{lllll}
+\phantom{(}{a_1}.1 & a_2 & a_3 & & \\
+(q & p_{1,2} & p_{1,3} & \to & e_1) \\
+(\any & p_{2,2} & p_{2,3} & \to & e_2) \\
+\end{array}}
+\\[2em]
+{\begin{array}{llll}
+\phantom{(}a_2 & a_3 & & \\
+(p_{2,2} & p_{2,3} & \to & e_2) \\
+(p_{3,2} & p_{3,3} & \to & e_3) \\
+\end{array}}
+\end{array}
+\end{mathpar}
 
-   a2 a3
-  (q2 r2 -> e2)
-  (q3 r3 -> e3)
+We build a decomposition tree by repeating this decomposition step. At
+each step we emit a \texttt{Switch} node on the accessor of the first
+column. We have one sub-tree per submatrix, and the branch condition
+checks for the submatrix constructor.
 
-(* remove r if example too wide *)
-
-We build a decomposition tree by repeating this decomposition step. At each step we emit a \texttt{Switch} node on the accessor of the first column. We have one sub-tree per submatrix, and the branch condition checks for the submatrix constructor.
-
-We emit a terminal node whenever the matrix decomposition algorithm stops with an empty matrix.
+We emit a leaf node when repeated decomposition reaches a matrix with
+empty rows (no columns).
 
 \paragraph{Computing a target decision tree}
 
