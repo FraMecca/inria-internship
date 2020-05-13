@@ -104,16 +104,9 @@ on our equivalence algorithm between source and target programs.
 
 \section{Decision Trees}
 
-%% replace common TODO Our algorithm translates both source and target
-programs into a common representation, \emph{decision trees}. For
-source programs we store in the nodes a value derived from the 
-first column of the matrix and for each variant we recur on a subtree.
-We emit a terminal node whenever the matrix decomposition algorithm
-stops with an empty matrix. For target programs we recur into a
-subtree at every control flow statement. Symbolic execution is used to
-express an interval set of possible values that the variable at the
-branch condition can take Here are the decision tree for the source
-and target example programs.
+Our algorithm translates both source and target
+programs into a common representation, \emph{decision trees}.
+Here are the decision tree for the source and target example programs.
 
 ~
 
@@ -159,7 +152,7 @@ access path to a value that can be reached by deconstructing the
 scrutinee (\texttt{li} in our example), in this case the first
 subvalue of the scrutinee.
 
-source conditions test the head constructor of the accessor, whereas
+Source conditions test the head constructor of the accessor, whereas
 target conditions test the low-level representation of values in
 Lambda code. For example, cons cells \texttt{x::xs} or tuples
 \texttt{(x,y)} are heap blocks (with tag 0), while the empty list
@@ -170,12 +163,99 @@ same checks in the same order, so the equivalence is obvious. However,
 this may not be the case in general, as the compiler may reorder
 checks, simplify away redundant checks or sometimes add them to reduce
 code size.
-%
+
+\paragraph{Computing a source decision tree}
+
+To compute the decision tree of a source program we use the standard
+approach of \emph{matrix decomposition}. A pattern matrix is an
+intermediate datastructure that represents matching on several values
+in parallel. Each column of the matrix matches on a sub-value of the
+original scrutinee, denoted by an accessor $a_i$. For example, the
+matrix on the left corresponds roughly to the tuple pattern on the
+right:
+
+\begin{minipage}{0.4\linewidth}
+\begin{mathpar}
+\begin{array}{lllll}
+\phantom{(}a_1 & a_2 & a_3 & & \\
+(p_{1,1} & p_{1,2} & p_{1,3} & \to & e_1) \\
+(p_{2,1} & p_{2,2} & p_{2,3} & \to & e_2) \\
+\end{array}
+\end{mathpar}
+\end{minipage}
+\hfill
+\begin{minipage}{0.6\linewidth}
+\begin{lstlisting}
+match ($a_1$, $a_2$, $a_3$) with
+| ($p_{1,1}$, $p_{1,2}$, $p_{1,3}$) -> $e_1$
+| ($p_{2,1}$, $p_{2,2}$, $p_{2,3}$) -> $e_2$
+\end{lstlisting}
+\end{minipage}
+
+~
+
+The central operation is to \emph{decompose} a given matrix by looking
+at the variant constructors that occur in the first column, $(p_1$,
+$p_2)$ in our example). For each constructor we compute a smaller
+\emph{submatrix} containing the rows that match this constructor.
+
+
+For example, the decomposition of the matrix on the left gives the two
+submatrices on the right, one for the \texttt{Some} constructor and
+one for \texttt{None}.
+
+\begin{mathpar}
+\begin{array}{lllll}
+\phantom{(}a_1 & a_2 & a_3 & & \\
+(\mathtt{Some}(q) & p_{1,2} & p_{1,3} & \to & e_1) \\
+(\any & p_{2,2} & p_{2,3} & \to & e_2) \\
+(\mathtt{None} & p_{3,2} & p_{3,3} & \to & e_3) \\
+\end{array}
+
+\begin{array}{l}
+{\begin{array}{lllll}
+\phantom{(}{a_1}.1 & a_2 & a_3 & & \\
+(q & p_{1,2} & p_{1,3} & \to & e_1) \\
+(\any & p_{2,2} & p_{2,3} & \to & e_2) \\
+\end{array}}
+\\[2em]
+{\begin{array}{llll}
+\phantom{(}a_2 & a_3 & & \\
+(p_{2,2} & p_{2,3} & \to & e_2) \\
+(p_{3,2} & p_{3,3} & \to & e_3) \\
+\end{array}}
+\end{array}
+\end{mathpar}
+
+We build a decomposition tree by repeating this decomposition step. At
+each step we emit a \texttt{Switch} node on the accessor of the first
+column. We have one sub-tree per submatrix, and the branch condition
+checks for the submatrix constructor.
+
+We emit a leaf node when repeated decomposition reaches a matrix with
+empty rows (no columns).
+
+\paragraph{Computing a target decision tree}
+
+The target programs include the following Lambda constructs:
+\texttt{let, if, switch, Match\_failure, catch, exit, field} and
+various comparison operations, guards. A simple symbolic execution
+engine traverses the target program, keeping an environment that maps
+variables to accessors. It branches at every control flow statement
+and emits a \texttt{Switch} node. The branch condition $\pi_i$ is
+expressed as an interval set of possible values at that point.
+
+%% TODO [Gabriel]: LaTeX
+
+For example, consider the Lambda fragment `(if (= x 0) e1 e2)`. We build a `Switch` node with two children, one for `e1` and one for `e2`. We get the accessor corresponding to `x` in the symbolic environment, and the branch conditions of the two subtrees would correspond respectively to `= 0` (the domain `[0]`) and `!= 0` (the domain `[min_int; -1] \cup [1; max_int]`).
+
+\section{Checking equivalence}
+
 We now give a simplified sketch of our equivalence
 algorithm. A complete overview is given in appendices.
 
 To check the equivalence of a source and a target decision tree,
-we proceed recusrively by case analysis.
+we proceed recursively by case analysis.
 %
 If we have two leaves, we check that the target right-hand-side is the
 compilation of the source right-hand-side, and that the captured
@@ -196,6 +276,10 @@ datatypes. Patterns support wildcards, constructors and literals,
 or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
 evaluation of expressions during matching.
+
+Our current implementation prototype can be found at
+
+$\qquad$\url{https://github.com/FraMecca/inria-internship/}.
 
 \newpage
 \appendix
@@ -316,8 +400,7 @@ case.
 \section{From source programs to decision trees: matrix decomposition}
 
 We write $\sem{t_S}_S$ for the decision tree of the source program
-$t_S$, computed by a matrix decomposition algorithm (each column
-decomposition step gives a \texttt{Switch} node).
+$t_S$, computed by a matrix decomposition algorithm.
 It satisfies the following correctness statement:
 \[
 \forall t_S, \forall v_S, \quad \runrel {t_S(v_S)} {\sem{t_S}_S(v_S)}
@@ -325,58 +408,30 @@ It satisfies the following correctness statement:
 Running any source value $v_S$ against the source program gives the
 same result as running it against the decision tree.
 
-% TODO [Gabriel]: if there is space, it would make sense to mention
-% the correctness condition for the decision tree of a matrix, which
-% is less immediate than the one for whole programs and may be
-% appreciated by the reviewers.
-
-% TODO [Gabriel]: given the amount of information in the (new)
-% previous section, it doesn't really make sense to keep this section
-% if we do not say a bit more about pattern matrices.
+% TODO [Gabriel]: write the correctness statement for the matrix version as well.
 
 \section{From target programs to decision trees: symbolic execution}
-The target programs include the following Lambda constructs:
-\texttt{let, if, switch, Match\_failure, catch, exit, field} and
-various comparison operations, guards. A simple symbolic execution
-engine traverses the target program, keeping an environment that maps
-variables to accessors. It branches at every control flow statement
-and emits a \texttt{Switch} node. The branch condition $\pi_i$ is
-expressed as an interval set of possible values at that point.
-%
-Guards result in branching on the boolean result.
-%
-In comparison with the source decision trees, \texttt{Unreachable}
-nodes are never emitted.
 
 We write $\sem{t_T}_T$ for the decision tree of the target program
-$t_T$, satisfying the following correctness statement:
+$t_T$, satisfying a correctness statement similar to the source one:
 \[
 \forall t_T, \forall v_T, \quad \runrel {t_T(v_T)} {\sem{t_T}_T(v_T)}
 \]
 
 \section{Equivalence checking}
-The equivalence checking algorithm takes as input a domain of
-possible values \emph{S} and a pair of source and target decision trees and
-in case the two trees are not equivalent it returns a counter example.
-The algorithm respects the following correctness statement:
-% TODO: we have to define what \covers mean for readers to understand the specifications
-% (or we use a simplifying lie by hiding \covers in the statements).
-\begin{align*}
- \SimpleEquiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
- & \implies
- \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {C_S(v_S)} {C_T(v_T)}
-\\
- \SimpleEquiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
- & \implies
- \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {C_S(v_S)} {C_T(v_T)}}
-\end{align*}
 
-This algorithm $\SimpleEquiv S {C_S} {C_T}$ is in fact exactly
-a decision procedure for the provability of the judgment
+During equivalence checking we traverse the two trees, recursively checking equivalence of pairs of subtrees.
+When we traverse a branch condition, we learn a condition
+on an accessor that restricts the set of possible input values that can flow in the corresponding subtree.
+We represent this in our algorithm as an \emph{input domain} $S$ of possible values (a mapping from accessors to target domains).
+
+The equivalence checking algorithm $\SimpleEquiv S {C_S} {C_T}$ takes an input domain \emph{S} and a pair of source and target decision trees. In case the two trees are not equivalent, it returns a counter example.
+
+It is defined exactly as a decision procedure for the provability of the judgment
 $(\Equivrel S {C_S} {C_T} \emptyqueue)$, defined below in the general
 form $(\Equivrel S {C_S} {C_T} G)$ where $G$ is a \emph{guard queue},
 indicating an imbalance between the guards observed in the source tree
-and in the target tree.
+and in the target tree. (For clarity of exposition, the inference rules do not explain how we build the counter-example.)
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}l}
     & & \text{\emph{input space}} \\
@@ -393,7 +448,7 @@ and in the target tree.
     G & \bnfeq & (t_1 = b_1), \dots, (t_n = b_n) \\
   \end{array}
   \\
-  \infer{ }
+  \infer[empty]{ }
   {\Equivrel \emptyset {C_S} {C_T} G}
 
   \infer{ }
@@ -403,7 +458,7 @@ and in the target tree.
   {\erel {t_S} {t_T}}
   {\Equivrel S {\Leaf {t_S}} {\Leaf {t_T}} \emptyqueue}
 
-  \infer
+  \infer[explode-left]
   {\forall i,\;
     \Equivrel
       {(S \land a = K_i)}
@@ -416,21 +471,10 @@ and in the target tree.
   {\Equivrel S
     {\Switch a {\Fam i {K_i, C_i}} \Cfb} {C_T} G}
 
-\begin{comment}
-When the left hand side is not a terminal, the algorithm explodes the
-left hand side while trimming every right hand side subtree. Trimming
-a left hand side tree on an interval set $dom_S$ computed from the right hand
-side tree constructor means mapping every branch condition $dom_T$ (interval set of
-possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
-the accessors on both side are equal, and removing the branches that
-result in an empty intersection. If the accessors are different,
-\emph{$dom_T$} is left unchanged.
-\end{comment}
-
   % TODO explain somewhere why the judgment is not symmetric:
   % we avoid defining trimming on source trees, which would
   % require more expressive conditions than just constructors
-  \infer
+  \infer[explode-right]
   {C_S \in {\Leaf t, \Failure}
    \\
    \forall i,\; \Equivrel {(S \land a \in D_i)} {C_S} {C_i} G
@@ -438,14 +482,6 @@ result in an empty intersection. If the accessors are different,
    \Equivrel {(S \land a \notin \Fam i {D_i})} {C_S} \Cfb G}
   {\Equivrel S
     {C_S} {\Switch a {\Fam i {D_i} {C_i}} \Cfb} G}
-
-\begin{comment}
-If the source decision tree (left hand side) is a terminal while the
-target decisiorn tree (right hand side) is not, the algorithm proceeds
-by \emph{explosion} of the right hand side. Explosion means that every
-child of the right hand side is tested for equality against the left
-hand side.
-\end{comment}
 
   \infer
   {\Equivrel S {C_0} {C_T} {G, (e_S = 0)}
@@ -462,41 +498,35 @@ hand side.
     {C_S} {\Guard {e_T} {C_0} {C_1}} {(e_S = b), G}}
 \end{mathpar}
 
-\begin{comment}
-The algorithm proceeds by case analysis.
-If $S$ is empty the results is $\Yes$.
-If the two decision trees are both terminal nodes the algorithm checks
-for content equality.
-If the source decision tree (left hand side) is a terminal while the
-target decistion tree (right hand side) is not, the algorithm proceeds
-by \emph{explosion} of the right hand side. Explosion means that every
-child of the right hand side is tested for equality against the left
-hand side.
+% TODO[Gabriel]: fix \Rule macro
+The \Rule{empty} rule states that two subtrees are equivalent when the input domain is empty. This is used when the two subtrees constrain the input in incompatible ways.
 
-% TODO: [Gabriel] in practice the $dom_S$ are constructors and the
-% $dom_T$ are domains. Do we want to hide this fact, or be explicit
-% about it? (Maybe we should introduce explicitly/clearly the idea of
-% target domains at some point).
+The explosion rules are used when a `Switch` node occurs on either side. Each child of this switch is tested for equality against the other tree. The branch condition of the child is used to refine the input domain.
 
-When the left hand side is not a terminal, the algorithm explodes the
-left hand side while trimming every right hand side subtree. Trimming
-a left hand side tree on an interval set $dom_S$ computed from the right hand
-side tree constructor means mapping every branch condition $dom_T$ (interval set of
-possible values) on the left to the intersection of $dom_T$ and $dom_S$ when
-the accessors on both side are equal, and removing the branches that
-result in an empty intersection. If the accessors are different,
-\emph{$dom_T$} is left unchanged.
+As an optimization, in the \Rule{explode-left} rule we \emph{trim} the target tree, by simplifying the tree in depth with the source condition. Trimming
+a target tree on a domain $dom_S$ computed from a source constructor means mapping every branch condition $dom_T$ of every node of the target tree to the intersection of $dom_T$ and $dom_S$ when the accessors on both sides are equal, and removing the branches that result in an empty intersection. If the accessors are different, \emph{$dom_T$} is left unchanged.
+Trimming avoids redundant work, because each target subtree removed (in one step) by trimming would have been traversed during the equivalence computation of each source subtree, potentially many times.
 
-The equivalence checking algorithm deals with guards by storing a
-queue. A guard blackbox is pushed to the queue whenever the algorithm
-encounters a Guard node on the right, while it pops a blackbox from
-the queue whenever a Guard node appears on the left hand side.
-The algorithm stops with failure if the popped blackbox and the and
-blackbox on the left hand Guard node are different, otherwise in
-continues by exploding to two subtrees, one in which the guard
-condition evaluates to true, the other when it evaluates to false.
-Termination of the algorithm is successful only when the guards queue
-is empty.
-\end{comment}
+We have only defined trimming of a target tree, not of a source tree: the branch condition on the source tree are just constructors, so they are less expressive than target domains and it is hard to define an intersection between the two. We restrict the \Rule{explode-right} rule to only work on terminal source trees, so that no duplicate work occurs.
+
+There is no guarantee that the guards will appear at the same level on both sides. We store a \emph{guard queue} $G$ that
+tracks the guard conditions that we have traversed in the source tree, but not yet in the target tree, with the boolean result of each condition.
+%
+Termination of the algorithm is successful only when the guards queue is empty. This ensures that both sides executed the same guards, in the same order -- guard conditions may perform side-effects, so their order can be observed.
+
+The algorithm respects the following correctness statement:
+% TODO: we have to define what \covers mean for readers to understand the specifications
+% (or we use a simplifying lie by hiding \covers in the statements).
+\begin{align*}
+ \SimpleEquiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
+ & \implies
+ \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {C_S(v_S)} {C_T(v_T)}
+\\
+ \SimpleEquiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
+ & \implies
+ \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {C_S(v_S)} {C_T(v_T)}}
+\end{align*}
+
+The technical condition $\covers {C_T} S$ means that for each node of the (target) tree, the union of the branch conditions include the whole input domain. It obviously holds for the decision trees generated from the source and target program (they cover the whole input domain). It is preserved by our inference rules, because trimming preserves coverage.
 
 \end{document}
