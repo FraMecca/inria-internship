@@ -6,10 +6,10 @@
        workshop submission
      - [X] finish the code for handling variables
      - [ ] Put a reasonable readme
-* TODO Workshop [0/2]:
-     - [ ] write the part about equivalence checking in the workshop
-       submission
-     - [ ] explain why the judgment on equivalence is not symmetric
+* TODO Workshop [2/2]:
+     - [X] write the part about equivalence checking in the submission
+     - [X] explain why the judgment on equivalence is not symmetric
+     - [ ] Reread and submit
 * TODO Proof [1/6]:
    - [ ] define covering of C_S
    - [X] define running a value against source/target/trees
