@@ -526,7 +526,7 @@ and in the target tree. (For clarity of exposition, the inference rules do not e
    \\
    \Equivrel
      {(S \cap a \notin \Fam i {K_i})}
-     \Dfb {\trim {D_T} {a \notin \Fam i {K_i}}} G
+     \Dfb {\trim {D_T} {S(a) \cap a \notin \Fam i {K_i}}} G
   }
   {\Equivrel S
     {\Switch a {\Fam i {K_i, D_i}} \Dfb} {D_T} G}
@@ -601,18 +601,16 @@ empty. This ensures that both sides executed the same guards, in the
 same order.
 
 The algorithm respects the following correctness statement:
-% TODO: we have to define what \covers mean for readers to understand the specifications
-% (or we use a simplifying lie by hiding \covers in the statements).
 \begin{align*}
- \SimpleEquiv S {D_S} {D_T} = \Yes \;\land\; \covers {D_T} S
+ \SimpleEquiv S {D_S} {D_T} = \Yes
  & \implies
  \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {D_S(v_S)} {D_T(v_T)}
 \\
- \SimpleEquiv S {D_S} {D_T} = \No {v_S} {v_T} \;\land\; \covers {D_T} S
+ \SimpleEquiv S {D_S} {D_T} = \No {v_S} {v_T}
  & \implies
  \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {D_S(v_S)} {D_T(v_T)}}
 \end{align*}
 
-The technical condition $\covers {D_T} S$ means that for each node of the (target) tree, the union of the branch conditions include the whole input domain. It obviously holds for the decision trees generated from the source and target program (they cover the whole input domain). It is preserved by our inference rules, because trimming preserves coverage.
+
 
 \end{document}
