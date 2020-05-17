@@ -7,6 +7,10 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 
+\usepackage{hyperref}
+\usepackage[dvipsnames]{xcolor}
+\hypersetup{breaklinks=true,colorlinks=true,citecolor=OliveGreen,urlcolor=Plum}
+
 \usepackage{comment}
 \usepackage{mathpartir}
 \usepackage{stmaryrd} % llbracket, rrbracket
@@ -284,9 +288,10 @@ or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
 \texttt{when} guards, which are interesting as they introduce the
 evaluation of expressions during matching.
 
-Our current implementation prototype can be found at
-
-$\qquad$\url{https://github.com/FraMecca/inria-internship/}.
+Our current implementation prototype can be found at:
+\begin{center}
+  \url{https://github.com/FraMecca/inria-internship/}.
+\end{center}
 
 \newpage
 \appendix
