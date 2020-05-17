@@ -245,9 +245,16 @@ variables to accessors. It branches at every control flow statement
 and emits a \texttt{Switch} node. The branch condition $\pi_i$ is
 expressed as an interval set of possible values at that point.
 
-%% TODO [Gabriel]: LaTeX
-
-For example, consider the Lambda fragment `(if (= x 0) e1 e2)`. We build a `Switch` node with two children, one for `e1` and one for `e2`. We get the accessor corresponding to `x` in the symbolic environment, and the branch conditions of the two subtrees would correspond respectively to `= 0` (the domain `[0]`) and `!= 0` (the domain `[min_int; -1] \cup [1; max_int]`).
+For example, consider the Lambda fragment
+%
+\lstinline{if (= x 0) e1 e2)}.
+%
+We build a \lstinline{Switch} node with two children, one for
+\lstinline{e1} and one for \lstinline{e2}. We get the accessor
+corresponding to \lstinline{x} in the symbolic environment, and the
+branch conditions of the two subtrees would correspond respectively to
+\lstinline{= 0} (the domain $[0]$) and \lstinline{!= 0} (the domain
+$[\mathtt{min\_int}; -1] \cup [1; \mathtt{max\_int}]$).
 
 \section{Checking equivalence}
 
