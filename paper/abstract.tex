@@ -11,6 +11,8 @@
 \usepackage[dvipsnames]{xcolor}
 \hypersetup{breaklinks=true,colorlinks=true,citecolor=OliveGreen,urlcolor=Plum}
 
+\usepackage{appendix}
+
 \usepackage{comment}
 \usepackage{mathpartir}
 \newcommand{\Rule}[1]{\LabTirName{#1}}
@@ -295,8 +297,14 @@ Our current implementation prototype can be found at:
   \url{https://github.com/FraMecca/inria-internship/}.
 \end{center}
 
-\newpage
 \appendix
+\appendixpage
+
+In these appendices we are trying to show the minimal amount of
+formalism to describe our equivalence algorithm in a precise way, and
+explain how we reason about its correctness (in particular what the
+correctness statements are). We omit as many details as the
+explanation can afford (hopefully) to keep the document concise.
 
 \section{A more formal setting}
 
