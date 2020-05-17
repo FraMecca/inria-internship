@@ -88,7 +88,7 @@ The code on the right is in the Lambda intermediate representation of
 the OCaml compiler. The Lambda representation of a program is shown by
 calling the \texttt{ocamlc} compiler with \texttt{-drawlambda} flag.
 
-The pattern matching compiler is a critical part of the compiler
+The pattern matching compiler is a critical part of the OCaml compiler
 in terms of correctness because bugs typically result in wrong code
 production rather than compilation failures.
 Such bugs also are hard to catch by testing because they arise in
@@ -107,8 +107,13 @@ One could either verify the compiler implementation
 (full verification) or check each input-output pair
 (translation validation). We chose translation validation; it gives
 a weaker result but is much easier to adopt in a production
-compiler. The compiler is treated as a blackbox and proof only depends
+compiler. The pattern-matching compiler is treated as a blackbox and proof only depends
 on our equivalence algorithm between source and target programs.
+
+It would be very challenging to consider equivalence checking at the
+scale of a source-to-binary native compiler. In contrast, the
+pattern-matching compiler is a specific subsystem where we expect
+equivalence checking to be feasible in practice.
 
 \section{Decision Trees}
 
@@ -123,11 +128,11 @@ Here are the decision tree for the source and target example programs.
 \begin{verbatim}
        Switch(Root)
        /        \
-     (= [])    (= ::)
+     ([])       (::)
      /             \
    Leaf         Switch(Root.1)
 (0, None)       /         \
-             (= [])      (= ::)
+              ([])        (::)
              /               \
           Leaf              Leaf
    [x = Root.0]         [y = Root.1.0]
@@ -167,10 +172,9 @@ Lambda code. For example, cons cells \texttt{x::xs} or tuples
 \texttt{[]} is the immediate integer \texttt{0}.
 
 In this simple example, the two decision trees perform exactly the
-same checks in the same order, so the equivalence is obvious. However,
-this may not be the case in general, as the compiler may reorder
-checks, simplify away redundant checks or sometimes add them to reduce
-code size.
+same checks in the same order, so their equivalence is
+obvious. However, this is not the case in general, as the compiler may
+reorder checks and simplify away redundant checks.
 
 \paragraph{Computing a source decision tree}
 
@@ -203,8 +207,8 @@ match ($a_1$, $a_2$, $a_3$) with
 ~
 
 The central operation is to \emph{decompose} a given matrix by looking
-at the variant constructors that occur in the first column, $(p_1$,
-$p_2)$ in our example). For each constructor we compute a smaller
+at the variant constructors that occur in the first column -- $(p_1$,
+$p_2)$ in our example. For each constructor we compute a smaller
 \emph{submatrix} containing the rows that match this constructor.
 
 
@@ -222,7 +226,7 @@ one for \texttt{None}.
 
 \begin{array}{l}
 {\begin{array}{lllll}
-\phantom{(}{a_1}.1 & a_2 & a_3 & & \\
+\phantom{(}{a_1}.0 & a_2 & a_3 & & \\
 (q & p_{1,2} & p_{1,3} & \to & e_1) \\
 (\any & p_{2,2} & p_{2,3} & \to & e_2) \\
 \end{array}}
@@ -267,7 +271,7 @@ $[\mathtt{min\_int}; -1] \cup [1; \mathtt{max\_int}]$).
 \section{Checking equivalence}
 
 We now give a simplified sketch of our equivalence
-algorithm. A complete overview is given in appendices.
+algorithm. See the appendices for more details.
 
 To check the equivalence of a source and a target decision tree,
 we proceed recursively by case analysis.
@@ -276,11 +280,11 @@ If we have two leaves, we check that the target right-hand-side is the
 compilation of the source right-hand-side, and that the captured
 environments are identical over their free variables.
 %
-If we have a node $N$ and another tree $T$ we check equivalence for
-each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
-subtree $D_i$. For every child $(\pi_i, D_i)$ we reduce $T$ by killing all
-the branches that are incompatible with $\pi_i$ and check that the
-reduced tree is equivalent to $D_i$.
+If we have a Switch node $N$ and another tree $T$ we check equivalence for
+each child of $N$. A child is a pair of a branch condition
+$\pi_i$ and a subtree $D_i$. For every child $(\pi_i, D_i)$ we
+\emph{trim} $T$ by killing the branches that are incompatible with
+$\pi_i$, and check that the trimmed tree is equivalent to $D_i$.
 
 \paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
@@ -288,9 +292,10 @@ a formal statement of correctness and proof sketches.
 
 Our source language supports integers, lists, tuples and algebraic
 datatypes. Patterns support wildcards, constructors and literals,
-or-patterns $(p_1 | p_2)$ and pattern variables.  We also support
-\texttt{when} guards, which are interesting as they introduce the
-evaluation of expressions during matching.
+or-patterns $(p_1 | p_2)$ and pattern variables. We also support
+\texttt{when} guards, which require the evaluation of expressions
+during matching. As they may perform side-effects, the evaluation of
+these guard expressions may not be reordered, erased or duplicated.
 
 Our current implementation prototype can be found at:
 \begin{center}
@@ -615,7 +620,7 @@ The inference rules above do not describe how to build
 a counter-example in the \textsf{No} case; our algorithm corresponds
 to a complete inference procedure that always succeeds, and builds
 a counter-example in the cases where the equivalence judgment does not
-hold -- this is much heavier to describe in inference-rule notation,
+hold. This is much heavier to describe in inference-rule notation,
 and best understood by looking at the code of our software prototype.
 
 \section{Complete procedure}
