@@ -475,11 +475,11 @@ and in the target tree. (For clarity of exposition, the inference rules do not e
   \infer[explode-left]
   {\forall i,\;
     \Equivrel
-      {(S \land a = K_i)}
+      {(S \cap a = K_i)}
       {C_i} {\trim {C_T} {a = K_i}} G
    \\
    \Equivrel
-     {(S \land a \notin \Fam i {K_i})}
+     {(S \cap a \notin \Fam i {K_i})}
      \Cfb {\trim {C_T} {a \notin \Fam i {K_i}}} G
   }
   {\Equivrel S
@@ -488,11 +488,11 @@ and in the target tree. (For clarity of exposition, the inference rules do not e
   \infer[explode-right]
   {C_S \in {\Leaf t, \Failure}
    \\
-   \forall i,\; \Equivrel {(S \land a \in D_i)} {C_S} {C_i} G
+   \forall i,\; \Equivrel {(S \cap a \in \pi_i)} {C_S} {C_i} G
    \\
-   \Equivrel {(S \land a \notin \Fam i {D_i})} {C_S} \Cfb G}
+   \Equivrel {(S \cap a \notin \Fam i {\pi_i})} {C_S} \Cfb G}
   {\Equivrel S
-    {C_S} {\Switch a {\Fam i {D_i} {C_i}} \Cfb} G}
+    {C_S} {\Switch a {\Fam i {\pi_i} {C_i}} \Cfb} G}
 
   \infer
   {\Equivrel S {C_0} {C_T} {G, (e_S = 0)}
@@ -513,22 +513,26 @@ The \Rule{empty} rule states that two subtrees are equivalent when the
 input domain is empty. This is used when the two subtrees constrain
 the input in incompatible ways.
 
-The explosion rules are used when a `Switch` node occurs on either
-side. Each child of this switch is tested for equality against the
-other tree. The branch condition of the child is used to refine the
-input domain.
+The explosion rules are used when a \textsf{Switch} node occurs on
+either side. Each child of this switch is tested for equality against
+the other tree. The branch condition of the child is used to refine
+the input domain. For example, if a source child is conditioned on the
+head constructor $K$, this child is checked in the restricted domain
+$S \cap a = K$, where $a = K$ is implicitly understood as the set of
+related value pairs $\vrel {v_S} {v_T}$ where the head constructor of
+$a(v)$ is $K$.
 
 As an optimization, in the \Rule{explode-left} rule we \emph{trim} the
 target tree, by simplifying the tree in depth with the source
-condition. Trimming a target tree on a domain $dom_S$ computed from
-a source constructor means mapping every branch condition $dom_T$ of
-every node of the target tree to the intersection of $dom_T$ and
-$dom_S$ when the accessors on both sides are equal, and removing the
-branches that result in an empty intersection. If the accessors are
-different, $dom_T$ is left unchanged.  Trimming avoids
-redundant work, because each target subtree removed (in one step) by
-trimming would have been traversed during the equivalence computation
-of each source subtree, potentially many times.
+condition. Trimming a target tree on a domain $\pi$ computed from
+a source constructor $K$ means mapping every branch condition $\pi'$
+of every node of the target tree to the intersection $\pi \cap \pi'$
+when the accessors on both sides are equal, and removing the branches
+that result in an empty intersection. If the accessors are different,
+$\pi'$ is left unchanged.  Trimming avoids redundant work, because
+each target subtree removed (in one step) by trimming would have been
+traversed during the equivalence computation of each source subtree
+and their children, potentially many times.
 
 We have only defined trimming of a target tree, not of a source tree:
 the branch condition on the source tree are just constructors, so they
@@ -537,15 +541,18 @@ intersection between the two. We restrict the \Rule{explode-right}
 rule to only work on terminal source trees, so that no duplicate work
 occurs.
 
-There is no guarantee that the guards will appear at the same level on
-both sides. We store a \emph{guard queue} $G$ that tracks the guard
-conditions that we have traversed in the source tree, but not yet in
-the target tree, with the boolean result of each condition.
+There is no guarantee that the guards will appear at the same tree
+level on both sides: guards cannot be reordered (their evaluation may
+perform observable side-effects), but they can be permuted with
+(non-observable) switches. We store a \emph{guard queue} $G$ that
+tracks the guard conditions that we have traversed in the source tree,
+but not yet in the target tree, with the boolean result of each
+condition.
 %
-Termination of the algorithm is successful only when the guards queue
-is empty. This ensures that both sides executed the same guards, in
-the same order -- guard conditions may perform side-effects, so their
-order can be observed.
+Termination of the algorithm (in the \textsf{Failure} and
+\textsf{Leaf} rules) is successful only when the guards queue is
+empty. This ensures that both sides executed the same guards, in the
+same order.
 
 The algorithm respects the following correctness statement:
 % TODO: we have to define what \covers mean for readers to understand the specifications
