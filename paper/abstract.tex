@@ -276,9 +276,9 @@ environments are identical over their free variables.
 %
 If we have a node $N$ and another tree $T$ we check equivalence for
 each child of $N$. A child is a pair of a branch condition $\pi_i$ and a
-subtree $C_i$. For every child $(\pi_i, C_i)$ we reduce $T$ by killing all
+subtree $D_i$. For every child $(\pi_i, D_i)$ we reduce $T$ by killing all
 the branches that are incompatible with $\pi_i$ and check that the
-reduced tree is equivalent to $C_i$.
+reduced tree is equivalent to $D_i$.
 
 \paragraph{Contributions} We have chosen a simple subset of the OCaml
 language and implemented a prototype equivalence checker along with
@@ -358,7 +358,7 @@ constructor \texttt{[]} to $\Int 0$. We can then define \emph{closed}
 expressions $\cle$, pairing a (source or target) expression with the
 environment $\sigma$ captured by a program, and what it means to
 ``run'' a value against a program or a decision, written $t(v)$ and
-$C(v)$, which returns a trace $(\cle_1, \dots, \cle_n)$ of the
+$D(v)$, which returns a trace $(\cle_1, \dots, \cle_n)$ of the
 executed guards and a \emph{matching result} $r$.
 
 Once formulated in this way, our equivalence algorithm must check the
@@ -367,21 +367,20 @@ captured by the relation $\progrel {t_S} {t_T}$.
 
 \section{Decision trees}
 
-The parametrized grammar $C(\pi, e)$ describes the common structure of
+The parametrized grammar $D(\pi, e)$ describes the common structure of
 source and decision trees. We use $\pi$ for the \emph{conditions} on
 each branch, and $a$ for our \emph{accessors}, which give a symbolic
 description of a sub-value of the scrutinee. Source conditions $\pi_S$
 are just datatype constructors; target conditions $\pi_T$ are
 arbitrary sets of possible immediate-integer or block-tag values.
 
-%TODO [Gabriel] rename C (Constraint trees) into D (Decision trees).
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}r@{~}l}
-    \text{\emph{decision trees}} & C(\pi, e)
+    \text{\emph{decision trees}} & D(\pi, e)
     & \bnfeq & \Leaf {\cle(a)} \\
     & & \bnfor & \Failure \\
-    & & \bnfor & \Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb \\
-    & & \bnfor & \Guard {\cle(a)} {C_0} {C_1} \\
+    & & \bnfor & \Switch a {\Fam {i \in I} {\pi_i, D_i}} \Dfb \\
+    & & \bnfor & \Guard {\cle(a)} {D_0} {D_1} \\
     \text{\emph{accessors}} & a
     & \bnfeq & \Root \;\bnfor\; a.n \quad (n \in \mathbb{N}) \\
   \end{array}
@@ -392,7 +391,7 @@ arbitrary sets of possible immediate-integer or block-tag values.
   \pi_T \subseteq        \{ \Int n \mid n \in \mathbb{Z} \}
                   \uplus \{ \Tag n \mid n \in \mathbb{N} \}
   \\[1em]
-  C_S(v_S), C_T(v_T) \quad \text{\emph{omitted}}
+  D_S(v_S), D_T(v_T) \quad \text{\emph{omitted}}
   \end{array}
 \end{mathpar}
 
@@ -402,13 +401,13 @@ environment $\sigma$ mapping variables to accessors.
 $\Failure$ expresses match failure, when no clause matches the input
 value.
 %
-$\Switch a {\Fam {i \in I} {\pi_i, C_i}} \Cfb$ has one subtree $C_i$
+$\Switch a {\Fam {i \in I} {\pi_i, D_i}} \Dfb$ has one subtree $D_i$
 for every head constructor that appears in the pattern matching
 clauses, and a fallback case for the constructors.
 %
-$\Guard \cle {C_0} {C_1}$ represents a \texttt{when}-guard on a closed
+$\Guard \cle {D_0} {D_1}$ represents a \texttt{when}-guard on a closed
 expression $\cle$, expected to be of boolean type, with sub-trees
-$C_0$ for the \texttt{true} case and $C_1$ for the \texttt{false}
+$D_0$ for the \texttt{true} case and $D_1$ for the \texttt{false}
 case.
 
 \section{From source programs to decision trees: matrix decomposition}
@@ -439,11 +438,11 @@ When we traverse a branch condition, we learn a condition
 on an accessor that restricts the set of possible input values that can flow in the corresponding subtree.
 We represent this in our algorithm as an \emph{input domain} $S$ of possible values (a mapping from accessors to target domains).
 
-The equivalence checking algorithm $\SimpleEquiv S {C_S} {C_T}$ takes an input domain \emph{S} and a pair of source and target decision trees. In case the two trees are not equivalent, it returns a counter example.
+The equivalence checking algorithm $\SimpleEquiv S {D_S} {D_T}$ takes an input domain \emph{S} and a pair of source and target decision trees. In case the two trees are not equivalent, it returns a counter example.
 
 It is defined exactly as a decision procedure for the provability of the judgment
-$(\Equivrel S {C_S} {C_T} \emptyqueue)$, defined below in the general
-form $(\Equivrel S {C_S} {C_T} G)$ where $G$ is a \emph{guard queue},
+$(\Equivrel S {D_S} {D_T} \emptyqueue)$, defined below in the general
+form $(\Equivrel S {D_S} {D_T} G)$ where $G$ is a \emph{guard queue},
 indicating an imbalance between the guards observed in the source tree
 and in the target tree. (For clarity of exposition, the inference rules do not explain how we build the counter-example.)
 \begin{mathpar}
@@ -463,7 +462,7 @@ and in the target tree. (For clarity of exposition, the inference rules do not e
   \end{array}
   \\
   \infer[empty]{ }
-  {\Equivrel \emptyset {C_S} {C_T} G}
+  {\Equivrel \emptyset {D_S} {D_T} G}
 
   \infer{ }
   {\Equivrel S \Failure \Failure \emptyqueue}
@@ -476,37 +475,37 @@ and in the target tree. (For clarity of exposition, the inference rules do not e
   {\forall i,\;
     \Equivrel
       {(S \cap a = K_i)}
-      {C_i} {\trim {C_T} {a = K_i}} G
+      {D_i} {\trim {D_T} {a = K_i}} G
    \\
    \Equivrel
      {(S \cap a \notin \Fam i {K_i})}
-     \Cfb {\trim {C_T} {a \notin \Fam i {K_i}}} G
+     \Dfb {\trim {D_T} {a \notin \Fam i {K_i}}} G
   }
   {\Equivrel S
-    {\Switch a {\Fam i {K_i, C_i}} \Cfb} {C_T} G}
+    {\Switch a {\Fam i {K_i, D_i}} \Dfb} {D_T} G}
 
   \infer[explode-right]
-  {C_S \in {\Leaf t, \Failure}
+  {D_S \in {\Leaf t, \Failure}
    \\
-   \forall i,\; \Equivrel {(S \cap a \in \pi_i)} {C_S} {C_i} G
+   \forall i,\; \Equivrel {(S \cap a \in \pi_i)} {D_S} {D_i} G
    \\
-   \Equivrel {(S \cap a \notin \Fam i {\pi_i})} {C_S} \Cfb G}
+   \Equivrel {(S \cap a \notin \Fam i {\pi_i})} {D_S} \Dfb G}
   {\Equivrel S
-    {C_S} {\Switch a {\Fam i {\pi_i} {C_i}} \Cfb} G}
+    {D_S} {\Switch a {\Fam i {\pi_i} {D_i}} \Dfb} G}
 
   \infer
-  {\Equivrel S {C_0} {C_T} {G, (e_S = 0)}
+  {\Equivrel S {D_0} {D_T} {G, (e_S = 0)}
    \\
-   \Equivrel S {C_1} {C_T} {G, (e_S = 1)}}
+   \Equivrel S {D_1} {D_T} {G, (e_S = 1)}}
   {\Equivrel S
-    {\Guard {e_S} {C_0} {C_1}} {C_T} G}
+    {\Guard {e_S} {D_0} {D_1}} {D_T} G}
 
   \infer
   {\erel {e_S} {e_T}
    \\
-   \Equivrel S {C_S} {C_b} G}
+   \Equivrel S {D_S} {D_b} G}
   {\Equivrel S
-    {C_S} {\Guard {e_T} {C_0} {C_1}} {(e_S = b), G}}
+    {D_S} {\Guard {e_T} {D_0} {D_1}} {(e_S = b), G}}
 \end{mathpar}
 
 The \Rule{empty} rule states that two subtrees are equivalent when the
@@ -558,15 +557,15 @@ The algorithm respects the following correctness statement:
 % TODO: we have to define what \covers mean for readers to understand the specifications
 % (or we use a simplifying lie by hiding \covers in the statements).
 \begin{align*}
- \SimpleEquiv S {C_S} {C_T} = \Yes \;\land\; \covers {C_T} S
+ \SimpleEquiv S {D_S} {D_T} = \Yes \;\land\; \covers {D_T} S
  & \implies
- \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {C_S(v_S)} {C_T(v_T)}
+ \forall {\vrel {v_S} {v_T}} \in S,\; \runrel {D_S(v_S)} {D_T(v_T)}
 \\
- \SimpleEquiv S {C_S} {C_T} = \No {v_S} {v_T} \;\land\; \covers {C_T} S
+ \SimpleEquiv S {D_S} {D_T} = \No {v_S} {v_T} \;\land\; \covers {D_T} S
  & \implies
- \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {C_S(v_S)} {C_T(v_T)}}
+ \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {D_S(v_S)} {D_T(v_T)}}
 \end{align*}
 
-The technical condition $\covers {C_T} S$ means that for each node of the (target) tree, the union of the branch conditions include the whole input domain. It obviously holds for the decision trees generated from the source and target program (they cover the whole input domain). It is preserved by our inference rules, because trimming preserves coverage.
+The technical condition $\covers {D_T} S$ means that for each node of the (target) tree, the union of the branch conditions include the whole input domain. It obviously holds for the decision trees generated from the source and target program (they cover the whole input domain). It is preserved by our inference rules, because trimming preserves coverage.
 
 \end{document}
