@@ -611,6 +611,43 @@ The algorithm respects the following correctness statement:
  \vrel {v_S} {v_T} \in S \;\land\; {\nparamrel{run} {D_S(v_S)} {D_T(v_T)}}
 \end{align*}
 
+The inference rules above do not describe how to build
+a counter-example in the \textsf{No} case; our algorithm corresponds
+to a complete inference procedure that always succeeds, and builds
+a counter-example in the cases where the equivalence judgment does not
+hold -- this is much heavier to describe in inference-rule notation,
+and best understood by looking at the code of our software prototype.
 
+\section{Complete procedure}
 
+Putting all the pieces together, we have a sound and complete decision
+procedure to check the equivalence of a source program $t_S$ and
+target program $t_T$. The correctness argument follows from composing
+together the correctness statements of each part.
+\\
+(We write $\top$ for the full domain of all pairs
+$\vrel {v_S} {v_T}$.)
+\begin{mathpar}
+  \SourceEquiv {t_S} {t_T} \quad:=\quad \SimpleEquiv \top {\sem{t_S}_S} {\sem{t_T}_T}
+\\
+  \SourceEquiv {t_S} {t_T} = \Yes
+
+  \implies
+
+  \forall {\vrel {v_S} {v_T}},
+  \qquad
+  \runrel
+      {\runrel {t_S(v_S)\;} {\;\sem{t_S}_S(v_S)}\;}
+      {\;\runrel {\sem{t_T}_T(v_T)\;} {\;(t_T)(v_T)}}
+\\
+ \SourceEquiv {t_S} {t_T} = \No {v_S} {v_T}
+
+ \implies
+
+ \vrel {v_S} {v_T} \quad\land
+ \qquad
+ \nparamrel{run}
+      {\runrel {t_S(v_S)\;} {\;\sem{t_S}_S(v_S)}\;}
+      {\;\runrel {\sem{t_T}_T(v_T)\;} {\;(t_T)(v_T)}}
+\end{mathpar}
 \end{document}
