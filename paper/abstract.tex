@@ -427,15 +427,48 @@ against a program.
 \section{From source programs to decision trees: matrix decomposition}
 
 We write $\sem{t_S}_S$ for the decision tree of the source program
-$t_S$, computed by a matrix decomposition algorithm.
-It satisfies the following correctness statement:
+$t_S$. It satisfies the expected correctness statement:
 \[
-\forall t_S, \forall v_S, \quad \runrel {t_S(v_S)} {\sem{t_S}_S(v_S)}
+\forall t_S, \forall v_S,
+\quad
+\runrel {t_S(v_S)} {\sem{t_S}_S(v_S)}
 \]
 Running any source value $v_S$ against the source program gives the
 same result as running it against the decision tree.
 
-% TODO [Gabriel]: write the correctness statement for the matrix version as well.
+The decision tree of a source program is in fact defined by the more
+general operation of computing the decision tree of pattern matrix --
+by a matrix decomposition algorithm.
+
+A pattern matrix with rows indexed over $I$ and columns indexed over
+$J$ is an object of the form
+$(\Fam {j \in J} {a_j}, \Fam {i \in i} {\Fam {j \in J} {p_{i,j}} \to e_i})$
+or, in more visual notation:
+\begin{mathpar}
+\begin{array}{lllll}
+\phantom{(}a_1 & \dots & a_j & & \\
+(p_{1,1} & \dots & p_{1,j} & \to & e_1) \\
+& \dots \\
+(p_{i,1} & \dots & p_{i,j} & \to & e_i) \\
+\end{array}
+\end{mathpar}
+
+The usual intuition of a $J$-columns matrix $m$ is that it matches on
+$J$ input values simultaneously, with a natural \emph{run} function
+$m {\Fam {j \in J} {v_j}}$. This intuition does not suffice to
+formulate a correctness statement, because we cannot directly relate
+a matrix $m$ matching on $J$ inputs with a decision tree matching on
+a single input. To formulate the correctness statement, we remark that
+the $J$ input values fed to a matrix are sub-values of a common
+value $v$, obtained through the accessors $\Fam {j \in J} {a_j}$.
+For $m = (\Fam {j \in J} {a_j}, \dots)$
+we have the following correctness statement:
+\[
+\forall t_S, \forall v_S, \forall \Fam j {v_j},
+\Fam j {v_j = a_j(v_S)}
+\quad\implies\quad
+\runrel {m {\Fam {j \in J} {a_j(v_S)}}} {\sem{m}_S(v_S)}
+\]
 
 \section{From target programs to decision trees: symbolic execution}
 
