@@ -298,7 +298,7 @@ Our current implementation prototype can be found at:
 \newpage
 \appendix
 
-\section{A formal setting}
+\section{A more formal setting}
 
 We will use, but not define by lack of space, the notion of source and
 target \emph{programs} $t_S$ and $t_T$, and \emph{expressions} $e_S$
@@ -373,7 +373,7 @@ each branch, and $a$ for our \emph{accessors}, which give a symbolic
 description of a sub-value of the scrutinee. Source conditions $\pi_S$
 are just datatype constructors; target conditions $\pi_T$ are
 arbitrary sets of possible immediate-integer or block-tag values.
-
+%
 \begin{mathpar}
   \begin{array}{l@{~}r@{~}r@{~}l}
     \text{\emph{decision trees}} & D(\pi, e)
@@ -384,17 +384,17 @@ arbitrary sets of possible immediate-integer or block-tag values.
     \text{\emph{accessors}} & a
     & \bnfeq & \Root \;\bnfor\; a.n \quad (n \in \mathbb{N}) \\
   \end{array}
-
+  \quad
   \begin{array}{l}
   \pi_S : \text{datatype constructors}
   \\
   \pi_T \subseteq        \{ \Int n \mid n \in \mathbb{Z} \}
                   \uplus \{ \Tag n \mid n \in \mathbb{N} \}
   \\[1em]
-  D_S(v_S), D_T(v_T) \quad \text{\emph{omitted}}
+  a(v_S), a(v_T), D_S(v_S), D_T(v_T) \quad (\text{\emph{omitted})}
   \end{array}
 \end{mathpar}
-
+%
 The tree $\Leaf \cle$ returns a leaf expression $e$ in a captured
 environment $\sigma$ mapping variables to accessors.
 %
@@ -409,6 +409,12 @@ $\Guard \cle {D_0} {D_1}$ represents a \texttt{when}-guard on a closed
 expression $\cle$, expected to be of boolean type, with sub-trees
 $D_0$ for the \texttt{true} case and $D_1$ for the \texttt{false}
 case.
+
+We write $a(v)$ for the sub-value of the (source or target) value $v$
+that is reachable at the accessor $a$, and $D(v)$ for the result of
+running a value $v$ against a decision tree $D$; this results in
+a (source or target) matching run $R(v)$, just like running the value
+against a program.
 
 \section{From source programs to decision trees: matrix decomposition}
 
