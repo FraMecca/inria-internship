@@ -1,10 +1,30 @@
 * Talk outline
-** Setup
+** Motivation
+We should explain why we are doing this, and our approach to use
+translation-validation. (We can reuse the arguments from the abstract
+introduction.)
+** Approach: translation validation
+Show *one* example (source and target) with a when-guard.
+- highlight blackboxes and explain that we use the compiler
+  as an oracle for their equivalence (we assume that
+  the (source blackbox, compiled blackbox) pairs produced by
+  the compiler are equivalent, and nothing else), and only check equivalence
+  for the rest of the program
+- mention that we do the equivalence-checking by compiling to a simpler representation
+  ((source and target) decision trees) and checking equivalence there
+
+[Gabriel: This might also be a point to briefly discuss related work,
+  namely the PPDP2005 article "Formal Validation of Pattern-Matching
+  code", which basically compiles the equivalence problem to a
+  first-order logical formula and calls a solver (Zenon) on it (hard to
+  extend to support "when" guards or other features that mix control-flow
+  and general term evaluation).]
+
+** Source and target languages
 We should begin by presenting the pattern matching language (both
-source and target) and show example that cover the whole subset.
+source and target) and show examples that cover the whole subset.
 We specify that it is a subset of the OCaml language and the
 -drawlambda from the compiler.
-We then specify why we choosed translation validation.
 ** Decision trees
 We show the previous examples in terms of decision trees and then we
 show the grammar.
@@ -13,6 +33,9 @@ Given that matrix decomposition is well understood I don't know how
 much time we should spend on this.
 I think we can give a small example of matrix decomposition and in
 parallel build the decision tree.
+
+[Gabriel: I agree with this proposal.]
+
 For target program we should explain why we choose symbolic execution
 and we could still build the decision trees step by step in order to
 illustrate how the symbolic engine evaluates the code and how the
@@ -20,6 +43,12 @@ decision tree is generated.
 
 Building the decision tree in both cases, step by step, should be easy
 on slides.
+
+[Gabriel: sounds good. One option, if we have extra time (probably
+ not), would be to show curated parts of the symbolic interpreter (maybe
+ the Let and If cases, with minor simplifications ?) to show that it
+ really looks like an interpreter.]
+
 ** Blackboxes
 I think we should dedicate some space to talk about how we treat
 guards and leaves.
@@ -31,9 +60,28 @@ At the end of this slide the public should understand that
 - we don't modify the compiler output in order to deal with blackboxes
 - how we deal with the blackboxes in the prototype and how we should
   deal with the blackboxes aided by the compiler
+
+[Gabriel: I proposed to add a remark on blackboxes in the "Approach"
+ slide at the beginning, and hopefully this one slide is not necessary
+ anymore. But then maybe a slide dedicated to guards in the
+ equivalence-checking discussion would be nice.]
+
 ** Correctness statements
 We give the correctness statements for source to decision tree, target to
 decision tree, equivalence checking.
+
+[Gabriel: I think that it is less useful in an oral presentation,
+ people don't really have the time to process the statements. Maybe we
+ could leave this slide out, and mention in conclusion that the
+ statements are in the abstract if people want to look at them.]
 ** Equivalence checking
 I think it should be enough to give an overview of the equivalence
 checking steps with the inference rules attached.
+
+[Gabriel: I would propose to detail this a bit more.
+ We could:
+ 1. give an simple example of how the algorithm runs (with transitions to see how we go explore subtrees),
+    demonstrating how we explore subtrees and the "trimming" operation.
+ 2. then explain how the "input domain" feature works (could be a separate slide)
+ 3. then explain how guard-checking works (could be a separate slide)
+]
