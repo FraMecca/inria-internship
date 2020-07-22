@@ -1,0 +1,39 @@
+* Talk outline
+** Setup
+We should begin by presenting the pattern matching language (both
+source and target) and show example that cover the whole subset.
+We specify that it is a subset of the OCaml language and the
+-drawlambda from the compiler.
+We then specify why we choosed translation validation.
+** Decision trees
+We show the previous examples in terms of decision trees and then we
+show the grammar.
+** From source and target programs to decision trees
+Given that matrix decomposition is well understood I don't know how
+much time we should spend on this.
+I think we can give a small example of matrix decomposition and in
+parallel build the decision tree.
+For target program we should explain why we choose symbolic execution
+and we could still build the decision trees step by step in order to
+illustrate how the symbolic engine evaluates the code and how the
+decision tree is generated.
+
+Building the decision tree in both cases, step by step, should be easy
+on slides.
+** Blackboxes
+I think we should dedicate some space to talk about how we treat
+guards and leaves.
+The evaluation should be clear from the previous slides.
+At the end of this slide the public should understand that
+- when guards and leaf expressions are the only blackboxes that we
+  have
+- everything else in the two languages is evaluated properly
+- we don't modify the compiler output in order to deal with blackboxes
+- how we deal with the blackboxes in the prototype and how we should
+  deal with the blackboxes aided by the compiler
+** Correctness statements
+We give the correctness statements for source to decision tree, target to
+decision tree, equivalence checking.
+** Equivalence checking
+I think it should be enough to give an overview of the equivalence
+checking steps with the inference rules attached.
