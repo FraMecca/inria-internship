@@ -1,0 +1,178 @@
+ML 2020 Paper #96 Reviews and Comments
+===========================================================================
+Paper #96 Translation validation of a pattern-matching compiler
+
+
+Review #96A
+===========================================================================
+
+Overall merit
+-------------
+3. Weak accept
+
+Reviewer expertise
+------------------
+2. Some familiarity
+
+Paper summary
+-------------
+This abstract presents an algorithm for validating the correctness of a pattern
+matching compiler.   The algorithm operates on decision trees, which are
+converted from source and target programs via matrix decomposition and
+symbolic execution.  The algorithm has been implemented for a small subset of
+OCaml.
+
+Comments for author
+-------------------
+This work addresses an important challenge with pattern matching, which is
+an essential feature of functional programming languages in general.
+Although translation validation is weaker than full verification (as noted by
+the authors), I like this approach because we can use the same algorithm for
+different compilers as long as their source and target programs can be
+converted into a common representation.
+
+Below are some comments and questions.
+
+* I would like the authors to provide some example of wrong code production
+  mentioned in the introduction.
+
+* It is not clear how the matrix on page 2 is actually represented as a data
+  structure.  Are a1, a2, a3 included in the matrix?  How many rows and
+  columns does the matrix have?
+
+* I do not see p1 or p2 in the matrix.
+
+* It would be nice if the authors could show how matrix decomposition works
+  for nested patterns.
+
+
+
+Review #96B
+===========================================================================
+
+Overall merit
+-------------
+2. Weak reject
+
+Reviewer expertise
+------------------
+4. Expert
+
+Paper summary
+-------------
+This paper presents a validation method for pattern-matching compilation
+of a simple term language. It first describes the standard problem of
+pattern matching compilation of a first-order term languages, presents 
+an algorithm to translate a pattern matching construct to a decision
+tree, describes a method to reconstruct a decision tree from the compiled
+code, and then presents a method to test their equivalence.
+
+Comments for author
+-------------------
+It is a legitimate approach to validate pattern matching compilation by
+construction a (source) decision tree from the source program and a 
+(target) decision tree from the compiled code and checking their
+equivalence. Advocating this approach is strong part of this paper.
+
+For a simple term language with a standard pattern matching compilation
+algorithm, however, constricting such a validation method is straight-forward.
+The technical contents presented in the paper do not address much new
+issues. The source and the target language are both simple term
+languages with standard patterns (with or-pattern, which is well
+understood) and standard conditional branches. Description of
+matrix-based decision tree construction from the source language is
+also quite standard. There is not much discussion on target decision
+tree reconstruction.
+
+To strengthen the paper, I would recommend the authors to consider the
+following aspects.
+
+* As stated above, the method is mostly straightforward. To make this
+  form of research a valuable contribution to others, it would be
+  essential to evaluation the method and to demonstrate its
+  feasibility using a practical compiler, preferable the existing
+  optimizing compiler, in this case OCaml itself.
+
+* Any practical pattern matching compiler attempts to optimize the
+  compiled code in a variety of ways, including
+ 
+    - minimizing the potentially exponential size of the resulting
+      decision tree by introducing some form of sharing of subtrees,
+
+    - re-arranging the tag/constant testing to minimize the average
+      number of run-time tests.
+ 
+  These optimization transformations may impact on target decision
+  tree re-construction from the compiled code. So it may no-longer be
+  the case that "a simple symbolic execution engine traverses the
+  target program ..."
+
+
+Review #96C
+===========================================================================
+
+Overall merit
+-------------
+5. Strong accept
+
+Reviewer expertise
+------------------
+3. Knowledgeable
+
+Paper summary
+-------------
+The paper addresses the problem of ensuring soundness of pattern match
+translations in OCaml compiler. As an alternative to compiler
+verification, which is a high-cost technique to ensure the correctness
+of compilation for *all* programs, the paper proposes a
+fully-automated translation validation technique that verifies the
+correctness of translation for a *given* program. At the core of the
+technique is a common intermediate representation of source and target
+programs in form of decision trees, and a novel decision procedure to
+decide the equivalence of such decision trees. A link to prototype
+implementation has been provided, but no evaluation was discussed.
+
+Comments for author
+-------------------
+On the surface, existence of a decision procedure to check equivalence
+of OCaml programs is surprising considering that program equivalence
+is in general undecidable. The key contribution of the paper (in my
+opinion) is the demonstration that equivalence of pattern match
+expressions is decidable *assuming* that equivalence of other ("leaf")
+expressions is decidable. For the latter, authors simply relate the
+leaf expressions translated by the OCaml compiler and assume they are
+equivalent (In other words, the compiler is assumed to be correct for
+other expressions). This is a neat trick worth discussing. Also worth
+discussing are the limitations of the technique and how can this be
+generalized (beyond pattern match expressions).
+
+ On the flip side, the discussion in the paper is hard to follow. Here
+ are some ways I think it can be improved:
+
+1. Do not switch between examples. The example on first page is good
+   enough; please demonstrate how matrix decomposition and decision
+   tree checking work for this example.
+
+2. From appendix E, it looks like the branch conditions are tracked
+   simply as expressions. If this is the case, the allusion to
+   intervals at the end of Sec. 2 is redundant and confusing.
+
+3. What is the purpose of $$S$$ in Appendix E? Needs explanation
+   (perhaps an example?).
+
+4. Equivalence checking algorithm with all the $$i$$'s and $$j$$'s is
+   hard to follow. When writing a full-length paper in the future, it
+   is helpful to present a special-case unoptimized version of the
+   algorithm (perhaps for single scrutinee match expressions on List
+   and Maybe types) for easier comprehension. The generalized version
+   of the algorithm rightfully belongs to the appendix.
+
+The formal statements of correctness peppered through the appendix are
+helpful. I assume the correctness arguments (esp. for the completeness
+of equivalence checking) critically rely on the internal details of
+OCaml compiler. I look forward to seeing a full formalization (with
+proofs) in the future.
+
+Existence of an implementation is mentioned, but evaluation is never
+discussed. Can the tool detect the two translation bugs alluded to in
+the introduction?
