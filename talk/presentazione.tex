@@ -1,0 +1,115 @@
+\documentclass{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{mathpartir}
+\usepackage{listings}
+\usepackage{stmaryrd}
+\usetheme{Boadilla}
+\title{Translation validation of a pattern-matching compiler}
+\subtitle{}
+\author{Francesco Mecca (University of Turin), Gabriel Scherer (INRIA)}
+\date{\today}
+\begin{document}
+%% TODO: say that correctness statements are in abstract
+
+%%% First page
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section{Motivation}
+\subsection{Translation Validation}
+
+\begin{frame}
+  \frametitle{What is Translation Validation}
+  Translation validation is a  weaker technique of formal correctness. \\
+  At every run of the compiler the input code (source) and the generated code (target) are fed to a
+  validator. \\
+  The validator is independent of the compiler and establish
+  \emph{a posteriori} if the two inputs are observationally
+  equivalent.
+  %% Is it really observational equivalence or is it stronger?
+\end{frame}
+\begin{frame}
+  \frametitle{Why Translation Validation}
+  The compiler is treated as a blackbox. \\
+  If the validator is formally proved, it gives the same level of
+  assurance as the full formal verification of the compiler. \\
+  %% Better way to say "full formal verification"
+  %% Maybe specify what "assurance" means or find another way to
+  %% express that
+  In case of failure, the validator points out the mismatches between
+  the two programs. \\
+  Less effort than full verification.
+\end{frame}
+
+\subsection{Our objective}
+\begin{frame}
+  \frametitle{Our objective}
+We propose an algorithm for the translation validation of a pattern
+matching compiler for a small subset of the OCaml pattern
+matching features. \\
+We avoid the problem of undecidability by restricing the source
+language to a subset of the OCaml language.\\
+However we will see that work still supports the full output of the
+OCaml compiler.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Related Work}
+  %% TODO
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Source program}
+  \begin{lstlisting}
+[@@@warning "-20"]
+external observe : 'a -> 'b = "observe"
+external guard : 'a -> 'b = "guard"
+
+type k1 = K1 of int
+
+type k2 = K2 of int * int
+
+let mm = function
+  | (K1 1, _) -> observe 1
+  | (K1 1, K2 (2, x)) when guard x -> observe 1 2
+  | _ -> observe 0
+
+\end{lstlisting}
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{Source program blackboxes}
+  TODO: Highlight when and guard blackboxes, maybe as image
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Target program}
+\begin{lstlisting}
+(setglobal Simple_k_guards
+  (let
+    (mm/86 =
+       (function param/88
+         (let (*match*/94 =a (field 0 param/88))
+           (catch
+             (let (*match*/95 =a (field 0 *match*/94))
+               (if (!= *match*/95 1) (exit 1)
+                 (let (*match*/96 =a (field 1 param/88)) (observe 1))))
+            with (1) (let (*match*/97 =a (field 1 param/88)) (observe 0))))))
+(makeblock 0 mm/86)))
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Target program}
+  The target program is exactly the \emph{-drawlambda} output of the compiler.
+\end{frame}
+
+%%% table of contents
+\begin{frame}
+  \frametitle{Outline}
+  \tableofcontents
+\end{frame}
+
+\end{document}
