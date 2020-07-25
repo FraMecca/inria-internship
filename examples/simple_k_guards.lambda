@@ -1,0 +1,11 @@
+(setglobal Simple_k_guards!
+  (let
+    (mm/86 =
+       (function param/88
+         (let (*match*/94 =a (field 0 param/88))
+           (catch
+             (let (*match*/95 =a (field 0 *match*/94))
+               (if (!= *match*/95 1) (exit 1)
+                 (let (*match*/96 =a (field 1 param/88)) (observe 1))))
+            with (1) (let (*match*/97 =a (field 1 param/88)) (observe 0))))))
+    (makeblock 0 mm/86)))
