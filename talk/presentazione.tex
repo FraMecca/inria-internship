@@ -3,13 +3,35 @@
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{mathpartir}
-\usepackage{listings}
 \usepackage{stmaryrd}
 \usetheme{Boadilla}
 \title{Translation validation of a pattern-matching compiler}
 \subtitle{}
 \author{Francesco Mecca (University of Turin), Gabriel Scherer (INRIA)}
 \date{\today}
+
+\usepackage{mybeamer}
+
+\usepackage{listings}
+\lstset{
+  mathescape=true,
+  language=[Objective]{Caml},
+  basicstyle=\ttfamily,
+  commentstyle=\ttfamily, % hack to avoid issues with "let (*match*/94" ...
+  extendedchars=true,
+  showstringspaces=false,
+  aboveskip=\smallskipamount,
+  % belowskip=\smallskipamount,
+  columns=fullflexible, % avoiding monospace spaces reduces code width
+  moredelim=**[is][\color{blue}]{/*}{*/},
+  moredelim=**[is][\color{green!60!black}]{/!}{!/},
+  moredelim=**[is][\color{orange}]{/(}{)/},
+  moredelim=[is][\color{red}]{/[}{]/},
+  xleftmargin=1em,
+}
+\lstset{aboveskip=0.4ex,belowskip=0.4ex}
+
+
 \begin{document}
 %% TODO: say that correctness statements are in abstract
 
@@ -62,48 +84,46 @@ OCaml compiler.
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Source program}
+  \frametitle{Example: source and target programs}
+The target program is exactly the \emph{-drawlambda} output of the compiler.
+
+\begin{small}
+\hspace{-1em}
+\begin{minipage}{0.36\linewidth}
   \begin{lstlisting}
-[@@@warning "-20"]
-external observe : 'a -> 'b = "observe"
-external guard : 'a -> 'b = "guard"
-
-type k1 = K1 of int
-
-type k2 = K2 of int * int
-
-let mm = function
-  | (K1 1, _) -> observe 1
-  | (K1 1, K2 (2, x)) when guard x -> observe 1 2
-  | _ -> observe 0
-
+type 'a option =
+  | None
+  | Some of 'a
+let mm test ret = function
+  | Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
+  | Some 42 -> $\bgalert<2>{\text{ret 42}}$
+  | _ -> $\bgalert<2>{\text{ret 0}}$
 \end{lstlisting}
-\end{frame}
-\begin{frame}[fragile]
-  \frametitle{Source program blackboxes}
-  TODO: Highlight when and guard blackboxes, maybe as image
-\end{frame}
-
-\begin{frame}[fragile]
-  \frametitle{Target program}
+\end{minipage}
+\hfill
+\begin{minipage}{0.64\linewidth}
 \begin{lstlisting}
-(setglobal Simple_k_guards
-  (let
-    (mm/86 =
-       (function param/88
-         (let (*match*/94 =a (field 0 param/88))
-           (catch
-             (let (*match*/95 =a (field 0 *match*/94))
-               (if (!= *match*/95 1) (exit 1)
-                 (let (*match*/96 =a (field 1 param/88)) (observe 1))))
-            with (1) (let (*match*/97 =a (field 1 param/88)) (observe 0))))))
-(makeblock 0 mm/86)))
+(mm/80 =
+   (function test/82 ret/83 param/85
+     (catch
+       (if param/85
+         (let (x/84 =a (field 0 param/85))
+           (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
+             $\bgalert<2>{\text{(apply ret/83 x/84)}}$
+             (if (!= x/84 42)
+               (exit 1)
+               $\bgalert<2>{\text{(apply ret/83 42))}}$))
+         (exit 1))
+      with (1)
+        $\bgalert<2>{\text{(apply ret/83 0)}}$)))
 \end{lstlisting}
+\end{minipage}
+\end{small}
+\pause
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Target program}
-  The target program is exactly the \emph{-drawlambda} output of the compiler.
 \end{frame}
 
 %%% table of contents

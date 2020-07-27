@@ -1,0 +1,37 @@
+\newcommand{\deemph}[1]{{\color{darkgray}#1}}
+\newcommand{\hl}[1]{\colorbox{yellow}{#1}}
+
+% from http://tex.stackexchange.com/questions/13793/beamer-alt-command-like-visible-instead-of-like-only
+\newcommand<>\Alt[2]{{%
+    \sbox1{{$\displaystyle #1$}}%
+    \sbox2{{$\displaystyle #2$}}%
+    \alt#3%
+        {\rlap{\usebox1}\vphantom{\usebox2}\hphantom{\ifnum\wd0>\wd1 \usebox1\else\usebox2\fi}}%
+        {\rlap{\usebox2}\vphantom{\usebox1}\hphantom{\ifnum\wd0>\wd1 \usebox1\else\usebox2\fi}}%
+}}
+
+% from http://tex.stackexchange.com/questions/33401/a-version-of-colorbox-that-works-inside-math-environments
+\newcommand{\highlight}[2][yellow]{%
+  \hspace{-\fboxsep}%
+  \mathchoice%
+  {\colorbox{#1}{$\displaystyle#2$}}%
+  {\colorbox{#1}{$\textstyle#2$}}%
+  {\colorbox{#1}{$\scriptstyle#2$}}%
+  {\colorbox{#1}{$\scriptscriptstyle#2$}}%
+  \hspace{-\fboxsep}}
+
+\newcommand<>{\bgalert}[1]{
+  \alt#2{
+    \highlight{#1}
+  }{
+    \highlight[white]{#1}
+  }
+}
+
+\newcommand<>{\bgalertcyan}[1]{
+  \alt#2{
+    \highlight[cyan]{#1}
+  }{
+    \highlight[white]{#1}
+  }
+}
