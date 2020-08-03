@@ -69,13 +69,13 @@
 \subsection{Our objective}
 \begin{frame}
   \frametitle{Our objective}
-We propose an algorithm for the translation validation of a pattern
-matching compiler for a small subset of the OCaml pattern
-matching features. \\
-We avoid the problem of undecidability by restricing the source
-language to a subset of the OCaml language.\\
-However we will see that work still supports the full output of the
-OCaml compiler.
+  We propose an algorithm for the translation validation of a pattern
+  matching compiler for a small subset of the OCaml pattern
+  matching features. \\
+  We avoid the problem of undecidability by restricing the source
+  language to a subset of the OCaml language.\\
+  However we will see that work still supports the full output of the
+  OCaml compiler.
 \end{frame}
 
 \begin{frame}
@@ -85,45 +85,320 @@ OCaml compiler.
 
 \begin{frame}[fragile]
   \frametitle{Example: source and target programs}
-The target program is exactly the \emph{-drawlambda} output of the compiler.
+  The target program is exactly the \emph{-drawlambda} output of the compiler.
 
-\begin{small}
-\hspace{-1em}
-\begin{minipage}{0.36\linewidth}
-  \begin{lstlisting}
-type 'a option =
-  | None
-  | Some of 'a
-let mm test ret = function
-  | Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
-  | Some 42 -> $\bgalert<2>{\text{ret 42}}$
-  | _ -> $\bgalert<2>{\text{ret 0}}$
-\end{lstlisting}
-\end{minipage}
-\hfill
-\begin{minipage}{0.64\linewidth}
-\begin{lstlisting}
-(mm/80 =
-   (function test/82 ret/83 param/85
-     (catch
-       (if param/85
-         (let (x/84 =a (field 0 param/85))
-           (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
-             $\bgalert<2>{\text{(apply ret/83 x/84)}}$
-             (if (!= x/84 42)
-               (exit 1)
-               $\bgalert<2>{\text{(apply ret/83 42))}}$))
-         (exit 1))
-      with (1)
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        type 'a option =
+        | None
+        | Some of 'a
+        let mm test ret = function
+        | Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
+        | Some 42 -> $\bgalert<2>{\text{ret 42}}$
+        | _ -> $\bgalert<2>{\text{ret 0}}$
+      \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.64\linewidth}
+      \begin{lstlisting}
+        (mm/80 =
+        (function test/82 ret/83 param/85
+        (catch
+        (if param/85
+        (let (x/84 =a (field 0 param/85))
+        (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
+        $\bgalert<2>{\text{(apply ret/83 x/84)}}$
+        (if (!= x/84 42)
+        (exit 1)
+        $\bgalert<2>{\text{(apply ret/83 42))}}$))
+        (exit 1))
+        with (1)
         $\bgalert<2>{\text{(apply ret/83 0)}}$)))
-\end{lstlisting}
-\end{minipage}
-\end{small}
-\pause
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+  \pause
+\end{frame}
+
+\begin{frame}
+  \frametitle{Equivalence checking: Blackboxes}
+  We assume that every pair (source blackbox, target blackbox) is are correctly emitted
+  by the compiler and are equivalent as such. \\
+  The compiler acts as an oracle. \\
+  The rest of the program is compiled into a simpler representation on which we do equivalence checking. 
+
 \end{frame}
 
 \begin{frame}[fragile]
-  \frametitle{Target program}
+  \frametitle{Source programs}
+  A source program is made by OCaml pattern matching statements of the following form:
+  \begin{lstlisting}
+    match value with
+    | pattern -> result
+    | pattern when guard -> result
+    ...
+  \end{lstlisting}
+  The prototype at the moment doesn't support strings, extensible variants and floats. 
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{Source programs: Examples}
+  \begin{small}
+    \hspace{-1em}
+    %% Here I don't explicitly state that we use the shortcut of observe and guard
+    %% external observe : 'a -> 'b = "observe"
+    %% external guard : 'a -> 'b = "guard"
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        let mm li = match li with
+        | [] -> (0, None)
+        | x::[] -> (1, Some x)
+        | x::y::_ when x = y -> (2, Some y)
+
+        type k1 = K1 of int
+        type k2 = K2 of int * int
+        let mm = function
+        | (K1 1, _) -> 1
+        | (K1 1, K2 (2, 2)) -> 1 2
+        | _ -> 0
+      \end{lstlisting}
+    \end{minipage}
+    \hfill
+  \end{small}
+  \pause
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Target programs}
+  The target programs include the following Lambda constructs:
+  \texttt{let, if, switch, Match\_failure, catch, exit, field} and
+  various comparison operations, guards. \\
+  The Lambda target language is discussed with more details in the \href{https://www.cl.cam.ac.uk/~sd601/papers/malfunction.pdf}{Malfunction paper}.
+\end{frame}
+\begin{frame}[fragile]
+  \frametitle{Target programs: example}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+(setglobal example1!
+  (let
+    (mm/82 =
+       (function li/83
+         (catch
+           (if li/83
+             (let (*match*/90 =a (field 1 li/83) x/84 =a (field 0 li/83))
+               (if *match*/90
+                 (let
+                   (x/85 =a x/84
+                    *match*/91 =a (field 1 *match*/90)
+                    y/86 =a (field 0 *match*/90))
+                   (if (apply (guard x/85) y/86)
+                     (makeblock 0 (int,*) 2 (makeblock 0 y/86))
+                     (exit 1)))
+                 (makeblock 0 (int,*) 1 (makeblock 0 x/84))))
+             ([0: 0 0a]))
+          with (1)
+           (raise
+             (makeblock 0 (global Match_failure/18!) [0: "example1.ml" 4 12])))))
+    (makeblock 0 mm/82)))
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Target programs: example} %% Simple_k.lambda
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+(setglobal example2!
+  (let
+    (mm/85 =
+       (function param/86
+         (let (*match*/91 =a (field 0 param/86))
+           (catch
+             (let (*match*/92 =a (field 0 *match*/91))
+               (if (!= *match*/92 1) (exit 1)
+                 (let (*match*/93 =a (field 1 param/86)) 1)))
+            with (1) (let (*match*/94 =a (field 1 param/86)) 0)))))
+    (makeblock 0 mm/85)))
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+%%% Time for decision trees
+\begin{frame}
+  \frametitle{Decision Trees}
+  Source and target programs are translated into a common representation: \emph{decision trees}.
+\end{frame}
+
+%%% Here we show line by line how the previous examples gets translated into a decision tree
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        let mm li = match li with
+        | [] -> (0, None)
+        | ...
+        | ...
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+        Switch on AcRoot: Nil
+             \
+           Leaf: Tuple[2](Int 0, Variant None)
+      \end{lstlisting}
+      %% We should highlight that we switch on the accessor
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        let mm li = match li with
+        | ...
+        | x::[] -> (1, Some x)
+        | ...
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+        Switch on AcRoot: Cons
+            \
+            Switch on AcRoot.1: Nil
+              \
+              Leaf: Tuple[2](Int 1, Variant (Some AcRoot.0))
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+ %% Now the guard
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        let mm li = match li with
+        | ...
+        | ...
+        | x::y::_ when x = y -> (2, Some y)
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+        Switch on AcRoot: Cons
+            \
+            Switch on AcRoot.1: Cons
+              \
+              Leaf: Tuple[2](Int 1, Variant (Some AcRoot.0))
+                \
+                Switch on AcRoot.1.1:
+                        |
+                Guard (AcRoot.0, AcRoot.1.0)
+                        |
+(guard is true) Leaf: Tuple[2] (Int 2, Variant (Some AcRoot.1.0))
+                        |
+(guard is false) Match Failure
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+(setglobal example1!
+  (let
+    (mm/82 =
+       (function li/83
+         (catch
+            (if li/83
+              ...
+             ([0: 0 0a]))
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+                     ...
+                       \
+        Switch ( var:AcRoot=li/83; domain={Int 0}) =
+           Leaf=Constructor:{tag=0; args=Constant:0, Constant:0}
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+     ...
+(if li/83
+  (let (*match*/90 =a (field 1 li/83) x/84 =a (field 0 li/83))
+    (if *match*/90
+     ...
+     (makeblock 0 (int,*) 1 (makeblock 0 x/84))))
+     ...
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+...
+  \
+  Switch on var:AcRoot=li/83, domain={Int [-\inf -1] [1; +\inf] \vee Tag _} =
+    \
+    Switch ({ var=AcField(1 AcRoot=li/83); dom=Int 0; }) =
+     \
+     Leaf:
+     VConstructor:{tag=0; args=VConstant:1,
+       VConstructor:{tag=0; args=VAccessor:AcField (0 AcRoot li/83}}
+
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Decision Trees}
+  \begin{small}
+    \hspace{-1em}
+    \begin{minipage}{0.36\linewidth}
+      \begin{lstlisting}
+        ...
+        (if (apply (guard x/85) y/86)
+          (makeblock 0 (int,*) 2 (makeblock 0 y/86))
+          (exit 1)))
+        ...
+        with (1)
+         (raise
+           (makeblock 0 (global Match_failure/18!) [0: "example1.ml" 4 12])))))
+      \end{lstlisting}
+      \hrulefill
+      \begin{lstlisting}
+...
+  \
+  Guard (VAccessor:AcRoot x/84,
+         VAccessor:AcField (0, AcField (1, AcRoot li/83))):
+          |
+     guard(true) = Leaf: ...
+          |
+     guard(false) = Match Failure
+      \end{lstlisting}
+    \end{minipage}
+  \end{small}
 \end{frame}
 
 %%% table of contents
