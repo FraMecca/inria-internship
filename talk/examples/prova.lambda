@@ -1,0 +1,21 @@
+(setglobal Prova!
+  (let
+    (mm/82 =
+       (function li/83
+         (catch
+           (if li/83
+             (let (*match*/90 =a (field 1 li/83) x/84 =a (field 0 li/83))
+               (if *match*/90
+                 (let
+                   (x/85 =a x/84
+                    *match*/91 =a (field 1 *match*/90)
+                    y/86 =a (field 0 *match*/90))
+                   (if (apply (guard x/85) y/86)
+                     (observe (makeblock 0 (int,*) 2 (makeblock 0 y/86)))
+                     (exit 1)))
+                 (observe (makeblock 0 (int,*) 1 (makeblock 0 x/84)))))
+             (observe [0: 0 0a]))
+          with (1)
+           (raise
+             (makeblock 0 (global Match_failure/18!) [0: "prova.ml" 4 12])))))
+    (makeblock 0 mm/82)))
