@@ -5,12 +5,19 @@
 \usepackage{mathpartir}
 \usepackage{stmaryrd}
 \usetheme{Boadilla}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\insertframenumber\hfill\vspace{3mm}}
+
 \title{Translation validation of a pattern-matching compiler}
 \subtitle{}
 \author{Francesco Mecca (University of Turin), Gabriel Scherer (INRIA)}
 \date{\today}
 
 \usepackage{mybeamer}
+
+\usepackage{tikz} % commutative diagrams
+\usetikzlibrary{cd}
+\usetikzlibrary{decorations.pathmorphing}
 
 \usepackage{listings}
 \lstset{
@@ -46,51 +53,44 @@
 \end{frame}
 
 \section{Motivation}
-\subsection{Translation Validation}
 
 \begin{frame}
-  \frametitle{What is Translation Validation}
-  Translation validation is a  weaker technique of formal correctness. \\
-  At every run of the compiler the input code (source) and the generated code (target) are fed to a
-  validator. \\
-  The validator is independent of the compiler and establish
-  \emph{a posteriori} if the two inputs are observationally
-  equivalent.
-  %% Is it really observational equivalence or is it stronger?
-\end{frame}
-\begin{frame}
-  \frametitle{Why Translation Validation}
-  The compiler is treated as a blackbox. \\
-  If the validator is formally proved, it gives the same level of
-  assurance as the full formal verification of the compiler. \\
-  %% Better way to say "full formal verification"
-  %% Maybe specify what "assurance" means or find another way to
-  %% express that
-  In case of failure, the validator points out the mismatches between
-  the two programs. \\
-  Less effort than full verification.
-\end{frame}
+  \frametitle{Compiling pattern-matching}
 
-\subsection{Our objective}
-\begin{frame}
-  \frametitle{Our objective}
-  We propose an algorithm for the translation validation of a pattern
-  matching compiler for a small subset of the OCaml pattern
-  matching features. \\
-  We avoid the problem of undecidability by restricing the source
-  language to a subset of the OCaml language.\\
-  However we will see that work still supports the full output of the
-  OCaml compiler.
-\end{frame}
+  From pattern-matching to simple control-flow.
 
-\begin{frame}
-  \frametitle{Related Work}
-  %% TODO
+  Not simple: tradeoffs in code size vs. code speed.
+
+  \vfill
+
+  Bugs in the compiler: wrong-code production (no compile-time issue).
+
+  Painful to detect and diagnose.
+
+  \vfill
+
+  In OCaml: % TODO: exceptions/extensible constructors, lazy+mutable
+
+  \vfill
+
+  We want to catch such bugs at compile-time.
+
+  Translation-validation: check each source-target pair at compile-time.
+
+  \vfill
+
+  Work In Progress: simple patterns + \texttt{when}-guards.
+
+  Cannot reproduce the bugs yet.
+
+  Extensible approach (symbolic execution).
 \end{frame}
 
 \begin{frame}[fragile]
   \frametitle{Example: source and target programs}
-  The target program is exactly the \texttt{-drawlambda} output of the compiler.
+  Target program: exactly the \texttt{-drawlambda} output of the OCaml compiler.
+
+\vfill
 
 \begin{small}
   \hspace{-1em}
@@ -100,32 +100,93 @@ type 'a option =
 | None
 | Some of 'a
 
-let mm test ret = function
-| Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
-| Some 42 -> $\bgalert<2>{\text{ret 42}}$
-| _ -> $\bgalert<2>{\text{ret 0}}$
+let mm test ret input =
+  match input with
+  | Some x when $\bgalertcyan<3->{\text{test x}}$ -> $\bgalert<3->{\text{ret x}}$
+  | Some 42 -> $\bgalert<3->{\text{ret 42}}$
+  | _ -> $\bgalert<3->{\text{ret 0}}$
 \end{lstlisting}
   \end{minipage}
-  \hfill
+  \hfill\pause
   \begin{minipage}{0.64\linewidth}
 \begin{lstlisting}
-(mm/80 =
-  (function test/82 ret/83 param/85
+(mm =
+  (function test ret input
     (catch
-      (if param/85
-        (let (x/84 =a (field 0 param/85))
-          (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
-            $\bgalert<2>{\text{(apply ret/83 x/84)}}$
-            (if (!= x/84 42)
+      (if input
+        (let (x =a (field 0 input))
+          (if $\bgalertcyan<3->{\text{(apply test x)}}$
+            $\bgalert<3->{\text{(apply ret x)}}$
+            (if (!= x 42)
               (exit 1)
-              $\bgalert<2>{\text{(apply ret/83 42))}}$))
+              $\bgalert<3->{\text{(apply ret 42))}}$))
         (exit 1))
     with (1)
-      $\bgalert<2>{\text{(apply ret/83 0)}}$)))
+      $\bgalert<3->{\text{(apply ret 0)}}$)))
 \end{lstlisting}
   \end{minipage}
 \end{small}
-  \pause
+
+\pause\vfill
+Arbitrary expressions (``blackboxes'') only in guards and leaves.
+
+\pause\vfill
+
+Use the compiler as an oracle on those;
+check equivalence on the rest.
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Approach}
+
+\vfill
+\begin{center}
+\begin{tikzcd}[sep=8em]
+  \text{source (patterns)}
+  \arrow[d, "\text{decomposition}"]
+&
+  \text{target (ifs)}
+  \arrow[d, "\text{symbolic execution}"]
+\\
+  \text{source decision tree}
+  \arrow[r, Leftrightarrow, "\text{tree equivalence}"]
+&
+  \text{target decision tree}
+\end{tikzcd}
+\end{center}
+\vfill
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Common representation: decision trees}
+\begin{lstlisting}
+match input with
+| Some x when test x -> ret x
+| Some 42 -> ret 42
+| _ -> ret 0
+\end{lstlisting}
+
+\vfill\pause
+
+\begin{lstlisting}[columns=fixed]
+    Switch(Root)
+    / None    \ Some
+   /           \
+  Leaf        Guard
+[](ret 0)     [x = Root.0](test x)
+              / true        \ false
+            Leaf           Switch(Root.0)
+      [x = Root.0](ret x)   / 42     \ _
+                          Leaf       Leaf
+                          [](ret 42) [](ret 0)
+\end{lstlisting}
+
+\vfill\pause
+
+Source decision trees test language-level values (\texttt{None}, \texttt{Some}).
+
+Target decision trees test low-level representations (\texttt{int 0}, \texttt{tag 0}).
 \end{frame}
 
 \begin{frame}
@@ -405,6 +466,11 @@ let mm test ret = function
       \end{lstlisting}
     \end{minipage}
   \end{small}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Related Work}
+  %% TODO
 \end{frame}
 
 %%% table of contents
