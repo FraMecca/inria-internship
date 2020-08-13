@@ -35,9 +35,14 @@
 \begin{document}
 %% TODO: say that correctness statements are in abstract
 
-%%% First page
+\newcommand{\showface}[1]{\includegraphics[height=2.3cm]{#1}}
 \begin{frame}
   \titlepage
+
+\begin{center}
+  \showface{pictures/Francesco_Mecca.jpg}
+  \showface{pictures/Gabriel_Scherer.jpg}
+\end{center}
 \end{frame}
 
 \section{Motivation}
@@ -85,40 +90,41 @@
 
 \begin{frame}[fragile]
   \frametitle{Example: source and target programs}
-  The target program is exactly the \emph{-drawlambda} output of the compiler.
+  The target program is exactly the \texttt{-drawlambda} output of the compiler.
 
-  \begin{small}
-    \hspace{-1em}
-    \begin{minipage}{0.36\linewidth}
-      \begin{lstlisting}
-        type 'a option =
-        | None
-        | Some of 'a
-        let mm test ret = function
-        | Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
-        | Some 42 -> $\bgalert<2>{\text{ret 42}}$
-        | _ -> $\bgalert<2>{\text{ret 0}}$
-      \end{lstlisting}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{0.64\linewidth}
-      \begin{lstlisting}
-        (mm/80 =
-        (function test/82 ret/83 param/85
-        (catch
-        (if param/85
+\begin{small}
+  \hspace{-1em}
+  \begin{minipage}{0.36\linewidth}
+\begin{lstlisting}
+type 'a option =
+| None
+| Some of 'a
+
+let mm test ret = function
+| Some x when $\bgalertcyan<2>{\text{test x}}$ -> $\bgalert<2>{\text{ret x}}$
+| Some 42 -> $\bgalert<2>{\text{ret 42}}$
+| _ -> $\bgalert<2>{\text{ret 0}}$
+\end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.64\linewidth}
+\begin{lstlisting}
+(mm/80 =
+  (function test/82 ret/83 param/85
+    (catch
+      (if param/85
         (let (x/84 =a (field 0 param/85))
-        (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
-        $\bgalert<2>{\text{(apply ret/83 x/84)}}$
-        (if (!= x/84 42)
-        (exit 1)
-        $\bgalert<2>{\text{(apply ret/83 42))}}$))
+          (if $\bgalertcyan<2>{\text{(apply test/82 x/84)}}$
+            $\bgalert<2>{\text{(apply ret/83 x/84)}}$
+            (if (!= x/84 42)
+              (exit 1)
+              $\bgalert<2>{\text{(apply ret/83 42))}}$))
         (exit 1))
-        with (1)
-        $\bgalert<2>{\text{(apply ret/83 0)}}$)))
-      \end{lstlisting}
-    \end{minipage}
-  \end{small}
+    with (1)
+      $\bgalert<2>{\text{(apply ret/83 0)}}$)))
+\end{lstlisting}
+  \end{minipage}
+\end{small}
   \pause
 \end{frame}
 
