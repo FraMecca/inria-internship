@@ -67,7 +67,7 @@
 
   From pattern-matching to simple control-flow.
 
-  Not simple: tradeoffs in code size vs. code speed.
+  Not simple: tradeoffs in code speed vs. code size.
 
   \vfill
 
@@ -87,11 +87,11 @@
 
   \vfill
 
-  Work In Progress: simple patterns + \texttt{when}-guards.
+  \alert{Work In Progress}: simple patterns + \texttt{when}-guards.
 
   Cannot reproduce the bugs yet.
 
-  Extensible approach (symbolic execution).
+  Extensible approach: symbolic execution.
 \end{frame}
 
 \begin{frame}
@@ -139,9 +139,9 @@ type 'a option =
 
 let mm test ret input =
   match input with
-  | Some x when $\bgalertcyan<3->{\text{test x}}$ -> $\bgalert<3->{\text{ret x}}$
-  | Some 42 -> $\bgalert<3->{\text{ret 42}}$
-  | _ -> $\bgalert<3->{\text{ret 0}}$
+  | Some x when $\bgalertcyan<4->{\text{test x}}$ -> $\bgalert<4->{\text{ret x}}$
+  | Some 42 -> $\bgalert<4->{\text{ret 42}}$
+  | _ -> $\bgalert<4->{\text{ret 0}}$
 \end{lstlisting}
   \end{minipage}
   \hfill\pause
@@ -152,20 +152,20 @@ let mm test ret input =
     (catch
       (if input
         (let (x =a (field 0 input))
-          (if $\bgalertcyan<3->{\text{(apply test x)}}$
-            $\bgalert<3->{\text{(apply ret x)}}$
+          (if $\bgalertcyan<4->{\text{(apply test x)}}$
+            $\bgalert<4->{\text{(apply ret x)}}$
             (if (!= x 42)
               (exit 1)
-              $\bgalert<3->{\text{(apply ret 42))}}$))
+              $\bgalert<4->{\text{(apply ret 42))}}$))
         (exit 1))
     with (1)
-      $\bgalert<3->{\text{(apply ret 0)}}$)))
+      $\bgalert<4->{\text{(apply ret 0)}}$)))
 \end{lstlisting}
   \end{minipage}
 \end{small}
 
 \pause\vfill
-Arbitrary expressions (``blackboxes'') only in guards and leaves.
+Pattern-matching. Arbitrary expressions : \pause only in guards and leaves.
 
 \pause\vfill
 
@@ -213,16 +213,18 @@ match input with
 [](ret 0)     [x = Root.0](test x)
               / true        \ false
             Leaf           Switch(Root.0)
-      [x = Root.0](ret x)   / 42     \ _
+      [x = Root.0](ret x)   / 42     \ $\neg$42
                           Leaf       Leaf
                           [](ret 42) [](ret 0)
 \end{lstlisting}
+\hfill\textcolor{gray}{+ Failure}
 
 \vfill\pause
 
 Source decision trees test language-level values (\texttt{None}, \texttt{Some}).
 
 Target decision trees test low-level representations (\texttt{int 0}, \texttt{tag 0}).
+
 \end{frame}
 
 \begin{frame}
@@ -231,6 +233,7 @@ Target decision trees test low-level representations (\texttt{int 0}, \texttt{ta
   Heterogeneous equivalence of decision trees:
 
   $\quad$related source/target values give related results.
+  \hfill\textcolor{gray}{($\bot \mid (\sigma, e)$)}
 
   \vfill
 
@@ -244,13 +247,15 @@ Target decision trees test low-level representations (\texttt{int 0}, \texttt{ta
 \end{frame}
 
 \begin{frame}
-  \frametitle{Equivalence: the naive idea}
+  \frametitle{Equivalence: naive}
 
   Pairs of leaves with compatible path conditions
 
   must return the same result.
 
-Temporary rules:
+\vfill
+
+Naive rules:
 \begin{mathpar}\mprset{sep=1em,andskip=2em}
 \begin{array}{l@{~}r@{~}l}
   & & \text{\emph{input space}} \\
@@ -282,18 +287,16 @@ Temporary rules:
 {S \neq \emptyset}
 {\Equivrel S \Failure \Failure {}}
 \end{mathpar}
-
-\hfill(quadratic in number of leaves)
 \end{frame}
 
 \begin{frame}{Equivalence: trimming}
   For each source switch condition, \\ we can \emph{trim} the tree right away.
 
-  Shares work.
+  Shares work. \hfill\textcolor{gray}{($hb^h$ rather than $b^{2h}$)}
 
 \vfill
 
-Before:
+Naive rules:
 \begin{mathpar}
 \infer
 {\forall i,\;
@@ -312,7 +315,7 @@ Before:
 
 \vfill
 
-After:
+Our rules:
 \begin{mathpar}
 \infer
 {\forall i,\;
@@ -335,7 +338,7 @@ After:
 \begin{frame}
 \frametitle{Equivalence: guards}
 
-Keep a queue of guards encountered on one side \\ but not on the other yet.
+Keep a queue of guards encountered in the source \\ but not in the target yet.
 
 \vfill
 
