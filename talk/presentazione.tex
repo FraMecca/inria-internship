@@ -49,7 +49,7 @@
 \begin{document}
 %% TODO: say that correctness statements are in abstract
 
-\newcommand{\showface}[1]{\includegraphics[height=2.3cm]{#1}}
+\newcommand{\showface}[1]{\includegraphics[height=3.5cm]{#1}}
 \begin{frame}
   \titlepage
 
@@ -63,7 +63,7 @@
 \section{Motivation}
 
 \begin{frame}
-  \frametitle{Compiling pattern-matching}
+  \frametitle{Checking a pattern-matching compiler}
 
   From pattern-matching to simple control-flow.
 
@@ -97,7 +97,7 @@
 \begin{frame}
   \frametitle{Automated solvers?}
 
-  Encode simple patterns (\lstinline{Foo 42 :: rest})
+  Encode patterns (\lstinline{Foo 42 :: rest})
 
   as formulas over access paths,
 
@@ -351,7 +351,9 @@ Keep a queue of guards encountered in the source \\ but not in the target yet.
   {\Guard {e_S} {D_0} {D_1}} {D_T} G}
 
 \infer
-{\erel {e_S} {e_T}
+{S \neq \emptyset
+ \\
+ \erel {e_S} {e_T}
  \\
  \Equivrel S {D_S} {D_b} G}
 {\Equivrel S
@@ -385,9 +387,9 @@ non-empty leaf rules require an empty queue.
 
 \vfill
 
-Future work:
+Work in progress. Future work:
 \begin{itemize}
-\item Exceptions / extensible constructors:\\symbolic values with (in)equality assumptions.
+\item Exceptions / extensible constructors:\\symbolic names with (in)equality assumptions.
 
 \item Mutable fields:\\forget path conditions on potential mutation.
 
