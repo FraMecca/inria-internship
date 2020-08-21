@@ -147,8 +147,8 @@ let mm test ret input =
   \hfill\pause
   \begin{minipage}{0.64\linewidth}
     \begin{lstlisting}
-(mm =
-  (function test ret input
+(mm = (function
+  test ret input
     (catch
       (if input
         (let (x =a (field 0 input))
@@ -183,7 +183,7 @@ check equivalence on the rest.
   \arrow[d, "\text{decomposition}"]
 &
   \text{target (ifs)}
-  \arrow[d, "\text{symbolic execution}"]
+  \arrow[d, "\text{symbolic execution}" left]
 \\
   \text{source decision tree}
   \arrow[r, Leftrightarrow, "\text{decision tree equivalence}"]
@@ -292,7 +292,7 @@ Naive rules:
 \begin{frame}{Equivalence: trimming}
   For each source switch condition, \\ we can \emph{trim} the tree right away.
 
-  Shares work. \hfill\textcolor{gray}{($hb^h$ rather than $b^{2h}$)}
+  Shares work. \textcolor{gray}{($hb^h$ rather than $b^{2h}$)}
 
 \vfill
 
@@ -370,20 +370,18 @@ non-empty leaf rules require an empty queue.
 \begin{frame}[fragile]
 \frametitle{Conclusion}
 
-\begin{center}
-\begin{tikzcd}[sep=8em]
+\begin{tikzcd}[sep=5em]
   \text{source (patterns)}
   \arrow[d, "\text{decomposition}"]
 &
   \text{target (ifs)}
-  \arrow[d, "\text{symbolic execution}"]
+  \arrow[d, "\text{symbolic execution}" left]
 \\
   \text{source decision tree}
   \arrow[r, Leftrightarrow, "\text{decision tree equivalence}"]
 &
   \text{target decision tree}
 \end{tikzcd}
-\end{center}
 
 \vfill
 
