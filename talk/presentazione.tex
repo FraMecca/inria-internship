@@ -1,9 +1,16 @@
-\documentclass[dvipsnames]{beamer}
+\documentclass[dvipsnames,aspectratio=169]{beamer}
 \usepackage[utf8]{inputenc}
+
 \usepackage{amsfonts}
 \usepackage{amsmath}
 \usepackage{mathpartir}
 \usepackage{stmaryrd}
+\newenvironment{mathline}
+   {\abovedisplayskip 0.1em
+    \belowdisplayskip 0.1em
+    \begin{mathpar}}
+   {\end{mathpar}}
+
 \usetheme{Boadilla}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{footline}{\hfill\insertframenumber\hfill\vspace{3mm}}
@@ -77,7 +84,9 @@
 
   \vfill
 
-  In OCaml: % TODO: exceptions/extensible constructors, lazy+mutable
+  In OCaml, three bugs in the last few years.
+
+  Afraid to change the compiler.
 
   \vfill
 
@@ -98,10 +107,9 @@
   \frametitle{Automated solvers?}
 
   Encode patterns (\lstinline{Foo 42 :: rest})
-
   as formulas over access paths,
 
-  delegate equivalence checking to a solver.
+  Delegate equivalence checking to a solver.
 
   \vfill
 
@@ -113,6 +121,7 @@
   \begin{itemize}
   \item hard to guess the robustness of solvers on those problems
   \item hard to scale when pattern-matching is interleaved with arbitrary evaluation:
+
     \texttt{when} guards, pattern guards (Haskell, Successor ML), etc.
   \end{itemize}
 
@@ -123,7 +132,7 @@
 
 \begin{frame}[fragile]
   \frametitle{Example: source and target programs}
-  Target program: exactly the \texttt{-drawlambda} output \\ of the OCaml compiler.
+  Target program: exactly the OCaml \texttt{-drawlambda} output.
 
 % TODO: animate going through the target program to explain what it does
 
@@ -147,8 +156,7 @@ let mm test ret input =
   \hfill\pause
   \begin{minipage}{0.64\linewidth}
     \begin{lstlisting}
-(mm = (function
-  test ret input
+(mm = (function test ret input
     (catch
       (if input
         (let (x =a (field 0 input))
@@ -183,7 +191,7 @@ check equivalence on the rest.
   \arrow[d, "\text{decomposition}"]
 &
   \text{target (ifs)}
-  \arrow[d, "\text{symbolic execution}" left]
+  \arrow[d, "\begin{array}{c}\text{symbolic} \\ \text{execution} \end{array}" left]
 \\
   \text{source decision tree}
   \arrow[r, Leftrightarrow, "\text{decision tree equivalence}"]
@@ -207,15 +215,15 @@ match input with
 \vfill\pause
 
 \begin{lstlisting}[columns=fixed]
-    Switch(Root)
-    / None    \ Some
-  Leaf        Guard
-[](ret 0)     [x = Root.0](test x)
-              / true        \ false
-            Leaf           Switch(Root.0)
-      [x = Root.0](ret x)   / 42     \ $\neg$42
-                          Leaf       Leaf
-                          [](ret 42) [](ret 0)
+            Switch(Root)
+            / None    \ Some
+          Leaf        Guard
+        [](ret 0)     [x = Root.0](test x)
+                      / true        \ false
+                    Leaf           Switch(Root.0)
+              [x = Root.0](ret x)   / 42     \ $\neg$42
+                                  Leaf       Leaf
+                                  [](ret 42) [](ret 0)
 \end{lstlisting}
 \hfill\textcolor{gray}{+ Failure}
 
@@ -228,20 +236,20 @@ Target decision trees test low-level representations (\texttt{int 0}, \texttt{ta
 \end{frame}
 
 \begin{frame}
-  \frametitle{Equivalence: big picture}
+  \frametitle{Equivalence: specification}
 
   Heterogeneous equivalence of decision trees:
 
   $\quad$related source/target values give related results.
-  \hfill\textcolor{gray}{($\bot \mid (\sigma, e)$)}
+  \textcolor{gray}{($\bot \mid (\sigma, e)$)}
 
   \vfill
 
-  Tests on accessors may be split and reordered.
+  In particular: tests on accessors may be split and reordered.
 
   \vfill
 
-  Guards must be checked in the exact same order.
+  But: guards must be checked in the exact same order.
 
   (side-effects: observable evaluation order)
 \end{frame}
@@ -249,19 +257,21 @@ Target decision trees test low-level representations (\texttt{int 0}, \texttt{ta
 \begin{frame}
   \frametitle{Equivalence: naive}
 
-  Pairs of leaves with compatible path conditions
+  Source/target leaves with compatible path conditions \\ must return the same result.
 
-  must return the same result.
+\begin{mathline}
+\begin{array}{c} \\ \Equivrel S {D_S} {D_T} {} \end{array}
+
+\begin{array}{l@{~}r@{~}l}
+  & & \text{\emph{input space}} \\
+  S & \subseteq & \{ (v_S, v_T) \mid \vrel {v_S} {v_T} \} \\
+\end{array}
+\end{mathline}
 
 \vfill
 
 Naive rules:
 \begin{mathpar}\mprset{sep=1em,andskip=2em}
-\begin{array}{l@{~}r@{~}l}
-  & & \text{\emph{input space}} \\
-  S & \subseteq & \{ (v_S, v_T) \mid \vrel {v_S} {v_T} \} \\
-\end{array}
-\\
 \infer
 {\forall i,\;
   \Equivrel
@@ -274,7 +284,7 @@ Naive rules:
 \infer
 {\forall i,\; \Equivrel {(S \cap a \in \pi_i)} {D_S} {D_i} {}}
 {\Equivrel S
-  {D_S} {\SimpleSwitch a {\Fam i {\pi_i} {D_i}}} {}}
+  {D_S} {\SimpleSwitch a {\Fam i {\pi_i, D_i}}} {}}
 \\
 \infer{ }
 {\Equivrel \emptyset {D_S} {D_T} {}}
@@ -290,7 +300,7 @@ Naive rules:
 \end{frame}
 
 \begin{frame}{Equivalence: trimming}
-  For each source switch condition, \\ we can \emph{trim} the tree right away.
+  For each source switch condition, we can \emph{trim} the tree right away.
 
   Shares work. \textcolor{gray}{($hb^h$ rather than $b^{2h}$)}
 
@@ -342,6 +352,10 @@ Keep a queue of guards encountered in the source \\ but not in the target yet.
 
 \vfill
 
+Full judgment: $\Equivrel S {D_S} {D_T} G$
+
+\vfill
+
 \begin{mathpar}
 \infer
 {\Equivrel S {D_0} {D_T} {G, (e_S = 0)}
@@ -349,7 +363,7 @@ Keep a queue of guards encountered in the source \\ but not in the target yet.
  \Equivrel S {D_1} {D_T} {G, (e_S = 1)}}
 {\Equivrel S
   {\Guard {e_S} {D_0} {D_1}} {D_T} G}
-
+\\
 \infer
 {S \neq \emptyset
  \\
@@ -362,20 +376,19 @@ Keep a queue of guards encountered in the source \\ but not in the target yet.
 
 \vfill
 
-Switch rules preserve the guard queue,
-
+Switch rules preserve the guard queue,\\
 non-empty leaf rules require an empty queue.
 \end{frame}
 
 \begin{frame}[fragile]
 \frametitle{Conclusion}
 
-\begin{tikzcd}[sep=5em]
+\begin{tikzcd}[sep=6em]
   \text{source (patterns)}
   \arrow[d, "\text{decomposition}"]
 &
   \text{target (ifs)}
-  \arrow[d, "\text{symbolic execution}" left]
+  \arrow[d, "\begin{array}{c}\text{symbolic} \\ \text{execution} \end{array}" left]
 \\
   \text{source decision tree}
   \arrow[r, Leftrightarrow, "\text{decision tree equivalence}"]
